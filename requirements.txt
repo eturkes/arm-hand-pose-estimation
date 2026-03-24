@@ -1,6 +1,6 @@
 openvino>=2023.1.0
 opencv-python-headless
 numpy
-pygame
+pygame-ce
 tqdm
 requests
