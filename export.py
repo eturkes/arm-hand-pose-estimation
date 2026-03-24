@@ -32,53 +32,91 @@ def make_csv_header():
     return cols
 
 
+def _blank_hand_side(row, side):
+    """Fill one hand side with empty strings."""
+    for i in range(HAND_KEYPOINT_COUNT):
+        row[f"{side}_hand_{i}_x"] = ""
+        row[f"{side}_hand_{i}_y"] = ""
+        row[f"{side}_hand_{i}_z"] = ""
+
+
+def _fill_hand_side(row, side, hlm, frame_h, frame_w):
+    """Fill one hand side with normalised landmark values."""
+    for i in range(HAND_KEYPOINT_COUNT):
+        row[f"{side}_hand_{i}_x"] = round(hlm[i, 0] / frame_w, 6)
+        row[f"{side}_hand_{i}_y"] = round(hlm[i, 1] / frame_h, 6)
+        row[f"{side}_hand_{i}_z"] = round(hlm[i, 2] / frame_w, 6)
+
+
 def frame_to_rows(video_name, frame_idx, timestamp_sec, frame_h, frame_w,
-                  body_landmarks, body_visibilities, hand_landmarks, matches):
+                  body_landmarks, body_visibilities, hand_landmarks, matches,
+                  hand_only=False):
     """Convert one frame's landmark data into CSV rows (one per person).
 
     Coordinates are normalised to [0, 1] by dividing by frame dimensions.
     Missing hand data is filled with empty strings (written as blank in CSV).
+
+    When *hand_only* is True and no body was detected, a single row is
+    emitted with blank arm columns and hand landmarks assigned left/right
+    by wrist x-coordinate.
     """
     rows = []
-    if len(body_landmarks) == 0:
-        return rows
 
-    # Build a lookup: arm_idx → {4: hand_idx, 5: hand_idx}
-    hand_map = {}
-    for arm_idx, wrist_kp, hand_idx in matches:
-        hand_map.setdefault(arm_idx, {})[wrist_kp] = hand_idx
+    if body_landmarks:
+        # Build a lookup: arm_idx → {4: hand_idx, 5: hand_idx}
+        hand_map = {}
+        for arm_idx, wrist_kp, hand_idx in matches:
+            hand_map.setdefault(arm_idx, {})[wrist_kp] = hand_idx
 
-    for person_idx, (lm, vis) in enumerate(
-            zip(body_landmarks, body_visibilities)):
+        for person_idx, (lm, vis) in enumerate(
+                zip(body_landmarks, body_visibilities)):
+            row = {
+                "video": video_name,
+                "frame_idx": frame_idx,
+                "timestamp_sec": round(timestamp_sec, 4),
+                "person_idx": person_idx,
+            }
+
+            for kp_idx, name in enumerate(ARM_KEYPOINT_NAMES):
+                row[f"arm_{name}_x"] = round(lm[kp_idx, 0] / frame_w, 6)
+                row[f"arm_{name}_y"] = round(lm[kp_idx, 1] / frame_h, 6)
+                row[f"arm_{name}_z"] = round(lm[kp_idx, 2] / frame_w, 6)
+                row[f"arm_{name}_vis"] = round(vis[kp_idx], 4)
+
+            matched_hands = hand_map.get(person_idx, {})
+            for wrist_kp, side in [(4, "left"), (5, "right")]:
+                hand_idx = matched_hands.get(wrist_kp)
+                if hand_idx is not None:
+                    _fill_hand_side(row, side, hand_landmarks[hand_idx],
+                                    frame_h, frame_w)
+                else:
+                    _blank_hand_side(row, side)
+
+            rows.append(row)
+
+    elif hand_only and hand_landmarks:
+        # No body detected — emit hand-only row with blank arm data.
         row = {
             "video": video_name,
             "frame_idx": frame_idx,
             "timestamp_sec": round(timestamp_sec, 4),
-            "person_idx": person_idx,
+            "person_idx": 0,
         }
 
-        # Arm landmarks (12 keypoints, each [x, y, z])
-        for kp_idx, name in enumerate(ARM_KEYPOINT_NAMES):
-            row[f"arm_{name}_x"] = round(lm[kp_idx, 0] / frame_w, 6)
-            row[f"arm_{name}_y"] = round(lm[kp_idx, 1] / frame_h, 6)
-            row[f"arm_{name}_z"] = round(lm[kp_idx, 2] / frame_w, 6)
-            row[f"arm_{name}_vis"] = round(vis[kp_idx], 4)
+        for name in ARM_KEYPOINT_NAMES:
+            row[f"arm_{name}_x"] = ""
+            row[f"arm_{name}_y"] = ""
+            row[f"arm_{name}_z"] = ""
+            row[f"arm_{name}_vis"] = ""
 
-        # Hand landmarks — assign via match map
-        matched_hands = hand_map.get(person_idx, {})
-
-        for wrist_kp, side in [(4, "left"), (5, "right")]:
-            hand_idx = matched_hands.get(wrist_kp)
-            for i in range(HAND_KEYPOINT_COUNT):
-                if hand_idx is not None:
-                    hlm = hand_landmarks[hand_idx]
-                    row[f"{side}_hand_{i}_x"] = round(hlm[i, 0] / frame_w, 6)
-                    row[f"{side}_hand_{i}_y"] = round(hlm[i, 1] / frame_h, 6)
-                    row[f"{side}_hand_{i}_z"] = round(hlm[i, 2] / frame_w, 6)
-                else:
-                    row[f"{side}_hand_{i}_x"] = ""
-                    row[f"{side}_hand_{i}_y"] = ""
-                    row[f"{side}_hand_{i}_z"] = ""
+        # Assign hands left/right by wrist x-coordinate (max 2).
+        sorted_hands = sorted(hand_landmarks[:2],
+                              key=lambda lm: lm[0, 0])
+        sides = ["left", "right"]
+        for i, hlm in enumerate(sorted_hands):
+            _fill_hand_side(row, sides[i], hlm, frame_h, frame_w)
+        for side in sides[len(sorted_hands):]:
+            _blank_hand_side(row, side)
 
         rows.append(row)
 

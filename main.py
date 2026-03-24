@@ -21,7 +21,7 @@ import pygame
 
 from models import download_and_compile_models
 from detection import generate_anchors, PALM_INPUT_SIZE, POSE_INPUT_SIZE
-from processing import process_frame, match_hands_to_arms
+from processing import process_frame, match_hands_to_arms, select_primary_body
 from smoothing import PoseSmoother
 from drawing import draw_body_landmarks, draw_hand_landmarks, draw_arm_hand_bridges
 from export import open_csv_writer, frame_to_rows
@@ -37,7 +37,8 @@ def frame_to_surface(frame):
 
 
 def process_video(source, flip, models, palm_anchors, pose_anchors,
-                  screen, csv_writer=None, video_name=None):
+                  screen, csv_writer=None, video_name=None,
+                  single_subject=False):
     """Run pose estimation on a single video source with real-time display.
 
     Returns True if the user requested quit (ESC / window close),
@@ -59,6 +60,13 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
     smoother = PoseSmoother()
     processing_times = collections.deque(maxlen=200)
     frame_idx = 0
+
+    # Single-subject state
+    last_body_lm = None
+    last_body_vis = None
+    frames_since_body = 0
+    carry_limit = int(fps_source * 0.5)
+    min_hand_age = max(1, int(fps_source * 0.5))
 
     try:
         while True:
@@ -102,7 +110,35 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
             t = time.time()
             body_lm, body_vis = smoother.smooth_bodies(body_lm, body_vis, t)
             hand_lm = smoother.smooth_hands(hand_lm, t)
+
+            # Filter out transient hand tracks (e.g. assistant's hand)
+            # and cap at 2 hands (one subject can have at most two).
+            if single_subject:
+                hand_ages = smoother.hand_track_ages()
+                aged = sorted(
+                    ((lm, age) for lm, age in zip(hand_lm, hand_ages)
+                     if age >= min_hand_age),
+                    key=lambda x: x[1], reverse=True,
+                )
+                hand_lm = [lm for lm, _ in aged[:2]]
+
             matches = match_hands_to_arms(body_lm, hand_lm)
+
+            if single_subject:
+                if body_lm:
+                    body_lm, body_vis, hand_lm, matches = select_primary_body(
+                        body_lm, body_vis, hand_lm, matches)
+                    last_body_lm = body_lm[0].copy()
+                    last_body_vis = body_vis[0].copy()
+                    frames_since_body = 0
+                elif last_body_lm is not None and frames_since_body < carry_limit:
+                    # Reuse stale body, re-match current hands
+                    body_lm = [last_body_lm]
+                    body_vis = [last_body_vis]
+                    matches = match_hands_to_arms(body_lm, hand_lm)
+                    frames_since_body += 1
+                else:
+                    frames_since_body += 1
 
             # Export landmarks
             if csv_writer is not None:
@@ -110,6 +146,7 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
                 rows = frame_to_rows(
                     video_name or str(source), frame_idx, timestamp_sec,
                     frame_h, frame_w, body_lm, body_vis, hand_lm, matches,
+                    hand_only=single_subject,
                 )
                 for row in rows:
                     csv_writer.writerow(row)
@@ -173,6 +210,8 @@ def main():
                         help="Disable horizontal flip (useful for rear cameras)")
     parser.add_argument("--model-dir", default="model",
                         help="Directory for downloaded/converted models")
+    parser.add_argument("--single-subject", action="store_true",
+                        help="Keep only the most prominent body per frame")
     args = parser.parse_args()
 
     # Download, convert, and compile models
@@ -200,6 +239,7 @@ def main():
                     user_quit = process_video(
                         str(vpath), False, models, palm_anchors, pose_anchors,
                         screen, csv_writer=writer, video_name=vpath.name,
+                        single_subject=args.single_subject,
                     )
                 finally:
                     fh.close()
@@ -235,7 +275,8 @@ def main():
             try:
                 process_video(source, flip, models, palm_anchors, pose_anchors,
                               screen, csv_writer=csv_writer,
-                              video_name=video_name)
+                              video_name=video_name,
+                              single_subject=args.single_subject)
             finally:
                 if fh is not None:
                     fh.close()

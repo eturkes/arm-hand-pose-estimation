@@ -191,6 +191,41 @@ def match_hands_to_arms(body_landmarks, hand_landmarks, threshold=100):
     return matches
 
 
+def select_primary_body(body_landmarks, body_visibilities, hand_landmarks, matches):
+    """Keep only the body with the largest landmark bounding box and its matched hands.
+
+    Returns (body_landmarks, body_visibilities, hand_landmarks, matches)
+    with at most one body and only its matched hands, re-indexed to position 0.
+    """
+    if not body_landmarks:
+        return [], [], [], []
+
+    best_idx = 0
+    best_area = 0.0
+    for i, lm in enumerate(body_landmarks):
+        xs, ys = lm[:, 0], lm[:, 1]
+        area = (xs.max() - xs.min()) * (ys.max() - ys.min())
+        if area > best_area:
+            best_area = area
+            best_idx = i
+
+    primary_body = [body_landmarks[best_idx]]
+    primary_vis = [body_visibilities[best_idx]]
+
+    # Collect hands matched to the primary body, re-indexing into a new list
+    hand_index_map = {}
+    primary_hands = []
+    primary_matches = []
+    for arm_idx, wrist_kp, hand_idx in matches:
+        if arm_idx == best_idx:
+            if hand_idx not in hand_index_map:
+                hand_index_map[hand_idx] = len(primary_hands)
+                primary_hands.append(hand_landmarks[hand_idx])
+            primary_matches.append((0, wrist_kp, hand_index_map[hand_idx]))
+
+    return primary_body, primary_vis, primary_hands, primary_matches
+
+
 def process_frame(frame, models, palm_anchors, pose_anchors,
                   det_score_threshold=0.5, lm_score_threshold=0.5):
     """Full pipeline: detect arm poses and hand landmarks.

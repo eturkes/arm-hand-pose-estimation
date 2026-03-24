@@ -27,11 +27,32 @@ Place videos in `videos/` and run:
 python main.py --batch-dir videos/
 ```
 
+To track only the most prominent person (e.g. the patient), add
+`--single-subject`. This selects the body with the largest landmark
+bounding box each frame and discards other detections:
+
+```
+python main.py --batch-dir videos/ --single-subject
+```
+
+Single-subject mode has three resilience layers for unreliable body
+detection (e.g. top-down views with partial body visibility):
+
+1. **Primary body selection** — when bodies are detected, keep the
+   largest and its matched hands.
+2. **Body carry-forward** — when body detection drops out, reuse the
+   last known body for up to 0.5 s so hand-arm matching can continue.
+3. **Hand-only fallback** — when carry-forward expires (or no body was
+   ever seen), export a row with blank arm columns and hand data
+   assigned left/right by x-coordinate.
+
 Each video is displayed in real-time during processing. One CSV per video
 is written to `output/` (configurable with `--output-dir`). CSVs contain
 one row per person per frame with normalised (0–1) landmark coordinates
 (178 columns total: 12 arm keypoints × 4 values + 2 × 21 hand keypoints
 × 3 values + 4 metadata columns). Missing hand data is left blank.
+With `--single-subject`, arm columns may also be blank in hand-only
+fallback frames.
 
 Both `videos/` and `output/` are git-ignored to prevent patient data from
 being committed.
@@ -45,7 +66,8 @@ being committed.
   Converted from TFLite → OpenVINO IR (XML/BIN).
 - **Inference devices**: NPU (default), CPU, GPU via OpenVINO.
 - **Frame pipeline**: BGR capture → flip → resize → detect → landmark →
-  smooth → draw overlays → convert to RGB → pygame surface.
+  smooth → match → (optional single-subject filter) → draw overlays →
+  convert to RGB → pygame surface.
 
 ## Dependencies
 
