@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Arm & hand pose estimation using OpenVINO and MediaPipe models.
+"""Pose estimation using OpenVINO and MediaPipe models.
 
 Usage:
     python main.py                          # webcam 0, NPU device
@@ -29,7 +29,7 @@ from constraints import BoneLengthSmoother, clamp_joint_angles
 from drawing import draw_body_landmarks, draw_hand_landmarks, draw_arm_hand_bridges
 from export import open_csv_writer, frame_to_rows
 
-WINDOW_TITLE = "Arm & Hand Pose Estimation"
+WINDOW_TITLE = "Pose Estimation"
 VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
 
 
@@ -236,7 +236,7 @@ def collect_video_files(directory):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Arm & hand pose estimation")
+    parser = argparse.ArgumentParser(description="Pose estimation")
     source_group = parser.add_mutually_exclusive_group()
     source_group.add_argument(
         "--source", default=None,

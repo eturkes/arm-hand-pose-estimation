@@ -1,4 +1,4 @@
-# Arm & Hand Pose Estimation — Agent Context
+# Pose Estimation — Agent Context
 
 See README.md for project overview, architecture, usage, and dependencies.
 

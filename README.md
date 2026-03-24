@@ -1,6 +1,6 @@
-# Arm & Hand Pose Estimation
+# Pose Estimation
 
-Real-time arm and hand pose estimation combining MediaPipe TFLite models with
+Real-time pose estimation combining MediaPipe TFLite models with
 Intel OpenVINO inference. Detects arm poses (12 keypoints) and hand landmarks
 (21 keypoints per hand) from a webcam or video, with temporal smoothing and
 skeleton visualization.
