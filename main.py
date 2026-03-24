@@ -12,6 +12,8 @@ Usage:
 
 import argparse
 import collections
+import csv
+import json
 import pathlib
 import time
 
@@ -39,7 +41,7 @@ def frame_to_surface(frame):
 
 def process_video(source, flip, models, palm_anchors, pose_anchors,
                   screen, csv_writer=None, video_name=None,
-                  single_subject=False):
+                  single_subject=False, diag_writer=None):
     """Run pose estimation on a single video source with real-time display.
 
     Returns True if the user requested quit (ESC / window close),
@@ -62,6 +64,7 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
     bone_smoother = BoneLengthSmoother()
     processing_times = collections.deque(maxlen=200)
     track_state = None
+    prev_hand_lm = None
     frame_idx = 0
 
     # Single-subject state
@@ -69,9 +72,8 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
     last_body_vis = None
     frames_since_body = 0
     carry_limit = int(fps_source * 0.5)
-    min_hand_age = max(1, int(fps_source * 0.5))
-    hand_ref = {"left": None, "right": None}
-    hand_ref_radius = None  # set once frame dimensions are known
+    min_hand_age = max(1, int(fps_source * 0.2))
+
 
     try:
         while True:
@@ -98,9 +100,6 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
 
             frame_h, frame_w = frame.shape[:2]
 
-            if hand_ref_radius is None:
-                hand_ref_radius = 0.15 * max(frame_h, frame_w)
-
             # Resize pygame window to match first frame
             if frame_idx == 0:
                 screen = pygame.display.set_mode((frame_w, frame_h))
@@ -112,6 +111,7 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
             body_lm, body_vis, hand_lm, track_state = process_frame(
                 frame, models, palm_anchors, pose_anchors,
                 prev_state=track_state,
+                prev_hand_landmarks=prev_hand_lm,
             )
             elapsed = time.time() - start
 
@@ -130,6 +130,10 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
 
             # Filter out transient hand tracks (e.g. assistant's hand)
             # and cap at 2 hands (one subject can have at most two).
+            # The age filter + max_tracks=2 in smooth_hands are
+            # sufficient; spatial memory was too conservative (only
+            # updated when body is detected, ~30% of frames) and was
+            # rejecting valid hands that drifted from a stale reference.
             if single_subject:
                 hand_ages = smoother.hand_track_ages()
                 aged = sorted(
@@ -138,16 +142,6 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
                     key=lambda x: x[1], reverse=True,
                 )
                 hand_lm = [lm for lm, _ in aged[:2]]
-
-                # Spatial memory: reject hands far from known subject positions
-                ref_positions = [r for r in hand_ref.values()
-                                 if r is not None]
-                if ref_positions:
-                    hand_lm = [
-                        lm for lm in hand_lm
-                        if min(np.linalg.norm(lm[0, :2] - r)
-                               for r in ref_positions) < hand_ref_radius
-                    ]
 
             matches = match_hands_to_arms(body_lm, hand_lm)
 
@@ -160,14 +154,6 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
                     last_body_lm = body_lm[0].copy()
                     last_body_vis = body_vis[0].copy()
                     frames_since_body = 0
-                    # Update spatial memory from matched hands
-                    for _, wrist_kp, hand_idx in matches:
-                        side = "left" if wrist_kp == 4 else "right"
-                        pos = hand_lm[hand_idx][0, :2].copy()
-                        if hand_ref[side] is None:
-                            hand_ref[side] = pos
-                        else:
-                            hand_ref[side] = 0.1 * pos + 0.9 * hand_ref[side]
                 elif last_body_lm is not None and frames_since_body < carry_limit:
                     # No real body detection — use last known body
                     body_lm = [last_body_lm]
@@ -180,6 +166,9 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
                     body_vis = []
                     matches = []
                     frames_since_body += 1
+
+            # Store final hand landmarks for next frame's re-crop
+            prev_hand_lm = [lm.copy() for lm in hand_lm] if hand_lm else None
 
             # Export landmarks
             if csv_writer is not None:
@@ -209,6 +198,18 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
             cv2.putText(frame, label, (20, 40),
                         cv2.FONT_HERSHEY_COMPLEX, f_width / 1000,
                         (0, 0, 255), 1, cv2.LINE_AA)
+
+            # Write per-frame diagnostic row
+            if diag_writer is not None:
+                hand_diag = track_state.get("hand_diag", []) if track_state else []
+                diag_writer.writerow({
+                    "frame": frame_idx,
+                    "timestamp": round(frame_idx / fps_source, 4),
+                    "bodies": len(body_lm),
+                    "hands_final": len(hand_lm),
+                    "has_prev_hand_lm": prev_hand_lm is not None,
+                    "detections": json.dumps(hand_diag),
+                })
 
             screen.blit(frame_to_surface(frame), (0, 0))
             pygame.display.flip()
@@ -284,15 +285,24 @@ def main():
                 print(f"\nProcessing {i}/{len(video_files)}: {vpath.name}")
                 csv_path = pathlib.Path(args.output_dir) / f"{vpath.stem}.csv"
                 fh, writer = open_csv_writer(csv_path)
+                diag_path = pathlib.Path(args.output_dir) / f"{vpath.stem}_diag.csv"
+                diag_fields = ["frame", "timestamp", "bodies",
+                               "hands_final", "has_prev_hand_lm", "detections"]
+                diag_fh = open(diag_path, "w", newline="")
+                diag_w = csv.DictWriter(diag_fh, fieldnames=diag_fields)
+                diag_w.writeheader()
                 try:
                     user_quit = process_video(
                         str(vpath), False, models, palm_anchors, pose_anchors,
                         screen, csv_writer=writer, video_name=vpath.name,
                         single_subject=args.single_subject,
+                        diag_writer=diag_w,
                     )
                 finally:
                     fh.close()
+                    diag_fh.close()
                 print(f"  Saved: {csv_path}")
+                print(f"  Diag:  {diag_path}")
                 csv_paths.append(csv_path)
                 if user_quit:
                     print("User quit — stopping batch.")
@@ -313,10 +323,18 @@ def main():
             # For single file mode, also export CSV
             csv_writer = None
             fh = None
+            diag_w = None
+            diag_fh = None
             if isinstance(source, str):
                 vpath = pathlib.Path(source)
                 csv_path = pathlib.Path(args.output_dir) / f"{vpath.stem}.csv"
                 fh, csv_writer = open_csv_writer(csv_path)
+                diag_path = pathlib.Path(args.output_dir) / f"{vpath.stem}_diag.csv"
+                diag_fields = ["frame", "timestamp", "bodies",
+                               "hands_final", "has_prev_hand_lm", "detections"]
+                diag_fh = open(diag_path, "w", newline="")
+                diag_w = csv.DictWriter(diag_fh, fieldnames=diag_fields)
+                diag_w.writeheader()
 
             video_name = pathlib.Path(source).name if isinstance(source, str) else None
             print(f"Source: {source} | Device: {args.device} | Flip: {flip}")
@@ -326,12 +344,16 @@ def main():
                 process_video(source, flip, models, palm_anchors, pose_anchors,
                               screen, csv_writer=csv_writer,
                               video_name=video_name,
-                              single_subject=args.single_subject)
+                              single_subject=args.single_subject,
+                              diag_writer=diag_w)
             finally:
                 if fh is not None:
                     fh.close()
                     print(f"Saved: {csv_path}")
                     csv_paths.append(csv_path)
+                if diag_fh is not None:
+                    diag_fh.close()
+                    print(f"Diag:  {diag_path}")
 
     except KeyboardInterrupt:
         print("\nInterrupted.")

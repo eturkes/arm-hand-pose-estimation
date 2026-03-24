@@ -184,6 +184,76 @@ def _synthesise_hand_detections(body_landmarks, body_visibilities,
 
 
 # ---------------------------------------------------------------------------
+# Landmark-based re-crop detections
+# ---------------------------------------------------------------------------
+
+def _recrop_from_landmarks(prev_hand_landmarks, real_palm_dets,
+                           frame_h, frame_w, overlap_threshold=0.1):
+    """Create palm-format detections from previous-frame hand landmarks.
+
+    When a tracked hand has no nearby *real* palm detection (e.g. due to
+    wrist rotation), the previous frame's landmarks provide a well-centred,
+    correctly-rotated crop.  The hand landmark model validates each crop
+    via ``hand_flag``, so bad crops self-reject.
+
+    *real_palm_dets* should contain only genuine SSD palm detections —
+    **not** synthetic or other fallback entries — so that arm-guided
+    detections (which use the forearm direction rather than true hand
+    orientation) do not suppress the re-crop.
+
+    Returns a list of detection dicts with ``"recrop": True``.
+    """
+    recrops = []
+    if not prev_hand_landmarks:
+        return recrops
+
+    scale = np.array([frame_w, frame_h], dtype=np.float32)
+
+    palm_centres = []
+    for det in real_palm_dets:
+        b = det["box"]
+        palm_centres.append((b[:2] + b[2:]) / 2)
+
+    for hand_lm in prev_hand_landmarks:
+        wrist_px = hand_lm[0, :2]
+        middle_mcp_px = hand_lm[9, :2]
+        wrist_norm = wrist_px / scale
+
+        # Skip if a real palm detection already covers this hand
+        if any(np.linalg.norm(wrist_norm - pc) < overlap_threshold
+               for pc in palm_centres):
+            continue
+
+        # Palm-centred box sized from wrist-to-MCP distance
+        palm_len = float(np.linalg.norm(middle_mcp_px - wrist_px))
+        if palm_len < 1:
+            continue
+        center_px = (wrist_px + middle_mcp_px) / 2
+        box_half = palm_len
+
+        x1 = (center_px[0] - box_half) / frame_w
+        y1 = (center_px[1] - box_half) / frame_h
+        x2 = (center_px[0] + box_half) / frame_w
+        y2 = (center_px[1] + box_half) / frame_h
+
+        # 7-keypoint array matching palm detection format
+        center_norm = center_px / scale
+        keypoints = np.broadcast_to(
+            center_norm, (7, 2)).astype(np.float32).copy()
+        keypoints[0] = wrist_norm
+        keypoints[2] = middle_mcp_px / scale
+
+        recrops.append({
+            "box": np.array([x1, y1, x2, y2], dtype=np.float32),
+            "keypoints": keypoints,
+            "score": 0.9,
+            "recrop": True,
+        })
+
+    return recrops
+
+
+# ---------------------------------------------------------------------------
 # Affine crop helpers
 # ---------------------------------------------------------------------------
 
@@ -422,13 +492,18 @@ def select_primary_body(body_landmarks, body_visibilities, hand_landmarks, match
 # ---------------------------------------------------------------------------
 
 def process_frame(frame, models, palm_anchors, pose_anchors,
-                  prev_state=None,
+                  prev_state=None, prev_hand_landmarks=None,
                   det_score_threshold=0.5, lm_score_threshold=0.5):
     """Full pipeline: detect arm poses and hand landmarks.
 
     Detection bounding boxes and keypoints are smoothed against the
     previous frame (*prev_state*) before crop extraction so that the
     landmark model receives a stable input.
+
+    *prev_hand_landmarks* (list of (21, 3) arrays in pixel coordinates)
+    enables landmark-based re-cropping: when a tracked hand has no
+    nearby palm detection, the previous landmarks supply a correctly-
+    rotated crop so tracking survives through wrist rotations.
 
     Returns ``(body_landmarks, body_visibilities, hand_landmarks, state)``.
     """
@@ -459,26 +534,53 @@ def process_frame(frame, models, palm_anchors, pose_anchors,
     palm_detections = run_detection(
         frame, palm_det_model, PALM_INPUT_SIZE, palm_anchors, 7)
     prev_palm = prev_state.get("palm_dets", []) if prev_state else []
-    palm_detections = _smooth_detections(palm_detections, prev_palm)
+    palm_detections = _smooth_detections(palm_detections, prev_palm,
+                                         match_threshold=0.25)
+
+    # Snapshot real SSD detections before adding fallbacks; re-crop
+    # overlap is checked against real detections only so that synthetic
+    # entries (which use forearm direction, not true hand orientation)
+    # cannot suppress the correctly-rotated re-crop.
+    frame_h, frame_w = frame.shape[:2]
+    real_palm_dets = list(palm_detections)
 
     # Synthesise palm detections from arm wrists not covered by real palms
-    frame_h, frame_w = frame.shape[:2]
     if body_landmarks:
         palm_detections.extend(_synthesise_hand_detections(
             body_landmarks, body_visibilities, palm_detections,
             frame_h, frame_w))
 
+    # Re-crop from previous hand landmarks when palm detector misses
+    if prev_hand_landmarks:
+        palm_detections.extend(_recrop_from_landmarks(
+            prev_hand_landmarks, real_palm_dets, frame_h, frame_w))
+
     hand_landmarks = []
     kept_palm_dets = []
+    # Per-detection diagnostic records
+    hand_diag = []
     for det in palm_detections:
         if det["score"] < det_score_threshold:
             continue
+        if det.get("recrop"):
+            kind = "recrop"
+        elif det.get("synthetic"):
+            kind = "synthetic"
+        else:
+            kind = "real"
         lm, confidence = detect_hand_landmarks(frame, det, hand_lm_model)
-        if lm is not None and confidence > lm_score_threshold:
+        accepted = lm is not None and confidence > lm_score_threshold
+        hand_diag.append({
+            "kind": kind,
+            "det_score": float(det["score"]),
+            "hand_flag": round(float(confidence), 4),
+            "accepted": accepted,
+        })
+        if accepted:
             hand_landmarks.append(lm)
-            # Exclude synthetic detections from smoothing state
-            if not det.get("synthetic", False):
+            if kind == "real":
                 kept_palm_dets.append(det)
 
-    state = {"pose_dets": kept_pose_dets, "palm_dets": kept_palm_dets}
+    state = {"pose_dets": kept_pose_dets, "palm_dets": kept_palm_dets,
+             "hand_diag": hand_diag}
     return body_landmarks, body_visibilities, hand_landmarks, state

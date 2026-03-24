@@ -79,7 +79,7 @@ class PoseSmoother:
 
     def _match_and_smooth(self, tracks, landmarks, get_anchor, new_filter_fn,
                           t, grace=0, max_tracks=None, emit_carry=False,
-                          confidences=None):
+                          confidences=None, static_carry=False):
         """Match landmarks to existing tracks, smooth, and return.
 
         Each track is a 7-tuple:
@@ -95,6 +95,11 @@ class PoseSmoother:
         dropouts.  If no velocity is available (first-frame track), the
         last output is emitted unchanged (static carry).
 
+        When *static_carry* is True (implies *emit_carry*), carried
+        tracks always emit their last output unchanged — no velocity
+        extrapolation.  Useful for hands where per-finger extrapolation
+        is unreliable.
+
         When *max_tracks* is set, no new tracks are created once the
         total number of tracks (active + dormant) reaches the limit.
         Detections that cannot match an existing track are discarded.
@@ -107,6 +112,8 @@ class PoseSmoother:
         the count of freshly matched landmarks (excludes carry-forward
         entries appended when *emit_carry* is True).
         """
+        if static_carry:
+            emit_carry = True
         smoothed = []
         new_tracks = []
         used = set()
@@ -148,8 +155,11 @@ class PoseSmoother:
                 continue
             new_misses = misses + 1
             if emit_carry and last_out is not None:
-                predicted = self._extrapolate(
-                    last_out, last_vel, last_t, t, new_misses)
+                if static_carry:
+                    predicted = last_out
+                else:
+                    predicted = self._extrapolate(
+                        last_out, last_vel, last_t, t, new_misses)
                 new_anchor = get_anchor(predicted).copy()
                 new_tracks.append(
                     (filt, new_anchor, age, new_misses,
@@ -229,6 +239,7 @@ class PoseSmoother:
             new_filter_fn=lambda: OneEuroFilter(min_cutoff=1.0, beta=0.3),
             t=t,
             grace=grace,
+            static_carry=True,
             max_tracks=max_tracks,
         )
         self._n_active_hands = len(smoothed)
