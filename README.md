@@ -41,4 +41,4 @@ python main.py --model-dir /path/to/models
 
 Models are downloaded automatically on first run and cached in the `model/` directory.
 
-Press **ESC** to exit.
+Close the window or press **ESC** to exit.
