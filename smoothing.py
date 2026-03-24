@@ -9,17 +9,22 @@ class OneEuroFilter:
     Adapts cutoff frequency based on signal speed: slow movements are smoothed
     aggressively while fast movements pass through with minimal lag.
     Works on numpy arrays of any shape.
+
+    Optionally accepts per-keypoint confidence scores to modulate smoothing:
+    low-confidence keypoints are pulled toward the previous estimate while
+    high-confidence keypoints pass through with standard filtering.
     """
 
-    def __init__(self, min_cutoff=1.0, beta=0.5, d_cutoff=1.0):
+    def __init__(self, min_cutoff=1.0, beta=0.5, d_cutoff=1.0, gamma=2.0):
         self.min_cutoff = min_cutoff
         self.beta = beta
         self.d_cutoff = d_cutoff
+        self.gamma = gamma
         self.x_prev = None
         self.dx_prev = None
         self.t_prev = None
 
-    def __call__(self, x, t):
+    def __call__(self, x, t, confidence=None):
         if self.t_prev is None:
             self.x_prev = x.copy()
             self.dx_prev = np.zeros_like(x)
@@ -36,11 +41,19 @@ class OneEuroFilter:
         a = 1.0 / (1.0 + 1.0 / (2 * np.pi * cutoff * dt))
         x_hat = a * x + (1 - a) * self.x_prev
 
-        self.x_prev = x_hat.copy()
+        # Confidence weighting: low-confidence keypoints are pulled toward
+        # the previous position, resisting noisy input.
+        if confidence is not None:
+            w = np.clip(confidence, 0.0, 1.0)[:, None] ** self.gamma
+            result = w * x_hat + (1 - w) * self.x_prev
+        else:
+            result = x_hat
+
+        self.x_prev = result.copy()
         self.dx_prev = dx_hat.copy()
         self.t_prev = t
 
-        return x_hat
+        return result
 
 
 class PoseSmoother:
@@ -48,7 +61,8 @@ class PoseSmoother:
 
     Tracks detections across frames by anchor point proximity and applies
     One Euro Filters to reduce jitter while preserving responsiveness.
-    Body uses heavier smoothing (min_cutoff=0.3); hands use moderate
+    Body uses heavier smoothing (min_cutoff=0.3) with confidence-weighted
+    blending from per-keypoint visibility scores; hands use moderate
     smoothing (min_cutoff=1.0) for fast finger movements.
 
     During brief detection dropouts (carry-forward), body tracks
@@ -64,7 +78,8 @@ class PoseSmoother:
         self._n_active_hands = 0
 
     def _match_and_smooth(self, tracks, landmarks, get_anchor, new_filter_fn,
-                          t, grace=0, max_tracks=None, emit_carry=False):
+                          t, grace=0, max_tracks=None, emit_carry=False,
+                          confidences=None):
         """Match landmarks to existing tracks, smooth, and return.
 
         Each track is a 7-tuple:
@@ -84,6 +99,10 @@ class PoseSmoother:
         total number of tracks (active + dormant) reaches the limit.
         Detections that cannot match an existing track are discarded.
 
+        *confidences* is an optional list parallel to *landmarks*; each
+        entry is a 1-D array of per-keypoint confidence scores passed to
+        the One Euro Filter for confidence-weighted blending.
+
         Returns (new_tracks, smoothed, n_active) where *n_active* is
         the count of freshly matched landmarks (excludes carry-forward
         entries appended when *emit_carry* is True).
@@ -92,7 +111,7 @@ class PoseSmoother:
         new_tracks = []
         used = set()
 
-        for lm in landmarks:
+        for lm_idx, lm in enumerate(landmarks):
             anchor = get_anchor(lm)
             best_i, best_d = None, float('inf')
             for i, (filt, prev_anchor, age, misses, *_) in enumerate(tracks):
@@ -113,7 +132,8 @@ class PoseSmoother:
             else:
                 continue
 
-            s = filt(lm, t)
+            conf = confidences[lm_idx] if confidences is not None else None
+            s = filt(lm, t, confidence=conf)
             velocity = filt.dx_prev.copy() if filt.dx_prev is not None else None
             new_tracks.append(
                 (filt, get_anchor(s).copy(), age, 0, s.copy(), velocity, t))
@@ -183,13 +203,15 @@ class PoseSmoother:
         Callers that need to know whether body detection actually fired
         (e.g. single-subject mode) should inspect this value.
         """
+        lm_list = body_landmarks or []
         self.body_tracks, smoothed, n_active = self._match_and_smooth(
-            self.body_tracks, body_landmarks or [],
+            self.body_tracks, lm_list,
             get_anchor=lambda lm: (lm[0, :2] + lm[1, :2]) / 2,
             new_filter_fn=lambda: OneEuroFilter(min_cutoff=0.3, beta=0.5),
             t=t,
             grace=10,
             emit_carry=True,
+            confidences=body_visibilities if lm_list else None,
         )
         # Actively matched bodies use the provided visibility;
         # carried bodies (during detection dropout) assume full visibility.

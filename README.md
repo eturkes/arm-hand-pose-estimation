@@ -118,7 +118,7 @@ be blank in hand-only fallback frames.
 | `detection.py` | SSD anchor generation, NMS, detection decoding |
 | `processing.py` | Preprocessing, crop extraction, landmark inference, hand-arm matching |
 | `drawing.py` | Catmull-Rom splines, skeleton rendering, overlay blending |
-| `smoothing.py` | One Euro Filter for temporal smoothing of landmarks |
+| `smoothing.py` | One Euro Filter with confidence-weighted temporal smoothing |
 | `constraints.py` | Biomechanical constraints (bone-length consistency, joint-angle limits) |
 | `export.py` | CSV schema definition, per-frame landmark row conversion |
 | `postprocess.py` | Savitzky-Golay offline smoothing for exported CSVs |
@@ -130,9 +130,10 @@ be blank in hand-only fallback frames.
 - **Image processing**: Uses `opencv-python-headless` (no GUI module needed).
 - **Inference devices**: NPU (default), CPU, GPU via OpenVINO.
 - **Frame pipeline**: BGR capture → flip → resize → detect → arm-guided
-  hand ROI fallback → landmark → smooth → bone-length constraints →
-  joint-angle limits → match → (optional single-subject filter) →
-  draw overlays → convert to RGB → pygame surface.
+  hand ROI fallback → landmark → smooth (confidence-weighted) →
+  bone-length constraints → joint-angle limits → match →
+  (optional single-subject filter) → draw overlays → convert to RGB →
+  pygame surface.
 
 ## Dependencies
 

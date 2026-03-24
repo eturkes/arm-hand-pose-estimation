@@ -284,7 +284,7 @@ that aren't already covered by a real palm detection.
 
 ## 6 · Confidence-weighted temporal smoothing
 
-**Status:** `pending`
+**Status:** `done`
 
 ### Goal
 
