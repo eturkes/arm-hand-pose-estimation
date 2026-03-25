@@ -243,3 +243,40 @@ Optional (for `--postprocess` / `postprocess.py`):
 | Package | Purpose |
 |---------|---------|
 | `pandas` | CSV reading/writing for post-processing |
+
+Optional (for `prototype_rtmw.py`):
+
+| Package | Purpose |
+|---------|---------|
+| `rtmlib` | RTMW/RTMPose whole-body pose estimation (ONNX/OpenVINO) |
+
+## RTMW Prototype
+
+`prototype_rtmw.py` is a standalone proof-of-concept for evaluating
+[RTMW](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmpose)
+whole-body pose estimation (133 keypoints: body + hands + face + feet) as a
+potential replacement for the MediaPipe backend. It uses
+[rtmlib](https://github.com/Tau-J/rtmlib) for lightweight ONNX/OpenVINO
+inference without mmcv/mmpose dependencies.
+
+```bash
+pip install rtmlib
+
+# Quick test on webcam
+python prototype_rtmw.py
+
+# Test on a video with OpenVINO backend
+python prototype_rtmw.py --source video.mp4 --backend openvino
+
+# Benchmark latency without display
+python prototype_rtmw.py --source video.mp4 --headless
+
+# Try different quality/speed tiers
+python prototype_rtmw.py --mode performance    # best quality
+python prototype_rtmw.py --mode balanced       # default
+python prototype_rtmw.py --mode lightweight    # fastest
+```
+
+Models are downloaded automatically on first run. The prototype is independent
+of the main pipeline — it exists to compare RTMW quality and speed against the
+current MediaPipe models before committing to a backend migration.

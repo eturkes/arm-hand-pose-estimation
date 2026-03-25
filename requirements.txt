@@ -5,3 +5,8 @@ scipy
 pygame-ce
 tqdm
 requests
+
+# RTMW prototype (Phase 0) — install when ready to test:
+# pip install rtmlib
+# rtmlib pulls in onnxruntime and opencv-contrib-python;
+# for OpenVINO backend, openvino (above) is already present.
