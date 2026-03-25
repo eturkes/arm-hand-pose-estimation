@@ -37,6 +37,8 @@ import cv2
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
+from constraints import BoneLengthSmoother
+
 
 # ---------------------------------------------------------------------------
 # NPU-compatible model URLs (verified via test_npu_compat.py)
@@ -78,6 +80,26 @@ REGION_PARAMS = [
     ("feet", 17, 23, 0.3, 0.5),
     ("face", 23, 91, 0.3, 0.5),
     ("hands", 91, 133, 1.0, 0.3),
+]
+
+# ---------------------------------------------------------------------------
+# Bone-length constraint segments for COCO-WholeBody 133 layout
+# ---------------------------------------------------------------------------
+# Ordered proximal→distal so corrections propagate outward.
+BONE_SEGMENTS_RTMW = [
+    (5, 7),    # left shoulder → left elbow
+    (7, 9),    # left elbow → left wrist
+    (9, 91),   # left wrist → left index-finger MCP
+    (6, 8),    # right shoulder → right elbow
+    (8, 10),   # right elbow → right wrist
+    (10, 112), # right wrist → right index-finger MCP
+]
+
+BONE_SEGMENTS_RTMW_BODY = BONE_SEGMENTS_RTMW + [
+    (11, 13),  # left hip → left knee
+    (13, 15),  # left knee → left ankle
+    (12, 14),  # right hip → right knee
+    (14, 16),  # right knee → right ankle
 ]
 
 VIDEO_EXTS = {".mp4", ".avi", ".mov", ".mkv", ".webm", ".flv"}
@@ -510,6 +532,8 @@ def parse_args():
                    help="Stop after N frames (0 = unlimited)")
     p.add_argument("--no-smooth", action="store_true",
                    help="Disable temporal smoothing")
+    p.add_argument("--no-constraints", action="store_true",
+                   help="Disable bone-length constraints")
     return p.parse_args()
 
 
@@ -518,7 +542,7 @@ def parse_args():
 # ---------------------------------------------------------------------------
 
 def process_source(args, pose_tracker, source_str, draw_skeleton,
-                   smoother=None):
+                   smoother=None, bone_smoother=None):
     """Process a single video/camera source.  Returns latency list (ms)."""
     source = int(source_str) if source_str.isdigit() else source_str
     cap = cv2.VideoCapture(source)
@@ -555,6 +579,12 @@ def process_source(args, pose_tracker, source_str, draw_skeleton,
 
             if args.single_subject:
                 keypoints, scores = filter_single_subject(keypoints, scores)
+
+            if bone_smoother is not None and keypoints is not None:
+                for pi in range(keypoints.shape[0]):
+                    keypoints[pi], _ = bone_smoother.update(
+                        pi, keypoints[pi])
+                bone_smoother.prune(range(keypoints.shape[0]))
 
             n_persons = (keypoints.shape[0]
                          if keypoints is not None
@@ -668,8 +698,10 @@ def main():
     tracking_label = f", tracking={args.tracking}" if args.tracking else ""
     single_label = ", single-subject" if args.single_subject else ""
     smooth_label = ", no-smooth" if args.no_smooth else ", smooth"
+    constraint_label = ", no-constraints" if args.no_constraints else ""
     print(f"Backend: {args.backend}, device={args.device}"
-          f"{tracking_label}{single_label}{smooth_label}")
+          f"{tracking_label}{single_label}{smooth_label}"
+          f"{constraint_label}")
 
     pose_tracker = PoseTracker(
         solution_cls,
@@ -681,6 +713,13 @@ def main():
     )
 
     smoother = None if args.no_smooth else KeypointSmoother()
+
+    bone_smoother = None
+    if not args.no_constraints:
+        segments = (BONE_SEGMENTS_RTMW_BODY
+                    if args.tracking == "body" or args.body_only
+                    else BONE_SEGMENTS_RTMW)
+        bone_smoother = BoneLengthSmoother(segments=segments)
 
     # ── Collect sources ─────────────────────────────────────────────
     if args.batch_dir:
@@ -700,7 +739,8 @@ def main():
         if smoother is not None:
             smoother.reset()
         latencies = process_source(args, pose_tracker, src, draw_skeleton,
-                                   smoother=smoother)
+                                   smoother=smoother,
+                                   bone_smoother=bone_smoother)
         print_latency_summary(latencies)
         all_latencies.extend(latencies)
 

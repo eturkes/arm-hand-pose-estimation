@@ -84,7 +84,7 @@ noted otherwise.
   and `main.py` `min_track_age` / `min_hand_age` usage.
 
 ### 6. Bone-length constraints
-- **Status:** TODO
+- **Status:** DONE
 - **Goal:** Reduce visual rubber-banding of limbs by enforcing temporal
   bone-length consistency.
 - **What:** Port `constraints.py` `BoneLengthSmoother` and adapt bone
