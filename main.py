@@ -31,6 +31,11 @@ from export import open_csv_writer, frame_to_rows
 
 WINDOW_TITLE = "Pose Estimation"
 VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
+DIAG_FIELDS = [
+    "frame", "timestamp", "bodies_detected", "bodies_rendered",
+    "hands_accepted", "hands_rendered", "body_carry",
+    "body_track_ages", "hand_track_ages", "detections",
+]
 
 
 def frame_to_surface(frame):
@@ -228,12 +233,25 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
             # Write per-frame diagnostic row
             if diag_writer is not None:
                 hand_diag = track_state.get("hand_diag", []) if track_state else []
+                # Detect whether body is carried forward
+                if single_subject:
+                    body_carry = (
+                        len(body_lm) > 0
+                        and n_bodies_detected == 0
+                        and frames_since_body > 0
+                    )
+                else:
+                    body_carry = False
                 diag_writer.writerow({
                     "frame": frame_idx,
                     "timestamp": round(frame_idx / fps_source, 4),
-                    "bodies": len(body_lm),
-                    "hands_final": len(hand_lm),
-                    "has_prev_hand_lm": prev_hand_lm is not None,
+                    "bodies_detected": n_bodies_detected,
+                    "bodies_rendered": len(body_lm),
+                    "hands_accepted": sum(1 for d in hand_diag if d.get("accepted")),
+                    "hands_rendered": len(hand_lm),
+                    "body_carry": body_carry,
+                    "body_track_ages": json.dumps(smoother.body_track_ages()),
+                    "hand_track_ages": json.dumps(smoother.hand_track_ages()),
                     "detections": json.dumps(hand_diag),
                 })
 
@@ -312,10 +330,8 @@ def main():
                 csv_path = pathlib.Path(args.output_dir) / f"{vpath.stem}.csv"
                 fh, writer = open_csv_writer(csv_path)
                 diag_path = pathlib.Path(args.output_dir) / f"{vpath.stem}_diag.csv"
-                diag_fields = ["frame", "timestamp", "bodies",
-                               "hands_final", "has_prev_hand_lm", "detections"]
                 diag_fh = open(diag_path, "w", newline="")
-                diag_w = csv.DictWriter(diag_fh, fieldnames=diag_fields)
+                diag_w = csv.DictWriter(diag_fh, fieldnames=DIAG_FIELDS)
                 diag_w.writeheader()
                 try:
                     user_quit = process_video(
@@ -356,10 +372,8 @@ def main():
                 csv_path = pathlib.Path(args.output_dir) / f"{vpath.stem}.csv"
                 fh, csv_writer = open_csv_writer(csv_path)
                 diag_path = pathlib.Path(args.output_dir) / f"{vpath.stem}_diag.csv"
-                diag_fields = ["frame", "timestamp", "bodies",
-                               "hands_final", "has_prev_hand_lm", "detections"]
                 diag_fh = open(diag_path, "w", newline="")
-                diag_w = csv.DictWriter(diag_fh, fieldnames=diag_fields)
+                diag_w = csv.DictWriter(diag_fh, fieldnames=DIAG_FIELDS)
                 diag_w.writeheader()
 
             video_name = pathlib.Path(source).name if isinstance(source, str) else None

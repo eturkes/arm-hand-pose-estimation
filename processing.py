@@ -493,7 +493,7 @@ def select_primary_body(body_landmarks, body_visibilities, hand_landmarks, match
 
 def process_frame(frame, models, palm_anchors, pose_anchors,
                   prev_state=None, prev_hand_landmarks=None,
-                  det_score_threshold=0.5, lm_score_threshold=0.5,
+                  det_score_threshold=0.5, lm_score_threshold=0.65,
                   synthesise_hands=True):
     """Full pipeline: detect arm poses and hand landmarks.
 

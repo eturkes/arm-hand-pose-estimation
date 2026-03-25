@@ -22,3 +22,6 @@ See README.md for project overview, architecture, usage, and dependencies.
 - The assistant can install packages inside its container for
   testing, but the user runs the project on the host, not in
   the container
+- When installing R packages, use `renv` (not the global library)
+- When installing Python or other language packages, use the
+  available virtual environment (`.venv/`) rather than system-wide
