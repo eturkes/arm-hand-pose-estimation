@@ -8,6 +8,8 @@ Usage:
     python main.py --batch-dir videos/      # process all videos in a directory
     python main.py --device CPU             # run on CPU
     python main.py --no-flip                # disable mirror for front camera
+    python main.py --tracking hands         # hands only
+    python main.py --tracking body          # whole body + hands
 """
 
 import argparse
@@ -23,9 +25,17 @@ import pygame
 
 from models import download_and_compile_models
 from detection import generate_anchors, PALM_INPUT_SIZE, POSE_INPUT_SIZE
-from processing import process_frame, match_hands_to_arms, select_primary_body
+from processing import (
+    process_frame, match_hands_to_arms, select_primary_body,
+    tracking_pose_indices,
+    TRACKING_HANDS, TRACKING_HAND_ARM, TRACKING_BODY,
+)
 from smoothing import PoseSmoother
-from constraints import BoneLengthSmoother, clamp_joint_angles
+from constraints import (
+    BoneLengthSmoother, clamp_joint_angles,
+    BONE_SEGMENTS, BONE_SEGMENTS_BODY,
+    ANGLE_LIMITS, ANGLE_LIMITS_BODY,
+)
 from drawing import draw_body_landmarks, draw_hand_landmarks, draw_arm_hand_bridges
 from export import open_csv_writer, frame_to_rows
 
@@ -46,7 +56,8 @@ def frame_to_surface(frame):
 
 def process_video(source, flip, models, palm_anchors, pose_anchors,
                   screen, csv_writer=None, video_name=None,
-                  single_subject=False, diag_writer=None):
+                  single_subject=False, diag_writer=None,
+                  tracking=TRACKING_HAND_ARM):
     """Run pose estimation on a single video source with real-time display.
 
     Returns True if the user requested quit (ESC / window close),
@@ -66,7 +77,17 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
     smoother = PoseSmoother()
-    bone_smoother = BoneLengthSmoother()
+
+    # Biomechanical constraints are only used when body is tracked
+    use_body = tracking != TRACKING_HANDS
+    if use_body:
+        _, wrist_kps, shoulder_kps, _ = tracking_pose_indices(tracking)
+        bone_segs = (BONE_SEGMENTS_BODY if tracking == TRACKING_BODY
+                     else BONE_SEGMENTS)
+        angle_lims = (ANGLE_LIMITS_BODY if tracking == TRACKING_BODY
+                      else ANGLE_LIMITS)
+        bone_smoother = BoneLengthSmoother(segments=bone_segs)
+
     processing_times = collections.deque(maxlen=200)
     track_state = None
     prev_hand_lm = None
@@ -122,30 +143,49 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
             body_lm, body_vis, hand_lm, track_state = process_frame(
                 frame, models, palm_anchors, pose_anchors,
                 prev_state=track_state,
-                prev_hand_landmarks=prev_hand_lm if single_subject else None,
-                synthesise_hands=single_subject,
+                prev_hand_landmarks=(prev_hand_lm
+                                     if single_subject or tracking == TRACKING_HANDS
+                                     else None),
+                synthesise_hands=single_subject and use_body,
+                tracking=tracking,
             )
             elapsed = time.time() - start
 
             # Temporal smoothing
             t = time.time()
-            body_lm, body_vis, n_bodies_detected = smoother.smooth_bodies(
-                body_lm, body_vis, t)
+
+            if use_body:
+                body_lm, body_vis, n_bodies_detected = smoother.smooth_bodies(
+                    body_lm, body_vis, t,
+                    shoulder_indices=shoulder_kps)
+            else:
+                n_bodies_detected = 0
+
             hand_lm, n_hands_active = smoother.smooth_hands(
                 hand_lm, t, max_tracks=2 if single_subject else None)
 
             # Enforce biomechanical constraints on each body
-            for i, lm in enumerate(body_lm):
-                bone_smoother.update(i, lm)
-                clamp_joint_angles(lm)
-            bone_smoother.prune(range(len(body_lm)))
+            if use_body:
+                for i, lm in enumerate(body_lm):
+                    bone_smoother.update(i, lm)
+                    clamp_joint_angles(lm, limits=angle_lims)
+                bone_smoother.prune(range(len(body_lm)))
 
-            if single_subject:
+            if single_subject and use_body:
                 # Filter transient hand tracks by age and cap at 2
                 hand_ages = smoother.hand_track_ages()
                 aged = sorted(
                     ((lm, age) for lm, age in zip(hand_lm, hand_ages)
                      if age >= min_hand_age),
+                    key=lambda x: x[1], reverse=True,
+                )
+                hand_lm = [lm for lm, _ in aged[:2]]
+            elif not use_body:
+                # Hands-only: cap at 2 and filter by age
+                hand_ages = smoother.hand_track_ages()
+                aged = sorted(
+                    ((lm, age) for lm, age in zip(hand_lm, hand_ages)
+                     if age >= min_track_age),
                     key=lambda x: x[1], reverse=True,
                 )
                 hand_lm = [lm for lm, _ in aged[:2]]
@@ -166,9 +206,14 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
                     if age >= min_track_age
                 ]
 
-            matches = match_hands_to_arms(body_lm, hand_lm)
+            if use_body:
+                matches = match_hands_to_arms(
+                    body_lm, hand_lm,
+                    wrist_kps=wrist_kps, shoulder_kps=shoulder_kps)
+            else:
+                matches = []
 
-            if single_subject:
+            if single_subject and use_body:
                 # Use n_bodies_detected (not len(body_lm)) to distinguish
                 # real detections from smoother carry-forward ghosts.
                 if n_bodies_detected > 0:
@@ -189,7 +234,9 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
                     # No real body detection — use last known body
                     body_lm = [last_body_lm]
                     body_vis = [last_body_vis]
-                    matches = match_hands_to_arms(body_lm, hand_lm)
+                    matches = match_hands_to_arms(
+                        body_lm, hand_lm,
+                        wrist_kps=wrist_kps, shoulder_kps=shoulder_kps)
                     frames_since_body += 1
                 else:
                     # Body fully lost — hand-only fallback
@@ -207,14 +254,16 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
                 rows = frame_to_rows(
                     video_name or str(source), frame_idx, timestamp_sec,
                     frame_h, frame_w, body_lm, body_vis, hand_lm, matches,
+                    tracking=tracking,
                     hand_only=single_subject,
                 )
                 for row in rows:
                     csv_writer.writerow(row)
 
             # Draw overlays
-            frame = draw_body_landmarks(frame, body_lm, body_vis)
-            frame = draw_arm_hand_bridges(frame, body_lm, hand_lm, matches)
+            if use_body:
+                frame = draw_body_landmarks(frame, body_lm, body_vis)
+                frame = draw_arm_hand_bridges(frame, body_lm, hand_lm, matches)
             frame = draw_hand_landmarks(frame, hand_lm)
 
             # FPS / progress overlay
@@ -234,7 +283,7 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
             if diag_writer is not None:
                 hand_diag = track_state.get("hand_diag", []) if track_state else []
                 # Detect whether body is carried forward
-                if single_subject:
+                if single_subject and use_body:
                     body_carry = (
                         len(body_lm) > 0
                         and n_bodies_detected == 0
@@ -298,6 +347,12 @@ def main():
                         help="Directory for downloaded/converted models")
     parser.add_argument("--single-subject", action="store_true",
                         help="Keep only the most prominent body per frame")
+    parser.add_argument(
+        "--tracking", default="hand-arm",
+        choices=["hands", "hand-arm", "body"],
+        help=("Tracking scope: 'hands' (hands only), "
+              "'hand-arm' (arms + hands, default), "
+              "'body' (whole body + hands)"))
     parser.add_argument("--postprocess", action="store_true",
                         help="Apply Savitzky-Golay smoothing to CSVs after processing")
     parser.add_argument("--savgol-window", type=int, default=11,
@@ -305,6 +360,8 @@ def main():
     parser.add_argument("--savgol-polyorder", type=int, default=3,
                         help="Savitzky-Golay polynomial order (default: 3)")
     args = parser.parse_args()
+
+    tracking = args.tracking
 
     # Download, convert, and compile models
     models = download_and_compile_models(args.model_dir, args.device)
@@ -328,7 +385,7 @@ def main():
             for i, vpath in enumerate(video_files, 1):
                 print(f"\nProcessing {i}/{len(video_files)}: {vpath.name}")
                 csv_path = pathlib.Path(args.output_dir) / f"{vpath.stem}.csv"
-                fh, writer = open_csv_writer(csv_path)
+                fh, writer = open_csv_writer(csv_path, tracking=tracking)
                 diag_path = pathlib.Path(args.output_dir) / f"{vpath.stem}_diag.csv"
                 diag_fh = open(diag_path, "w", newline="")
                 diag_w = csv.DictWriter(diag_fh, fieldnames=DIAG_FIELDS)
@@ -339,6 +396,7 @@ def main():
                         screen, csv_writer=writer, video_name=vpath.name,
                         single_subject=args.single_subject,
                         diag_writer=diag_w,
+                        tracking=tracking,
                     )
                 finally:
                     fh.close()
@@ -370,14 +428,15 @@ def main():
             if isinstance(source, str):
                 vpath = pathlib.Path(source)
                 csv_path = pathlib.Path(args.output_dir) / f"{vpath.stem}.csv"
-                fh, csv_writer = open_csv_writer(csv_path)
+                fh, csv_writer = open_csv_writer(csv_path, tracking=tracking)
                 diag_path = pathlib.Path(args.output_dir) / f"{vpath.stem}_diag.csv"
                 diag_fh = open(diag_path, "w", newline="")
                 diag_w = csv.DictWriter(diag_fh, fieldnames=DIAG_FIELDS)
                 diag_w.writeheader()
 
             video_name = pathlib.Path(source).name if isinstance(source, str) else None
-            print(f"Source: {source} | Device: {args.device} | Flip: {flip}")
+            print(f"Source: {source} | Device: {args.device} | "
+                  f"Flip: {flip} | Tracking: {tracking}")
             print("Close the window or press ESC to exit.")
 
             try:
@@ -385,7 +444,8 @@ def main():
                               screen, csv_writer=csv_writer,
                               video_name=video_name,
                               single_subject=args.single_subject,
-                              diag_writer=diag_w)
+                              diag_writer=diag_w,
+                              tracking=tracking)
             finally:
                 if fh is not None:
                     fh.close()

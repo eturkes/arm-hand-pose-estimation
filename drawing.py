@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 
 # ---------------------------------------------------------------------------
-# Skeleton topology
+# Skeleton topology — 12-keypoint arm scheme
 # ---------------------------------------------------------------------------
 
 # Arm chains drawn as Catmull-Rom splines (indices into the 12 arm keypoints).
@@ -18,6 +18,55 @@ BODY_SEGMENTS = [
     ((4, 6), "left_arm"), ((4, 8), "left_arm"), ((4, 10), "left_arm"), ((6, 8), "left_arm"),
     ((5, 7), "right_arm"), ((5, 9), "right_arm"), ((5, 11), "right_arm"), ((7, 9), "right_arm"),
 ]
+
+BODY_COLOR_MAP = {
+    "shoulder": (0, 255, 255),
+    "left_arm": (0, 200, 0),
+    "right_arm": (0, 128, 255),
+}
+
+# ---------------------------------------------------------------------------
+# Skeleton topology — 33-keypoint full body scheme
+# ---------------------------------------------------------------------------
+
+FULL_BODY_CHAINS = [
+    ([11, 13, 15], "left_arm"),
+    ([12, 14, 16], "right_arm"),
+    ([23, 25, 27], "left_leg"),
+    ([24, 26, 28], "right_leg"),
+]
+FULL_BODY_SEGMENTS = [
+    # Torso
+    ((11, 12), "torso"),
+    ((11, 23), "torso"),
+    ((12, 24), "torso"),
+    ((23, 24), "torso"),
+    # Wrist → finger connections
+    ((15, 17), "left_arm"), ((15, 19), "left_arm"),
+    ((15, 21), "left_arm"), ((17, 19), "left_arm"),
+    ((16, 18), "right_arm"), ((16, 20), "right_arm"),
+    ((16, 22), "right_arm"), ((18, 20), "right_arm"),
+    # Feet
+    ((27, 29), "left_leg"), ((29, 31), "left_leg"), ((27, 31), "left_leg"),
+    ((28, 30), "right_leg"), ((30, 32), "right_leg"), ((28, 32), "right_leg"),
+    # Face
+    ((0, 1), "face"), ((1, 2), "face"), ((2, 3), "face"), ((3, 7), "face"),
+    ((0, 4), "face"), ((4, 5), "face"), ((5, 6), "face"), ((6, 8), "face"),
+    ((9, 10), "face"),
+]
+
+FULL_BODY_COLOR_MAP = {
+    "torso": (0, 255, 255),
+    "left_arm": (0, 200, 0),
+    "right_arm": (0, 128, 255),
+    "left_leg": (0, 200, 0),
+    "right_leg": (0, 128, 255),
+    "face": (180, 180, 180),
+}
+
+# ---------------------------------------------------------------------------
+# Hand skeleton topology
+# ---------------------------------------------------------------------------
 
 # Hand finger chains drawn as Catmull-Rom splines (indices into the 21 hand keypoints).
 HAND_CHAINS = [
@@ -40,11 +89,6 @@ HAND_SEGMENTS = [
 # Color maps (BGR)
 # ---------------------------------------------------------------------------
 
-BODY_COLOR_MAP = {
-    "shoulder": (0, 255, 255),
-    "left_arm": (0, 200, 0),
-    "right_arm": (0, 128, 255),
-}
 HAND_COLOR_MAP = {
     "thumb": (0, 0, 255),
     "index": (0, 128, 255),
@@ -105,26 +149,40 @@ def catmull_rom_spline(points, num_samples=20):
 # ---------------------------------------------------------------------------
 
 
+def _body_topology(n_keypoints):
+    """Return (chains, segments, color_map) for the given landmark count."""
+    if n_keypoints == 33:
+        return FULL_BODY_CHAINS, FULL_BODY_SEGMENTS, FULL_BODY_COLOR_MAP
+    return BODY_CHAINS, BODY_SEGMENTS, BODY_COLOR_MAP
+
+
 def draw_body_landmarks(img, body_landmarks, body_visibilities, visibility_threshold=0.5):
-    """Draw arm landmarks with curved splines for joint chains."""
+    """Draw body landmarks with curved splines for joint chains.
+
+    Automatically selects 12-keypoint arm topology or 33-keypoint full
+    body topology based on the shape of the first landmark array.
+    """
     if not body_landmarks:
         return img
+
+    n_kp = body_landmarks[0].shape[0]
+    chains, segments, color_map = _body_topology(n_kp)
 
     img_limbs = np.copy(img)
 
     for landmarks, visibility in zip(body_landmarks, body_visibilities):
         points = landmarks[:, :2]
 
-        for chain_indices, group in BODY_CHAINS:
+        for chain_indices, group in chains:
             if all(visibility[i] > visibility_threshold for i in chain_indices):
                 chain_pts = points[chain_indices]
                 curve = catmull_rom_spline(chain_pts, num_samples=20).astype(np.int32)
-                cv2.polylines(img_limbs, [curve], False, BODY_COLOR_MAP[group], 2, cv2.LINE_AA)
+                cv2.polylines(img_limbs, [curve], False, color_map[group], 2, cv2.LINE_AA)
 
-        for (i, j), group in BODY_SEGMENTS:
+        for (i, j), group in segments:
             if visibility[i] > visibility_threshold and visibility[j] > visibility_threshold:
                 cv2.line(img_limbs, tuple(points[i].astype(np.int32)),
-                         tuple(points[j].astype(np.int32)), BODY_COLOR_MAP[group], 2, cv2.LINE_AA)
+                         tuple(points[j].astype(np.int32)), color_map[group], 2, cv2.LINE_AA)
 
         for idx, pt in enumerate(points):
             if visibility[idx] > visibility_threshold:

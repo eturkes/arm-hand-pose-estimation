@@ -19,7 +19,38 @@ from detection import (
     decode_detections,
 )
 
-ARM_KEYPOINT_INDICES = list(range(11, 23))
+# ---------------------------------------------------------------------------
+# Tracking modes
+# ---------------------------------------------------------------------------
+
+TRACKING_HANDS = "hands"
+TRACKING_HAND_ARM = "hand-arm"
+TRACKING_BODY = "body"
+
+# Pose landmark indices to extract per mode
+ARM_KEYPOINT_INDICES = list(range(11, 23))   # 12 arm keypoints
+BODY_KEYPOINT_INDICES = list(range(33))      # all 33 pose keypoints
+
+# (shoulder, elbow, wrist) triplets used for synthetic hand detections,
+# indexed into the extracted keypoint array for each mode.
+_ARM_CHAINS_12 = [(0, 2, 4), (1, 3, 5)]
+_ARM_CHAINS_33 = [(11, 13, 15), (12, 14, 16)]
+
+# Wrist / shoulder indices in each keypoint scheme, used for hand-arm
+# matching and the body-tracking anchor.
+WRIST_KPS_12 = (4, 5)
+WRIST_KPS_33 = (15, 16)
+SHOULDER_KPS_12 = (0, 1)
+SHOULDER_KPS_33 = (11, 12)
+
+
+def tracking_pose_indices(tracking):
+    """Return (keypoint_indices, wrist_kps, shoulder_kps, arm_chains)."""
+    if tracking == TRACKING_BODY:
+        return (BODY_KEYPOINT_INDICES, WRIST_KPS_33,
+                SHOULDER_KPS_33, _ARM_CHAINS_33)
+    return (ARM_KEYPOINT_INDICES, WRIST_KPS_12,
+            SHOULDER_KPS_12, _ARM_CHAINS_12)
 
 
 # ---------------------------------------------------------------------------
@@ -106,13 +137,9 @@ def _smooth_detections(new_dets, prev_dets, match_threshold=0.15, alpha=0.5):
 # Arm-guided synthetic hand detections
 # ---------------------------------------------------------------------------
 
-# (shoulder, elbow, wrist) index triplets for each arm
-_ARM_CHAINS = [(0, 2, 4), (1, 3, 5)]
-
-
 def _synthesise_hand_detections(body_landmarks, body_visibilities,
                                 existing_palm_dets, frame_h, frame_w,
-                                overlap_threshold=0.1):
+                                arm_chains=None, overlap_threshold=0.1):
     """Create synthetic palm detections from arm wrist keypoints.
 
     When the palm SSD detector fails (e.g. top-down camera, partial
@@ -120,8 +147,13 @@ def _synthesise_hand_detections(body_landmarks, body_visibilities,
     position and orientation.  Synthetic detections are fed to the hand
     landmark model, which will reject bad crops via ``hand_flag``.
 
+    *arm_chains* is a list of (shoulder, elbow, wrist) index triplets
+    into the body landmark array.
+
     Returns a list of detection dicts with ``"synthetic": True``.
     """
+    if arm_chains is None:
+        arm_chains = _ARM_CHAINS_12
     synthetic = []
     if not body_landmarks:
         return synthetic
@@ -135,7 +167,7 @@ def _synthesise_hand_detections(body_landmarks, body_visibilities,
         palm_centres.append((b[:2] + b[2:]) / 2)
 
     for body_lm, body_vis in zip(body_landmarks, body_visibilities):
-        for shoulder_idx, elbow_idx, wrist_idx in _ARM_CHAINS:
+        for shoulder_idx, elbow_idx, wrist_idx in arm_chains:
             wrist_px = body_lm[wrist_idx, :2]
             elbow_px = body_lm[elbow_idx, :2]
 
@@ -352,8 +384,19 @@ def transform_landmarks_to_image(landmarks, M):
 # Landmark inference
 # ---------------------------------------------------------------------------
 
-def detect_pose_landmarks(frame, detection, pose_lm_compiled):
-    """Run pose landmark model. Returns 12 arm keypoints (re-indexed 0-11) and visibility."""
+def detect_pose_landmarks(frame, detection, pose_lm_compiled,
+                          keypoint_indices=None):
+    """Run pose landmark model and extract the requested keypoints.
+
+    *keypoint_indices* selects which of the 39 raw landmarks to return.
+    Defaults to the 12 arm keypoints (indices 11–22) for backward
+    compatibility.
+
+    Returns (landmarks, visibility, pose_flag).
+    """
+    if keypoint_indices is None:
+        keypoint_indices = ARM_KEYPOINT_INDICES
+
     cropped, M = get_pose_crop(frame, detection)
     if cropped is None:
         return None, None, 0.0
@@ -374,11 +417,11 @@ def detect_pose_landmarks(frame, detection, pose_lm_compiled):
     if landmarks is None or pose_flag is None:
         return None, None, 0.0
 
-    arm_lm = landmarks[ARM_KEYPOINT_INDICES][:, :3].copy()
-    arm_lm = transform_landmarks_to_image(arm_lm, M)
-    arm_vis = 1.0 / (1.0 + np.exp(-landmarks[ARM_KEYPOINT_INDICES][:, 3]))
+    lm = landmarks[keypoint_indices][:, :3].copy()
+    lm = transform_landmarks_to_image(lm, M)
+    vis = 1.0 / (1.0 + np.exp(-landmarks[keypoint_indices][:, 3]))
 
-    return arm_lm, arm_vis, float(pose_flag)
+    return lm, vis, float(pose_flag)
 
 
 def detect_hand_landmarks(frame, detection, hand_compiled):
@@ -416,23 +459,34 @@ def detect_hand_landmarks(frame, detection, hand_compiled):
 # Hand-arm matching & primary-body selection
 # ---------------------------------------------------------------------------
 
-def match_hands_to_arms(body_landmarks, hand_landmarks, threshold=100):
+def match_hands_to_arms(body_landmarks, hand_landmarks, threshold=100,
+                        wrist_kps=None, shoulder_kps=None):
     """Match detected hands to the nearest arm wrist by proximity.
 
     A match is only accepted when the hand is closer to the wrist than
     to the shoulder midpoint, ensuring the hand is at the distal end of
     the arm rather than near the torso.
 
+    *wrist_kps* and *shoulder_kps* are (left, right) index pairs into
+    the body landmark array.  Defaults assume the 12-keypoint arm
+    scheme.
+
     Returns list of (arm_idx, arm_wrist_kp, hand_idx) tuples.
     """
+    if wrist_kps is None:
+        wrist_kps = WRIST_KPS_12
+    if shoulder_kps is None:
+        shoulder_kps = SHOULDER_KPS_12
+
     matches = []
     if not body_landmarks or not hand_landmarks:
         return matches
 
     used_hands = set()
     for arm_idx, arm_lm in enumerate(body_landmarks):
-        shoulder_mid = (arm_lm[0, :2] + arm_lm[1, :2]) / 2
-        for wrist_kp in [4, 5]:
+        shoulder_mid = (arm_lm[shoulder_kps[0], :2]
+                        + arm_lm[shoulder_kps[1], :2]) / 2
+        for wrist_kp in wrist_kps:
             arm_wrist = arm_lm[wrist_kp, :2]
             best_hand = None
             best_dist = float('inf')
@@ -494,8 +548,14 @@ def select_primary_body(body_landmarks, body_visibilities, hand_landmarks, match
 def process_frame(frame, models, palm_anchors, pose_anchors,
                   prev_state=None, prev_hand_landmarks=None,
                   det_score_threshold=0.5, lm_score_threshold=0.65,
-                  synthesise_hands=True):
-    """Full pipeline: detect arm poses and hand landmarks.
+                  synthesise_hands=True, tracking=TRACKING_HAND_ARM):
+    """Full pipeline: detect body poses and hand landmarks.
+
+    *tracking* controls what is detected:
+
+    - ``"hands"``: palm + hand landmarks only (no pose detection).
+    - ``"hand-arm"``: 12 arm keypoints + hand landmarks (default).
+    - ``"body"``: all 33 pose keypoints + hand landmarks.
 
     Detection bounding boxes and keypoints are smoothed against the
     previous frame (*prev_state*) before crop extraction so that the
@@ -513,29 +573,35 @@ def process_frame(frame, models, palm_anchors, pose_anchors,
 
     Returns ``(body_landmarks, body_visibilities, hand_landmarks, state)``.
     """
-    pose_det_model = models["pose_detection"]
-    pose_lm_model = models["pose_landmark"]
     palm_det_model = models["palm_detection"]
     hand_lm_model = models["hand_landmark"]
-
-    # --- Arm pose estimation -----------------------------------------------
-    pose_detections = run_detection(
-        frame, pose_det_model, POSE_INPUT_SIZE, pose_anchors, 4)
-    prev_pose = prev_state.get("pose_dets", []) if prev_state else []
-    pose_detections = _smooth_detections(pose_detections, prev_pose,
-                                         match_threshold=0.10)
 
     body_landmarks = []
     body_visibilities = []
     kept_pose_dets = []
-    for det in pose_detections:
-        if det["score"] < det_score_threshold:
-            continue
-        lm, vis, confidence = detect_pose_landmarks(frame, det, pose_lm_model)
-        if lm is not None and confidence > lm_score_threshold:
-            body_landmarks.append(lm)
-            body_visibilities.append(vis)
-            kept_pose_dets.append(det)
+
+    # --- Body pose estimation (skipped in hands-only mode) -----------------
+    if tracking != TRACKING_HANDS:
+        kp_indices, _, _, arm_chains = tracking_pose_indices(tracking)
+
+        pose_det_model = models["pose_detection"]
+        pose_lm_model = models["pose_landmark"]
+
+        pose_detections = run_detection(
+            frame, pose_det_model, POSE_INPUT_SIZE, pose_anchors, 4)
+        prev_pose = prev_state.get("pose_dets", []) if prev_state else []
+        pose_detections = _smooth_detections(pose_detections, prev_pose,
+                                             match_threshold=0.10)
+
+        for det in pose_detections:
+            if det["score"] < det_score_threshold:
+                continue
+            lm, vis, confidence = detect_pose_landmarks(
+                frame, det, pose_lm_model, keypoint_indices=kp_indices)
+            if lm is not None and confidence > lm_score_threshold:
+                body_landmarks.append(lm)
+                body_visibilities.append(vis)
+                kept_pose_dets.append(det)
 
     # --- Hand pose estimation ----------------------------------------------
     palm_detections = run_detection(
@@ -552,10 +618,11 @@ def process_frame(frame, models, palm_anchors, pose_anchors,
     real_palm_dets = list(palm_detections)
 
     # Synthesise palm detections from arm wrists not covered by real palms
-    if body_landmarks and synthesise_hands:
+    if body_landmarks and synthesise_hands and tracking != TRACKING_HANDS:
+        _, _, _, arm_chains = tracking_pose_indices(tracking)
         palm_detections.extend(_synthesise_hand_detections(
             body_landmarks, body_visibilities, palm_detections,
-            frame_h, frame_w))
+            frame_h, frame_w, arm_chains=arm_chains))
 
     # Re-crop from previous hand landmarks when palm detector misses
     if prev_hand_landmarks:

@@ -219,18 +219,25 @@ class PoseSmoother:
         return [age for _, _, age, _, _, _, _ in
                 self.hand_tracks[:self._n_active_hands]]
 
-    def smooth_bodies(self, body_landmarks, body_visibilities, t):
+    def smooth_bodies(self, body_landmarks, body_visibilities, t,
+                      shoulder_indices=(0, 1)):
         """Smooth body landmarks and return (landmarks, visibilities, n_detected).
 
         *n_detected* is the number of bodies that were genuinely matched
         (or newly created) this frame — i.e. **not** carry-forward ghosts.
         Callers that need to know whether body detection actually fired
         (e.g. single-subject mode) should inspect this value.
+
+        *shoulder_indices* selects the two keypoints whose midpoint is
+        used as the track anchor.  Defaults to ``(0, 1)`` for the
+        12-keypoint arm scheme; use ``(11, 12)`` for the 33-keypoint
+        full body scheme.
         """
+        si = shoulder_indices
         lm_list = body_landmarks or []
         self.body_tracks, smoothed, n_active = self._match_and_smooth(
             self.body_tracks, lm_list,
-            get_anchor=lambda lm: (lm[0, :2] + lm[1, :2]) / 2,
+            get_anchor=lambda lm: (lm[si[0], :2] + lm[si[1], :2]) / 2,
             new_filter_fn=lambda: OneEuroFilter(min_cutoff=0.3, beta=0.5),
             t=t,
             grace=10,

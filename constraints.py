@@ -1,9 +1,9 @@
-"""Biomechanical constraints for arm landmark plausibility."""
+"""Biomechanical constraints for landmark plausibility."""
 
 import numpy as np
 
 # ---------------------------------------------------------------------------
-# Bone-length consistency
+# Bone-length consistency — 12-keypoint arm scheme
 # ---------------------------------------------------------------------------
 
 # Segment pairs: (proximal_index, distal_index)
@@ -15,6 +15,25 @@ BONE_SEGMENTS = [
     (1, 3),  # right shoulder → right elbow
     (3, 5),  # right elbow → right wrist
     (5, 7),  # right wrist → right index base
+]
+
+# ---------------------------------------------------------------------------
+# Bone-length consistency — 33-keypoint full body scheme
+# ---------------------------------------------------------------------------
+
+BONE_SEGMENTS_BODY = [
+    # Arms (same joints, full-body indices)
+    (11, 13),  # left shoulder → left elbow
+    (13, 15),  # left elbow → left wrist
+    (15, 19),  # left wrist → left index
+    (12, 14),  # right shoulder → right elbow
+    (14, 16),  # right elbow → right wrist
+    (16, 20),  # right wrist → right index
+    # Legs
+    (23, 25),  # left hip → left knee
+    (25, 27),  # left knee → left ankle
+    (24, 26),  # right hip → right knee
+    (26, 28),  # right knee → right ankle
 ]
 
 
@@ -34,22 +53,26 @@ class BoneLengthSmoother:
     tolerance : float
         Maximum allowed fractional deviation from the running average
         before correction is applied (e.g. 0.4 = 40 %).
+    segments : list of (int, int), optional
+        Bone segment index pairs.  Defaults to :data:`BONE_SEGMENTS`
+        (12-keypoint arm scheme).
     """
 
-    def __init__(self, alpha=0.05, tolerance=0.4):
+    def __init__(self, alpha=0.05, tolerance=0.4, segments=None):
         self.alpha = alpha
         self.tolerance = tolerance
+        self.segments = segments if segments is not None else BONE_SEGMENTS
         self._averages = {}  # body_id -> np.array of average lengths
 
     def update(self, body_id, landmarks):
-        """Apply bone-length correction to *landmarks* (12, 3) in-place.
+        """Apply bone-length correction to *landmarks* in-place.
 
         Parameters
         ----------
         body_id : int
             Stable identifier for the tracked body (e.g. track index).
         landmarks : np.ndarray
-            Shape (12, 3) arm keypoints in pixel space.  Modified in-place.
+            Shape (N, 3) keypoints in pixel space.  Modified in-place.
 
         Returns
         -------
@@ -58,7 +81,7 @@ class BoneLengthSmoother:
         """
         lengths = np.array([
             np.linalg.norm(landmarks[d] - landmarks[p])
-            for p, d in BONE_SEGMENTS
+            for p, d in self.segments
         ])
 
         if body_id not in self._averages:
@@ -68,7 +91,7 @@ class BoneLengthSmoother:
         avg = self._averages[body_id]
         avg[:] = self.alpha * lengths + (1 - self.alpha) * avg
 
-        for i, (p, d) in enumerate(BONE_SEGMENTS):
+        for i, (p, d) in enumerate(self.segments):
             expected = avg[i]
             if expected < 1e-6:
                 continue
@@ -91,13 +114,24 @@ class BoneLengthSmoother:
 
 
 # ---------------------------------------------------------------------------
-# Joint-angle limits
+# Joint-angle limits — 12-keypoint arm scheme
 # ---------------------------------------------------------------------------
 
 # (proximal, joint, distal): (min_degrees, max_degrees)
 ANGLE_LIMITS = {
     (0, 2, 4): (30, 170),  # left elbow
     (1, 3, 5): (30, 170),  # right elbow
+}
+
+# ---------------------------------------------------------------------------
+# Joint-angle limits — 33-keypoint full body scheme
+# ---------------------------------------------------------------------------
+
+ANGLE_LIMITS_BODY = {
+    (11, 13, 15): (30, 170),  # left elbow
+    (12, 14, 16): (30, 170),  # right elbow
+    (23, 25, 27): (30, 170),  # left knee
+    (24, 26, 28): (30, 170),  # right knee
 }
 
 
@@ -115,7 +149,7 @@ def clamp_joint_angles(landmarks, limits=None):
     Parameters
     ----------
     landmarks : np.ndarray
-        Shape (12, 3) arm keypoints in pixel space.  Modified in-place.
+        Shape (N, 3) keypoints in pixel space.  Modified in-place.
     limits : dict, optional
         ``{(proximal, joint, distal): (min_deg, max_deg), ...}``.
         Defaults to :data:`ANGLE_LIMITS`.

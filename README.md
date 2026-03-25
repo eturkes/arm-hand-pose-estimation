@@ -1,9 +1,9 @@
 # Pose Estimation
 
 Real-time pose estimation combining MediaPipe TFLite models with
-Intel OpenVINO inference. Detects arm poses (12 keypoints) and hand landmarks
-(21 keypoints per hand) from a webcam or video, with temporal smoothing and
-skeleton visualization.
+Intel OpenVINO inference. Supports three tracking modes — hands only,
+arms + hands (default), or whole body + hands — from a webcam or video,
+with temporal smoothing and skeleton visualization.
 
 ## Requirements
 
@@ -21,7 +21,7 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-# Default: webcam 0, NPU device
+# Default: webcam 0, NPU device, hand-arm tracking
 python main.py
 
 # Use a different camera
@@ -44,6 +44,35 @@ Models are downloaded automatically on first run and cached in the `model/`
 directory (TFLite from Google MediaPipe, converted to OpenVINO IR).
 
 Close the window or press **ESC** to exit.
+
+### Tracking Modes
+
+Use `--tracking` to select what body parts are tracked:
+
+```bash
+# Hands only — palm detection + 21 hand keypoints per hand
+python main.py --tracking hands
+
+# Arms + hands (default) — 12 arm keypoints + hand landmarks
+python main.py --tracking hand-arm
+
+# Whole body + hands — all 33 pose keypoints + hand landmarks
+python main.py --tracking body
+```
+
+| Mode | Body keypoints | Hand keypoints | Pose detection |
+|------|---------------|----------------|----------------|
+| `hands` | — | 2 × 21 | Skipped |
+| `hand-arm` | 12 (shoulders → finger bases) | 2 × 21 | Yes |
+| `body` | 33 (face, torso, arms, legs) | 2 × 21 | Yes |
+
+In **hands** mode, pose detection is skipped entirely, which improves
+performance but disables arm-guided hand detection fallbacks.  Hands are
+assigned left/right by wrist x-coordinate.
+
+In **body** mode, all 33 MediaPipe Pose landmarks are tracked (including
+face, torso, and leg keypoints), with biomechanical constraints extended
+to knee joints.
 
 ## Batch Video Processing
 
@@ -98,15 +127,19 @@ Single-subject mode has three resilience layers for unreliable body detection
 ## CSV Output
 
 CSVs contain one row per person per frame with normalised (0–1) landmark
-coordinates (178 columns total):
+coordinates. The number of columns depends on the tracking mode:
 
-| Component | Columns |
-|-----------|---------|
-| Arm keypoints | 12 × 4 values (x, y, z, visibility) |
-| Hand keypoints | 2 × 21 × 3 values (x, y, z per hand) |
-| Metadata | 4 columns |
+| Mode | Body columns | Hand columns | Metadata | Total |
+|------|-------------|-------------|----------|-------|
+| `hands` | — | 2 × 21 × 3 = 126 | 4 | 130 |
+| `hand-arm` | 12 × 4 = 48 | 2 × 21 × 3 = 126 | 4 | 178 |
+| `body` | 33 × 4 = 132 | 2 × 21 × 3 = 126 | 4 | 262 |
 
-Missing hand data is left blank. With `--single-subject`, arm columns may also
+Body columns use the prefix `arm_` in hand-arm mode and `body_` in body mode.
+Each body keypoint has x, y, z, and visibility values. Hand keypoints have
+x, y, z only.
+
+Missing hand data is left blank. With `--single-subject`, body columns may also
 be blank in hand-only fallback frames.
 
 ## Architecture
