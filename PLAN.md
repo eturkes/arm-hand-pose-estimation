@@ -225,9 +225,9 @@ python3 test_extrapolation.py
 
 ---
 
-## Section 4 — Proportional bone-length correction
+## Section 4 — Proportional bone-length correction [DONE]
 
-### Status: TODO
+### Status: [DONE]
 
 ### Rationale
 

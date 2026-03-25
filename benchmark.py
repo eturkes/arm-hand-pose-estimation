@@ -59,6 +59,7 @@ TUNEABLE_PARAMS = {
     # Bone-length constraints
     "bone_ema_alpha":    ("constraints", "bone_ema_alpha", 0.05),
     "bone_tolerance":    ("constraints", "bone_tolerance", 0.4),
+    "bone_distal_weight": ("constraints", "bone_distal_weight", 0.8),
 
     # Carry-forward
     "carry_grace":       ("smoothing", "carry_grace", 10),
@@ -117,6 +118,9 @@ def _apply_param_overrides(overrides):
         elif key == "bone_tolerance":
             originals["bone_tolerance"] = 0.4
             constraints._BENCH_BONE_TOL = float(value)
+        elif key == "bone_distal_weight":
+            originals["bone_distal_weight"] = 0.8
+            constraints._BENCH_BONE_DISTAL_WEIGHT = float(value)
 
     return originals
 

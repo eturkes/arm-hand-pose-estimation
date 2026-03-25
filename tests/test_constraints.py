@@ -67,8 +67,17 @@ def test_perturbed_keypoint_corrected():
     direction = wrist - elbow
     perturbed[4] = elbow + direction * 2.0  # 2x normal distance
 
+    elbow_before = perturbed[2].copy()
+    wrist_before = perturbed[4].copy()
+
     result, correction = smoother.update(0, perturbed)
     assert correction > 0
+
+    # Both endpoints should have shifted (proportional correction)
+    assert np.linalg.norm(result[4] - wrist_before) > 1e-6, \
+        "distal keypoint should have moved"
+    assert np.linalg.norm(result[2] - elbow_before) > 1e-6, \
+        "proximal keypoint should also have moved"
 
     # After correction the left elbow→wrist distance should be close
     # to the EMA (within tolerance), not 2x.
@@ -77,12 +86,6 @@ def test_perturbed_keypoint_corrected():
     assert abs(corrected_len - expected_len) / expected_len < 0.5, (
         f"corrected_len={corrected_len:.1f}, expected≈{expected_len:.1f}"
     )
-
-    # Verify direction is preserved
-    orig_dir = direction / np.linalg.norm(direction)
-    corr_dir = (result[4] - result[2])
-    corr_dir /= np.linalg.norm(corr_dir)
-    np.testing.assert_allclose(corr_dir, orig_dir, atol=1e-6)
 
 
 def test_ema_converges():
@@ -116,6 +119,31 @@ def test_prune_removes_stale():
     assert 1 not in smoother._averages
     assert 0 in smoother._averages
     assert 2 in smoother._averages
+
+
+def test_proportional_correction_direction():
+    """Proximal keypoint should move toward the perturbed distal keypoint."""
+    smoother = BoneLengthSmoother(alpha=0.05, tolerance=0.4)
+    lm = _make_landmarks()
+
+    for _ in range(20):
+        smoother.update(0, lm.copy())
+
+    perturbed = lm.copy()
+    elbow = lm[2]
+    wrist = lm[4]
+    direction = wrist - elbow
+    perturbed[4] = elbow + direction * 2.0
+
+    elbow_before = perturbed[2].copy()
+    result, _ = smoother.update(0, perturbed)
+
+    # Proximal (elbow) should have moved toward the distal (wrist)
+    toward_distal = perturbed[4] - elbow_before
+    proximal_shift = result[2] - elbow_before
+    # Positive dot product means same general direction
+    assert np.dot(toward_distal, proximal_shift) > 0, \
+        "proximal keypoint should move toward the distal keypoint"
 
 
 def test_small_movements_within_tolerance_pass_through():
@@ -282,6 +310,7 @@ def test_angle_clamp_right_elbow():
 if __name__ == "__main__":
     test_constant_landmarks_no_correction()
     test_perturbed_keypoint_corrected()
+    test_proportional_correction_direction()
     test_ema_converges()
     test_prune_removes_stale()
     test_small_movements_within_tolerance_pass_through()

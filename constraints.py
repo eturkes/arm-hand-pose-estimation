@@ -44,9 +44,10 @@ class BoneLengthSmoother:
 
     Maintains an exponential moving average of each bone segment length.
     When the measured length deviates from the running average beyond
-    *tolerance*, the distal keypoint is projected along the segment
-    direction to the expected length.  Corrections propagate outward
-    (shoulder → elbow → wrist → finger base).
+    *tolerance*, the correction is split between both endpoints
+    (weighted by *distal_weight* toward the distal keypoint).
+    Corrections propagate outward (shoulder → elbow → wrist → finger
+    base).
 
     Parameters
     ----------
@@ -58,15 +59,24 @@ class BoneLengthSmoother:
     segments : list of (int, int), optional
         Bone segment index pairs.  Defaults to :data:`BONE_SEGMENTS`
         (12-keypoint arm scheme).
+    distal_weight : float
+        Fraction of the correction applied to the distal keypoint
+        (default 0.8).  The remaining ``1 - distal_weight`` is applied
+        to the proximal keypoint.
     """
 
-    def __init__(self, alpha=None, tolerance=None, segments=None):
+    def __init__(self, alpha=None, tolerance=None, segments=None,
+                 distal_weight=None):
         if alpha is None:
             alpha = float(os.environ.get("POSE_BENCH_BONE_EMA_ALPHA", "0.05"))
         if tolerance is None:
             tolerance = float(os.environ.get("POSE_BENCH_BONE_TOLERANCE", "0.4"))
+        if distal_weight is None:
+            distal_weight = float(
+                os.environ.get("POSE_BENCH_BONE_DISTAL_WEIGHT", "0.8"))
         self.alpha = alpha
         self.tolerance = tolerance
+        self.distal_weight = distal_weight
         self.segments = segments if segments is not None else BONE_SEGMENTS
         self._averages = {}  # body_id -> np.array of average lengths
 
@@ -106,15 +116,19 @@ class BoneLengthSmoother:
                 continue
             deviation = abs(lengths[i] - expected) / expected
             if deviation > self.tolerance:
-                old_pos = landmarks[d].copy()
                 direction = landmarks[d] - landmarks[p]
                 norm = np.linalg.norm(direction)
                 if norm < 1e-6:
                     continue
                 direction /= norm
-                landmarks[d] = landmarks[p] + direction * expected
+                overshoot = landmarks[d] - (landmarks[p] + direction * expected)
+                old_d = landmarks[d].copy()
+                old_p = landmarks[p].copy()
+                landmarks[d] -= self.distal_weight * overshoot
+                landmarks[p] += (1 - self.distal_weight) * overshoot
                 total_correction += float(
-                    np.linalg.norm(landmarks[d] - old_pos))
+                    np.linalg.norm(landmarks[d] - old_d)
+                    + np.linalg.norm(landmarks[p] - old_p))
 
         return landmarks, total_correction
 
