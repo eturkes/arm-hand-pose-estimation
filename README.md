@@ -179,7 +179,17 @@ python benchmark.py --source video.mp4 --sweep body_beta 0.3 0.5 0.7 --sweep han
 Available sweep parameters: `det_score_thresh`, `hand_flag_thresh`,
 `body_min_cutoff`, `body_beta`, `hand_min_cutoff`, `hand_beta`,
 `confidence_gamma`, `det_smooth_alpha`, `bone_ema_alpha`, `bone_tolerance`,
-`carry_grace`.
+`bone_distal_weight`, `carry_grace`, `carry_damping`.
+
+Curated sweep configurations are provided as YAML files:
+
+```bash
+# Full grid (8 params — run 1-2 at a time)
+python benchmark.py --source video.mp4 --config sweep_default.yaml
+
+# Quick first pass (body smoothing × detection EMA, 6 combos)
+python benchmark.py --source video.mp4 --config sweep_quick.yaml
+```
 
 ## Architecture
 
@@ -204,6 +214,10 @@ Available sweep parameters: `det_score_thresh`, `hand_flag_thresh`,
   OpenCV's bundled Qt backend does not render on Wayland.
 - **Image processing**: Uses `opencv-python-headless` (no GUI module needed).
 - **Inference devices**: NPU (default), CPU, GPU via OpenVINO.
+- **Hand-to-arm matching**: Uses Hungarian (optimal) assignment via
+  `scipy.optimize.linear_sum_assignment` to pair detected hands with arm
+  wrists, with a distality check to reject hands closer to the shoulder
+  midpoint than the wrist.
 - **Frame pipeline**: BGR capture → flip → resize → detect → arm-guided
   hand ROI fallback → landmark → smooth (confidence-weighted) →
   bone-length constraints → joint-angle limits → match →

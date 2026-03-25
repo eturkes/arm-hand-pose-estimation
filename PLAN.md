@@ -564,9 +564,9 @@ python3 test_extrapolation.py
 
 ---
 
-## Section 9 — Housekeeping
+## Section 9 — Housekeeping [DONE]
 
-### Status: TODO
+### Status: [DONE]
 
 ### Rationale
 

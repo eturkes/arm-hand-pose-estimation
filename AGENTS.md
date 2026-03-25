@@ -28,7 +28,24 @@ the live video:
 
 Tuneable parameters are overridden via environment variables
 (`POSE_BENCH_BODY_MIN_CUTOFF`, etc.) so that `benchmark.py`
-can spawn isolated subprocess runs per combination.
+can spawn isolated subprocess runs per combination.  Notable
+additions: `carry_damping` (velocity decay for carry-forward
+extrapolation, default 0.8) and `bone_distal_weight`
+(proportion of bone-length correction applied to the distal
+keypoint, default 0.8).
+
+## Tests
+
+Unit tests live in `tests/` and `test_extrapolation.py`:
+
+- `tests/test_smoothing.py` — One Euro Filter, hand/body paths
+- `tests/test_constraints.py` — bone-length and joint-angle
+- `tests/test_matching.py` — Hungarian hand-to-arm matching
+- `tests/test_detection.py` — NMS, detection smoothing,
+  carry-forward
+- `tests/test_processing.py` — synthetic hands, re-crop,
+  affine helpers
+- `test_extrapolation.py` — carry-forward extrapolation
 
 ## Tracking Modes
 
