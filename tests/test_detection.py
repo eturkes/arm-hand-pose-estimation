@@ -1,4 +1,4 @@
-"""Tests for detection-level carry-forward in _smooth_detections."""
+"""Tests for detection-level carry-forward, NMS, and decode_detections."""
 
 import numpy as np
 import sys
@@ -7,6 +7,7 @@ import pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from processing import _smooth_detections
+from detection import nms, decode_detections, generate_anchors
 
 
 def _make_det(cx, cy, size=0.1, score=0.9):
@@ -142,6 +143,56 @@ def test_partial_carry_with_new_dets():
     carried = [d for d in result if d.get("_carried")]
     assert len(carried) == 1
     assert abs(carried[0]["score"] - 0.9 * 0.7) < 1e-6
+
+
+# ---- NMS tests --------------------------------------------------------------
+
+def test_nms_no_overlap():
+    """Two non-overlapping boxes both survive NMS."""
+    boxes = np.array([
+        [0.0, 0.0, 0.1, 0.1],
+        [0.8, 0.8, 0.9, 0.9],
+    ], dtype=np.float32)
+    scores = np.array([0.9, 0.8], dtype=np.float32)
+
+    keep = nms(boxes, scores, iou_threshold=0.3)
+
+    assert len(keep) == 2
+
+
+def test_nms_full_overlap():
+    """Two identical boxes: only the higher-scored one survives."""
+    boxes = np.array([
+        [0.1, 0.1, 0.5, 0.5],
+        [0.1, 0.1, 0.5, 0.5],
+    ], dtype=np.float32)
+    scores = np.array([0.7, 0.95], dtype=np.float32)
+
+    keep = nms(boxes, scores, iou_threshold=0.3)
+
+    assert len(keep) == 1
+    assert keep[0] == 1   # higher score
+
+
+# ---- decode_detections tests -----------------------------------------------
+
+def test_decode_no_detections():
+    """All scores below threshold produce empty list."""
+    input_size = 192
+    num_keypoints = 7
+    values_per_anchor = 4 + num_keypoints * 2   # 18
+
+    anchors = generate_anchors(input_size, [8, 16, 16, 16])
+    n_anchors = len(anchors)
+
+    # Raw scores: large negative → sigmoid ≈ 0 (well below default 0.5)
+    raw_scores = np.full((1, n_anchors, 1), -10.0, dtype=np.float32)
+    raw_boxes = np.zeros((1, n_anchors, values_per_anchor), dtype=np.float32)
+
+    result = decode_detections(raw_boxes, raw_scores, anchors, input_size,
+                               num_keypoints, score_threshold=0.5)
+
+    assert result == []
 
 
 # ---- Run all tests ----------------------------------------------------------

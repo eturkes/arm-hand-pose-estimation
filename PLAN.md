@@ -494,9 +494,9 @@ print(f'{len(spec)} parameters')
 
 ---
 
-## Section 8 — Expand test coverage
+## Section 8 — Expand test coverage [DONE]
 
-### Status: TODO
+### Status: [DONE]
 
 ### Rationale
 
