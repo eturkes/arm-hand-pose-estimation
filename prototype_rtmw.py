@@ -141,12 +141,13 @@ class KeypointSmoother:
     SCORE_DECAY = 0.9  # per-frame score multiplier during carry-forward
 
     def __init__(self, min_cutoff=0.5, beta=0.5, score_alpha=0.5,
-                 carry_frames=5, match_thresh=150):
+                 carry_frames=5, match_thresh=150, carry_damping=0.8):
         self.min_cutoff = min_cutoff
         self.beta = beta
         self.score_alpha = score_alpha
         self.carry_frames = carry_frames
         self.match_thresh = match_thresh
+        self.carry_damping = carry_damping
         self.tracks = []
 
     def reset(self):
@@ -172,11 +173,45 @@ class KeypointSmoother:
                 kp[start:end], t, confidence=conf_slice)
         return result
 
+    def _get_velocity(self, filters):
+        """Extract concatenated velocity from region or single filters."""
+        if "all" in filters:
+            v = filters["all"].dx_prev
+            return v.copy() if v is not None else None
+        parts = []
+        for name, _, _, _, _ in REGION_PARAMS:
+            v = filters[name].dx_prev
+            if v is None:
+                return None
+            parts.append(v)
+        return np.concatenate(parts, axis=0)
+
+    def _extrapolate(self, last_kps, last_velocity, last_t, t, misses):
+        """Velocity-based extrapolation with exponential damping.
+
+        Falls back to static carry when no velocity is available.
+        Per-keypoint displacement is capped at match_thresh to
+        prevent runaway drift from spurious velocity estimates.
+        """
+        if last_velocity is None:
+            return last_kps
+        dt = t - last_t
+        if dt <= 0:
+            return last_kps
+        damping = self.carry_damping ** misses
+        step = last_velocity * dt * damping
+        # Cap per-keypoint displacement magnitude
+        norms = np.linalg.norm(step, axis=1, keepdims=True)
+        norms = np.maximum(norms, 1e-9)
+        scale = np.minimum(1.0, self.match_thresh / norms)
+        step *= scale
+        return last_kps + step
+
     def __call__(self, keypoints, scores, t):
         """Return (smoothed_keypoints, smoothed_scores) or (None, None)."""
         if (keypoints is None or len(keypoints.shape) != 3
                 or keypoints.shape[0] == 0):
-            return self._carry()
+            return self._carry(t)
 
         n_det = keypoints.shape[0]
         det_centroids = keypoints.mean(axis=1)
@@ -209,6 +244,8 @@ class KeypointSmoother:
                 "scores": smooth_sc.copy(),
                 "misses": 0,
                 "last_kps": smooth_kp.copy(),
+                "last_velocity": self._get_velocity(filt),
+                "last_t": t,
             })
             out_kps.append(smooth_kp)
             out_scores.append(smooth_sc)
@@ -218,15 +255,20 @@ class KeypointSmoother:
             if j in used_tracks or tr["misses"] >= self.carry_frames:
                 continue
             misses = tr["misses"] + 1
+            predicted = self._extrapolate(
+                tr["last_kps"], tr.get("last_velocity"),
+                tr.get("last_t", 0), t, misses)
             decayed = tr["scores"] * self.SCORE_DECAY
             new_tracks.append({
                 "filter": tr["filter"],
-                "centroid": tr["centroid"],
+                "centroid": predicted.mean(axis=0).copy(),
                 "scores": decayed,
                 "misses": misses,
-                "last_kps": tr["last_kps"],
+                "last_kps": predicted,
+                "last_velocity": tr.get("last_velocity"),
+                "last_t": t,
             })
-            out_kps.append(tr["last_kps"])
+            out_kps.append(predicted)
             out_scores.append(decayed)
 
         self.tracks = new_tracks
@@ -256,7 +298,7 @@ class KeypointSmoother:
 
         return matched, used_tracks
 
-    def _carry(self):
+    def _carry(self, t=None):
         """Emit carry-forward tracks when no detections are present."""
         new_tracks = []
         out_kps = []
@@ -265,15 +307,23 @@ class KeypointSmoother:
             if tr["misses"] >= self.carry_frames:
                 continue
             misses = tr["misses"] + 1
+            if t is not None:
+                predicted = self._extrapolate(
+                    tr["last_kps"], tr.get("last_velocity"),
+                    tr.get("last_t", 0), t, misses)
+            else:
+                predicted = tr["last_kps"]
             decayed = tr["scores"] * self.SCORE_DECAY
             new_tracks.append({
                 "filter": tr["filter"],
-                "centroid": tr["centroid"],
+                "centroid": predicted.mean(axis=0).copy(),
                 "scores": decayed,
                 "misses": misses,
-                "last_kps": tr["last_kps"],
+                "last_kps": predicted,
+                "last_velocity": tr.get("last_velocity"),
+                "last_t": t if t is not None else tr.get("last_t", 0),
             })
-            out_kps.append(tr["last_kps"])
+            out_kps.append(predicted)
             out_scores.append(decayed)
         self.tracks = new_tracks
         if out_kps:

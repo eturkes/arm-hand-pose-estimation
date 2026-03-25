@@ -45,7 +45,7 @@ noted otherwise.
   and `smooth_hands` (line 272) for the parameter values.
 
 ### 3. Velocity-based carry-forward extrapolation
-- **Status:** TODO
+- **Status:** DONE
 - **Goal:** Smooth motion continuity during detection dropouts instead of
   freezing.
 - **What:** Store each track's last velocity (`filter.dx_prev`) and last
