@@ -144,6 +144,7 @@ Defined in `requirements.txt`:
 | `openvino` | Model compilation and inference |
 | `opencv-python-headless` | Image processing (no GUI) |
 | `numpy` | Numerical operations |
+| `scipy` | Hungarian matching, Savitzky-Golay filter |
 | `pygame-ce` | Display (SDL2, Wayland-compatible) |
 | `tqdm` | Progress bars for model downloads |
 | `requests` | HTTP for model downloads |
@@ -153,4 +154,3 @@ Optional (for `--postprocess` / `postprocess.py`):
 | Package | Purpose |
 |---------|---------|
 | `pandas` | CSV reading/writing for post-processing |
-| `scipy` | Savitzky-Golay filter implementation |

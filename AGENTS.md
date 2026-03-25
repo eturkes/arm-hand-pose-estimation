@@ -15,3 +15,10 @@ See README.md for project overview, architecture, usage, and dependencies.
 - Host runs Linux with GNOME Wayland and Homebrew Python 3.14
 - The `.venv` must be created on the host, not inside a container
   (absolute symlinks to the Python binary are not portable)
+
+## Package Installation
+
+- The user installs packages on the host (add to `requirements.txt`)
+- The assistant can install packages inside its container for
+  testing, but the user runs the project on the host, not in
+  the container

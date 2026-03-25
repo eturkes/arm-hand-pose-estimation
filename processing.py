@@ -9,6 +9,7 @@ landmark flickering.
 
 import cv2
 import numpy as np
+from scipy.optimize import linear_sum_assignment
 
 from detection import (
     PALM_INPUT_SIZE,
@@ -73,24 +74,23 @@ def _smooth_detections(new_dets, prev_dets, match_threshold=0.15, alpha=0.5):
         b = det["box"]
         return (b[:2] + b[2:]) / 2
 
-    prev_centers = [_center(d) for d in prev_dets]
+    new_centers = np.array([_center(d) for d in new_dets])
+    prev_centers = np.array([_center(d) for d in prev_dets])
+
+    # Optimal assignment via Hungarian algorithm
+    diff = new_centers[:, None, :] - prev_centers[None, :, :]
+    cost = np.linalg.norm(diff, axis=2)
+    row_ind, col_ind = linear_sum_assignment(cost)
+
+    matched = {}  # new index -> prev index
+    for r, c in zip(row_ind, col_ind):
+        if cost[r, c] < match_threshold:
+            matched[r] = c
+
     smoothed = []
-    used = set()
-
-    for new_det in new_dets:
-        nc = _center(new_det)
-        best_j, best_d = None, float("inf")
-        for j, pc in enumerate(prev_centers):
-            if j in used:
-                continue
-            d = float(np.linalg.norm(nc - pc))
-            if d < best_d:
-                best_d = d
-                best_j = j
-
-        if best_j is not None and best_d < match_threshold:
-            used.add(best_j)
-            prev = prev_dets[best_j]
+    for i, new_det in enumerate(new_dets):
+        if i in matched:
+            prev = prev_dets[matched[i]]
             smoothed.append({
                 "keypoints": alpha * new_det["keypoints"] + (1 - alpha) * prev["keypoints"],
                 "box": alpha * new_det["box"] + (1 - alpha) * prev["box"],
@@ -493,7 +493,8 @@ def select_primary_body(body_landmarks, body_visibilities, hand_landmarks, match
 
 def process_frame(frame, models, palm_anchors, pose_anchors,
                   prev_state=None, prev_hand_landmarks=None,
-                  det_score_threshold=0.5, lm_score_threshold=0.5):
+                  det_score_threshold=0.5, lm_score_threshold=0.5,
+                  synthesise_hands=True):
     """Full pipeline: detect arm poses and hand landmarks.
 
     Detection bounding boxes and keypoints are smoothed against the
@@ -504,6 +505,11 @@ def process_frame(frame, models, palm_anchors, pose_anchors,
     enables landmark-based re-cropping: when a tracked hand has no
     nearby palm detection, the previous landmarks supply a correctly-
     rotated crop so tracking survives through wrist rotations.
+
+    When *synthesise_hands* is False, arm-guided synthetic palm
+    detections are skipped.  Useful in multi-subject mode where
+    synthetic detections from spurious body tracks would proliferate
+    false hand tracks.
 
     Returns ``(body_landmarks, body_visibilities, hand_landmarks, state)``.
     """
@@ -516,7 +522,8 @@ def process_frame(frame, models, palm_anchors, pose_anchors,
     pose_detections = run_detection(
         frame, pose_det_model, POSE_INPUT_SIZE, pose_anchors, 4)
     prev_pose = prev_state.get("pose_dets", []) if prev_state else []
-    pose_detections = _smooth_detections(pose_detections, prev_pose)
+    pose_detections = _smooth_detections(pose_detections, prev_pose,
+                                         match_threshold=0.10)
 
     body_landmarks = []
     body_visibilities = []
@@ -535,7 +542,7 @@ def process_frame(frame, models, palm_anchors, pose_anchors,
         frame, palm_det_model, PALM_INPUT_SIZE, palm_anchors, 7)
     prev_palm = prev_state.get("palm_dets", []) if prev_state else []
     palm_detections = _smooth_detections(palm_detections, prev_palm,
-                                         match_threshold=0.25)
+                                         match_threshold=0.15)
 
     # Snapshot real SSD detections before adding fallbacks; re-crop
     # overlap is checked against real detections only so that synthetic
@@ -545,7 +552,7 @@ def process_frame(frame, models, palm_anchors, pose_anchors,
     real_palm_dets = list(palm_detections)
 
     # Synthesise palm detections from arm wrists not covered by real palms
-    if body_landmarks:
+    if body_landmarks and synthesise_hands:
         palm_detections.extend(_synthesise_hand_detections(
             body_landmarks, body_visibilities, palm_detections,
             frame_h, frame_w))

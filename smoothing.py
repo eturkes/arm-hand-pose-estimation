@@ -1,6 +1,7 @@
 """Temporal smoothing for pose landmarks using One Euro Filters."""
 
 import numpy as np
+from scipy.optimize import linear_sum_assignment
 
 
 class OneEuroFilter:
@@ -71,10 +72,11 @@ class PoseSmoother:
     static replay.
     """
 
-    def __init__(self, match_threshold=250):
+    def __init__(self, match_threshold=150):
         self.match_threshold = match_threshold
         self.body_tracks = []
         self.hand_tracks = []
+        self._n_active_bodies = 0
         self._n_active_hands = 0
 
     def _match_and_smooth(self, tracks, landmarks, get_anchor, new_filter_fn,
@@ -118,22 +120,29 @@ class PoseSmoother:
         new_tracks = []
         used = set()
 
-        for lm_idx, lm in enumerate(landmarks):
-            anchor = get_anchor(lm)
-            best_i, best_d = None, float('inf')
-            for i, (filt, prev_anchor, age, misses, *_) in enumerate(tracks):
-                if i in used:
-                    continue
-                d = np.linalg.norm(anchor - prev_anchor)
-                if d < best_d:
-                    best_d = d
-                    best_i = i
+        # --- Hungarian (optimal) landmark-to-track assignment ---
+        n_lm = len(landmarks)
+        n_tr = len(tracks)
+        lm_to_track = {}  # landmark index -> track index
 
-            if best_i is not None and best_d < self.match_threshold:
-                filt = tracks[best_i][0]
-                age = tracks[best_i][2] + 1
-                used.add(best_i)
-            elif max_tracks is None or len(tracks) < max_tracks:
+        if n_lm > 0 and n_tr > 0:
+            anchors_lm = np.array([get_anchor(lm) for lm in landmarks])
+            anchors_tr = np.array([tr[1] for tr in tracks])
+            # Cost matrix: Euclidean distance between each (landmark, track)
+            diff = anchors_lm[:, None, :] - anchors_tr[None, :, :]
+            cost = np.linalg.norm(diff, axis=2)
+            row_ind, col_ind = linear_sum_assignment(cost)
+            for r, c in zip(row_ind, col_ind):
+                if cost[r, c] < self.match_threshold:
+                    lm_to_track[r] = c
+                    used.add(c)
+
+        for lm_idx, lm in enumerate(landmarks):
+            if lm_idx in lm_to_track:
+                tr_idx = lm_to_track[lm_idx]
+                filt = tracks[tr_idx][0]
+                age = tracks[tr_idx][2] + 1
+            elif max_tracks is None or len(new_tracks) < max_tracks:
                 filt = new_filter_fn()
                 age = 1
             else:
@@ -148,12 +157,15 @@ class PoseSmoother:
 
         n_active = len(smoothed)
 
-        # Carry forward unmatched tracks within grace period
+        # Carry forward unmatched tracks within grace period.
+        # Decrement age each missed frame so intermittent false
+        # positives cannot accumulate age across grace gaps.
         for i, (filt, prev_anchor, age, misses, last_out,
                 last_vel, last_t) in enumerate(tracks):
             if i in used or misses >= grace:
                 continue
             new_misses = misses + 1
+            decayed_age = max(0, age - 1)
             if emit_carry and last_out is not None:
                 if static_carry:
                     predicted = last_out
@@ -162,12 +174,12 @@ class PoseSmoother:
                         last_out, last_vel, last_t, t, new_misses)
                 new_anchor = get_anchor(predicted).copy()
                 new_tracks.append(
-                    (filt, new_anchor, age, new_misses,
+                    (filt, new_anchor, decayed_age, new_misses,
                      predicted.copy(), last_vel, t))
                 smoothed.append(predicted)
             else:
                 new_tracks.append(
-                    (filt, prev_anchor, age, new_misses,
+                    (filt, prev_anchor, decayed_age, new_misses,
                      last_out, last_vel, last_t))
 
         return new_tracks, smoothed, n_active
@@ -197,11 +209,13 @@ class PoseSmoother:
 
         return last_output + step
 
-    def hand_track_ages(self):
-        """Return the age (in frames) of each active hand track.
+    def body_track_ages(self):
+        """Return the age (in frames) of each active body track."""
+        return [age for _, _, age, _, _, _, _ in
+                self.body_tracks[:self._n_active_bodies]]
 
-        Length matches the most recent ``smooth_hands`` output.
-        """
+    def hand_track_ages(self):
+        """Return the age (in frames) of each active hand track."""
         return [age for _, _, age, _, _, _, _ in
                 self.hand_tracks[:self._n_active_hands]]
 
@@ -223,6 +237,7 @@ class PoseSmoother:
             emit_carry=True,
             confidences=body_visibilities if lm_list else None,
         )
+        self._n_active_bodies = n_active
         # Actively matched bodies use the provided visibility;
         # carried bodies (during detection dropout) assume full visibility.
         vis = list(body_visibilities[:n_active])
@@ -233,7 +248,7 @@ class PoseSmoother:
         return smoothed, vis, n_active
 
     def smooth_hands(self, hand_landmarks, t, grace=10, max_tracks=None):
-        self.hand_tracks, smoothed, _ = self._match_and_smooth(
+        self.hand_tracks, smoothed, n_active = self._match_and_smooth(
             self.hand_tracks, hand_landmarks or [],
             get_anchor=lambda lm: lm[0, :2],
             new_filter_fn=lambda: OneEuroFilter(min_cutoff=1.0, beta=0.3),
@@ -242,5 +257,5 @@ class PoseSmoother:
             static_carry=True,
             max_tracks=max_tracks,
         )
-        self._n_active_hands = len(smoothed)
-        return smoothed
+        self._n_active_hands = n_active
+        return smoothed, n_active

@@ -67,6 +67,10 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
     prev_hand_lm = None
     frame_idx = 0
 
+    # Track age threshold: suppress detections that haven't persisted
+    # for at least this many consecutive frames.
+    min_track_age = max(1, int(fps_source * 0.1))   # ~3 frames @ 30 fps
+
     # Single-subject state
     last_body_lm = None
     last_body_vis = None
@@ -106,12 +110,15 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
                 if video_name:
                     pygame.display.set_caption(f"{WINDOW_TITLE} — {video_name}")
 
-            # Inference (tracking skips SSD detection when previous landmarks exist)
+            # Inference — in multi-subject mode, disable synthetic and
+            # re-crop hand detections to avoid cascading false positives
+            # from spurious body tracks.
             start = time.time()
             body_lm, body_vis, hand_lm, track_state = process_frame(
                 frame, models, palm_anchors, pose_anchors,
                 prev_state=track_state,
-                prev_hand_landmarks=prev_hand_lm,
+                prev_hand_landmarks=prev_hand_lm if single_subject else None,
+                synthesise_hands=single_subject,
             )
             elapsed = time.time() - start
 
@@ -119,7 +126,7 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
             t = time.time()
             body_lm, body_vis, n_bodies_detected = smoother.smooth_bodies(
                 body_lm, body_vis, t)
-            hand_lm = smoother.smooth_hands(
+            hand_lm, n_hands_active = smoother.smooth_hands(
                 hand_lm, t, max_tracks=2 if single_subject else None)
 
             # Enforce biomechanical constraints on each body
@@ -128,13 +135,8 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
                 clamp_joint_angles(lm)
             bone_smoother.prune(range(len(body_lm)))
 
-            # Filter out transient hand tracks (e.g. assistant's hand)
-            # and cap at 2 hands (one subject can have at most two).
-            # The age filter + max_tracks=2 in smooth_hands are
-            # sufficient; spatial memory was too conservative (only
-            # updated when body is detected, ~30% of frames) and was
-            # rejecting valid hands that drifted from a stale reference.
             if single_subject:
+                # Filter transient hand tracks by age and cap at 2
                 hand_ages = smoother.hand_track_ages()
                 aged = sorted(
                     ((lm, age) for lm, age in zip(hand_lm, hand_ages)
@@ -142,6 +144,22 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
                     key=lambda x: x[1], reverse=True,
                 )
                 hand_lm = [lm for lm, _ in aged[:2]]
+            else:
+                # Strip carry-forward ghosts and filter by minimum
+                # track age to suppress transient false positives.
+                body_ages = smoother.body_track_ages()
+                hand_ages = smoother.hand_track_ages()
+                body_keep = [
+                    i for i, age in enumerate(body_ages)
+                    if age >= min_track_age
+                ]
+                body_lm = [body_lm[i] for i in body_keep]
+                body_vis = [body_vis[i] for i in body_keep]
+                hand_lm = [
+                    lm for lm, age
+                    in zip(hand_lm[:n_hands_active], hand_ages)
+                    if age >= min_track_age
+                ]
 
             matches = match_hands_to_arms(body_lm, hand_lm)
 
@@ -149,8 +167,16 @@ def process_video(source, flip, models, palm_anchors, pose_anchors,
                 # Use n_bodies_detected (not len(body_lm)) to distinguish
                 # real detections from smoother carry-forward ghosts.
                 if n_bodies_detected > 0:
+                    # Only consider real detections for primary selection;
+                    # carry-forward ghosts (appended after the first
+                    # n_bodies_detected entries) are discarded.
+                    real_lm = body_lm[:n_bodies_detected]
+                    real_vis = body_vis[:n_bodies_detected]
+                    real_matches = [
+                        m for m in matches if m[0] < n_bodies_detected
+                    ]
                     body_lm, body_vis, hand_lm, matches = select_primary_body(
-                        body_lm, body_vis, hand_lm, matches)
+                        real_lm, real_vis, hand_lm, real_matches)
                     last_body_lm = body_lm[0].copy()
                     last_body_vis = body_vis[0].copy()
                     frames_since_body = 0
