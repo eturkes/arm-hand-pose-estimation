@@ -63,6 +63,7 @@ TUNEABLE_PARAMS = {
 
     # Carry-forward
     "carry_grace":       ("smoothing", "carry_grace", 10),
+    "carry_damping":     ("smoothing", "carry_damping", 0.8),
 }
 
 
@@ -109,6 +110,9 @@ def _apply_param_overrides(overrides):
         elif key == "carry_grace":
             originals["carry_grace"] = 10
             smoothing._BENCH_CARRY_GRACE = int(value)
+        elif key == "carry_damping":
+            originals["carry_damping"] = 0.8
+            smoothing._BENCH_CARRY_DAMPING = float(value)
         elif key == "det_smooth_alpha":
             originals["det_smooth_alpha"] = 0.5
             processing._BENCH_DET_ALPHA = float(value)

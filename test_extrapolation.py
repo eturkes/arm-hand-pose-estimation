@@ -152,10 +152,42 @@ def test_damping_converges_to_static():
     print("PASS: damping_converges_to_static")
 
 
+def test_damping_factor_configurable():
+    """Different carry_damping values produce different extrapolation distances."""
+    s_fast = PoseSmoother(carry_damping=0.5)
+    s_slow = PoseSmoother(carry_damping=0.95)
+    vis = np.ones(12)
+
+    # Build velocity with identical motion for both smoothers
+    for i in range(20):
+        lm = make_body(x_offset=i * 5.0)
+        t = i * 0.033
+        s_fast.smooth_bodies([lm.copy()], [vis], t)
+        s_slow.smooth_bodies([lm.copy()], [vis], t)
+
+    # Carry-forward for 3 frames
+    positions_fast = []
+    positions_slow = []
+    for i in range(3):
+        t = (20 + i) * 0.033
+        sm_fast, _, _ = s_fast.smooth_bodies([], [], t)
+        sm_slow, _, _ = s_slow.smooth_bodies([], [], t)
+        positions_fast.append(sm_fast[0][0, 0])
+        positions_slow.append(sm_slow[0][0, 0])
+
+    # Slow damping (0.95) should have moved further than fast damping (0.5)
+    total_fast = positions_fast[-1] - positions_fast[0]
+    total_slow = positions_slow[-1] - positions_slow[0]
+    assert total_slow > total_fast, \
+        f"slow damping ({total_slow:.3f}) should move further than fast ({total_fast:.3f})"
+    print("PASS: damping_factor_configurable")
+
+
 if __name__ == "__main__":
     test_static_landmarks_no_extrapolation()
     test_moving_landmarks_extrapolate()
     test_extrapolation_capped()
     test_hand_tracks_unaffected()
     test_damping_converges_to_static()
+    test_damping_factor_configurable()
     print("\nAll extrapolation tests passed.")

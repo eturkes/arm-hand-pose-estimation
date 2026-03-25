@@ -74,8 +74,12 @@ class PoseSmoother:
     static replay.
     """
 
-    def __init__(self, match_threshold=150):
+    def __init__(self, match_threshold=150, carry_damping=None):
         self.match_threshold = match_threshold
+        if carry_damping is None:
+            carry_damping = float(
+                os.environ.get("POSE_BENCH_CARRY_DAMPING", "0.8"))
+        self.carry_damping = carry_damping
         self.body_tracks = []
         self.hand_tracks = []
         self._n_active_bodies = 0
@@ -200,7 +204,7 @@ class PoseSmoother:
         if dt <= 0:
             return last_output
 
-        damping = 0.8 ** misses
+        damping = self.carry_damping ** misses
         step = last_velocity * dt * damping
 
         # Cap per-keypoint displacement magnitude

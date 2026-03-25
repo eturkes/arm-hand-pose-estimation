@@ -290,9 +290,9 @@ python3 test_extrapolation.py
 
 ---
 
-## Section 5 — Configurable carry-forward damping
+## Section 5 — Configurable carry-forward damping [DONE]
 
-### Status: TODO
+### Status: [DONE]
 
 ### Rationale
 
