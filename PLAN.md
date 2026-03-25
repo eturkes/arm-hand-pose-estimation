@@ -54,9 +54,9 @@ python3 tests/test_constraints.py
 
 ---
 
-## Section 2 — Hungarian matching for hands-to-arms
+## Section 2 — Hungarian matching for hands-to-arms [DONE]
 
-### Status: TODO
+### Status: [DONE]
 
 ### Rationale
 

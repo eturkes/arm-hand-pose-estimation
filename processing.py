@@ -465,7 +465,12 @@ def detect_hand_landmarks(frame, detection, hand_compiled):
 
 def match_hands_to_arms(body_landmarks, hand_landmarks, threshold=100,
                         wrist_kps=None, shoulder_kps=None):
-    """Match detected hands to the nearest arm wrist by proximity.
+    """Match detected hands to arm wrists using optimal assignment.
+
+    Uses the Hungarian algorithm (``linear_sum_assignment``) for
+    globally optimal wrist-to-hand pairing, avoiding the greedy-order
+    bias where early wrists could steal the only good match for a
+    later wrist.
 
     A match is only accepted when the hand is closer to the wrist than
     to the shoulder midpoint, ensuring the hand is at the distal end of
@@ -482,30 +487,42 @@ def match_hands_to_arms(body_landmarks, hand_landmarks, threshold=100,
     if shoulder_kps is None:
         shoulder_kps = SHOULDER_KPS_12
 
-    matches = []
     if not body_landmarks or not hand_landmarks:
-        return matches
+        return []
 
-    used_hands = set()
+    # Build row index: each row is one (arm_idx, wrist_kp) pair
+    rows = []
+    wrist_positions = []
+    shoulder_mids = []
     for arm_idx, arm_lm in enumerate(body_landmarks):
         shoulder_mid = (arm_lm[shoulder_kps[0], :2]
                         + arm_lm[shoulder_kps[1], :2]) / 2
         for wrist_kp in wrist_kps:
-            arm_wrist = arm_lm[wrist_kp, :2]
-            best_hand = None
-            best_dist = float('inf')
-            for hand_idx, hand_lm in enumerate(hand_landmarks):
-                if hand_idx in used_hands:
-                    continue
-                dist = np.linalg.norm(arm_wrist - hand_lm[0, :2])
-                if dist < best_dist:
-                    best_dist = dist
-                    best_hand = hand_idx
-            if best_hand is not None and best_dist < threshold:
-                hand_wrist = hand_landmarks[best_hand][0, :2]
-                if best_dist < np.linalg.norm(hand_wrist - shoulder_mid):
-                    matches.append((arm_idx, wrist_kp, best_hand))
-                    used_hands.add(best_hand)
+            rows.append((arm_idx, wrist_kp))
+            wrist_positions.append(arm_lm[wrist_kp, :2])
+            shoulder_mids.append(shoulder_mid)
+
+    n_wrists = len(rows)
+    n_hands = len(hand_landmarks)
+
+    # Cost matrix: Euclidean distance between each wrist and hand wrist
+    hand_wrists = np.array([h[0, :2] for h in hand_landmarks])
+    wrist_arr = np.array(wrist_positions)
+    cost = np.linalg.norm(
+        wrist_arr[:, None, :] - hand_wrists[None, :, :], axis=2)
+
+    row_ind, col_ind = linear_sum_assignment(cost)
+
+    matches = []
+    for r, c in zip(row_ind, col_ind):
+        if cost[r, c] >= threshold:
+            continue
+        arm_idx, wrist_kp = rows[r]
+        hand_wrist = hand_landmarks[c][0, :2]
+        # Distality check: hand must be nearer to wrist than shoulder midpoint
+        if cost[r, c] < np.linalg.norm(hand_wrist - shoulder_mids[r]):
+            matches.append((arm_idx, wrist_kp, c))
+
     return matches
 
 
