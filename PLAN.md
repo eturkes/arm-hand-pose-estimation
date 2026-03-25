@@ -61,7 +61,7 @@ noted otherwise.
 - **Reference:** `smoothing.py` `PoseSmoother._extrapolate` lines 193-216.
 
 ### 4. Hungarian matching
-- **Status:** TODO
+- **Status:** DONE
 - **Goal:** Optimal track-to-detection assignment (matters when multiple
   people are close together or crossing).
 - **What:** Replace the greedy loop in `KeypointSmoother._match` with

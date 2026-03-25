@@ -35,6 +35,7 @@ import time
 
 import cv2
 import numpy as np
+from scipy.optimize import linear_sum_assignment
 
 
 # ---------------------------------------------------------------------------
@@ -277,7 +278,7 @@ class KeypointSmoother:
         return None, None
 
     def _match(self, det_centroids):
-        """Greedy nearest-centroid matching."""
+        """Optimal nearest-centroid matching via Hungarian algorithm."""
         matched = {}
         used_tracks = set()
         if not self.tracks or len(det_centroids) == 0:
@@ -286,15 +287,11 @@ class KeypointSmoother:
         trk_c = np.array([tr["centroid"] for tr in self.tracks])
         cost = np.linalg.norm(
             det_centroids[:, None, :] - trk_c[None, :, :], axis=2)
-        for _ in range(min(len(det_centroids), len(self.tracks))):
-            val = cost.min()
-            if val >= self.match_thresh:
-                break
-            i, j = np.unravel_index(cost.argmin(), cost.shape)
-            matched[int(i)] = int(j)
-            used_tracks.add(int(j))
-            cost[i, :] = np.inf
-            cost[:, j] = np.inf
+        row_ind, col_ind = linear_sum_assignment(cost)
+        for r, c in zip(row_ind, col_ind):
+            if cost[r, c] < self.match_thresh:
+                matched[int(r)] = int(c)
+                used_tracks.add(int(c))
 
         return matched, used_tracks
 
