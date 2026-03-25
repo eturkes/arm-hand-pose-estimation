@@ -4,7 +4,7 @@ import csv
 import pathlib
 
 from processing import (
-    TRACKING_HANDS, TRACKING_HAND_ARM, TRACKING_BODY,
+    TRACKING_HANDS, TRACKING_HANDS_ARMS, TRACKING_BODY,
     WRIST_KPS_12, WRIST_KPS_33,
 )
 
@@ -54,7 +54,7 @@ def _wrist_to_side(tracking):
     return {WRIST_KPS_12[0]: "left", WRIST_KPS_12[1]: "right"}
 
 
-def make_csv_header(tracking=TRACKING_HAND_ARM):
+def make_csv_header(tracking=TRACKING_HANDS_ARMS):
     """Return the full list of column names for the given tracking mode."""
     cols = ["video", "frame_idx", "timestamp_sec", "person_idx"]
 
@@ -90,7 +90,7 @@ def _fill_hand_side(row, side, hlm, frame_h, frame_w):
 
 def frame_to_rows(video_name, frame_idx, timestamp_sec, frame_h, frame_w,
                   body_landmarks, body_visibilities, hand_landmarks, matches,
-                  tracking=TRACKING_HAND_ARM, hand_only=False):
+                  tracking=TRACKING_HANDS_ARMS, hand_only=False):
     """Convert one frame's landmark data into CSV rows (one per person).
 
     Coordinates are normalised to [0, 1] by dividing by frame dimensions.
@@ -98,7 +98,7 @@ def frame_to_rows(video_name, frame_idx, timestamp_sec, frame_h, frame_w,
 
     *tracking* determines the column layout:
     - ``"hands"``: hand columns only, no body columns.
-    - ``"hand-arm"``: 12 arm keypoints + hands (default).
+    - ``"hands-arms"``: 12 arm keypoints + hands (default).
     - ``"body"``: 33 body keypoints + hands.
 
     When *hand_only* is True and no body was detected, a single row is
@@ -128,7 +128,7 @@ def frame_to_rows(video_name, frame_idx, timestamp_sec, frame_h, frame_w,
         rows.append(row)
         return rows
 
-    # --- Modes with body landmarks (hand-arm / body) -----------------------
+    # --- Modes with body landmarks (hands-arms / body) ---------------------
     if body_landmarks:
         # Build a lookup: arm_idx → {wrist_kp: hand_idx}
         hand_map = {}
@@ -190,7 +190,7 @@ def frame_to_rows(video_name, frame_idx, timestamp_sec, frame_h, frame_w,
     return rows
 
 
-def open_csv_writer(output_path, tracking=TRACKING_HAND_ARM):
+def open_csv_writer(output_path, tracking=TRACKING_HANDS_ARMS):
     """Open a CSV file for writing and return (file_handle, csv.DictWriter)."""
     output_path = pathlib.Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)

@@ -24,7 +24,7 @@ from detection import (
 # ---------------------------------------------------------------------------
 
 TRACKING_HANDS = "hands"
-TRACKING_HAND_ARM = "hand-arm"
+TRACKING_HANDS_ARMS = "hands-arms"
 TRACKING_BODY = "body"
 
 # Pose landmark indices to extract per mode
@@ -36,7 +36,7 @@ BODY_KEYPOINT_INDICES = list(range(33))      # all 33 pose keypoints
 _ARM_CHAINS_12 = [(0, 2, 4), (1, 3, 5)]
 _ARM_CHAINS_33 = [(11, 13, 15), (12, 14, 16)]
 
-# Wrist / shoulder indices in each keypoint scheme, used for hand-arm
+# Wrist / shoulder indices in each keypoint scheme, used for hands-arms
 # matching and the body-tracking anchor.
 WRIST_KPS_12 = (4, 5)
 WRIST_KPS_33 = (15, 16)
@@ -456,7 +456,7 @@ def detect_hand_landmarks(frame, detection, hand_compiled):
 
 
 # ---------------------------------------------------------------------------
-# Hand-arm matching & primary-body selection
+# Hands-arms matching & primary-body selection
 # ---------------------------------------------------------------------------
 
 def match_hands_to_arms(body_landmarks, hand_landmarks, threshold=100,
@@ -548,13 +548,13 @@ def select_primary_body(body_landmarks, body_visibilities, hand_landmarks, match
 def process_frame(frame, models, palm_anchors, pose_anchors,
                   prev_state=None, prev_hand_landmarks=None,
                   det_score_threshold=0.5, lm_score_threshold=0.65,
-                  synthesise_hands=True, tracking=TRACKING_HAND_ARM):
+                  synthesise_hands=True, tracking=TRACKING_HANDS_ARMS):
     """Full pipeline: detect body poses and hand landmarks.
 
     *tracking* controls what is detected:
 
     - ``"hands"``: palm + hand landmarks only (no pose detection).
-    - ``"hand-arm"``: 12 arm keypoints + hand landmarks (default).
+    - ``"hands-arms"``: 12 arm keypoints + hand landmarks (default).
     - ``"body"``: all 33 pose keypoints + hand landmarks.
 
     Detection bounding boxes and keypoints are smoothed against the

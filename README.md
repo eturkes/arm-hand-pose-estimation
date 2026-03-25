@@ -21,7 +21,7 @@ pip install -r requirements.txt
 ## Usage
 
 ```bash
-# Default: webcam 0, NPU device, hand-arm tracking
+# Default: webcam 0, NPU device, hands-arms tracking
 python main.py
 
 # Use a different camera
@@ -54,7 +54,7 @@ Use `--tracking` to select what body parts are tracked:
 python main.py --tracking hands
 
 # Arms + hands (default) — 12 arm keypoints + hand landmarks
-python main.py --tracking hand-arm
+python main.py --tracking hands-arms
 
 # Whole body + hands — all 33 pose keypoints + hand landmarks
 python main.py --tracking body
@@ -63,7 +63,7 @@ python main.py --tracking body
 | Mode | Body keypoints | Hand keypoints | Pose detection |
 |------|---------------|----------------|----------------|
 | `hands` | — | 2 × 21 | Skipped |
-| `hand-arm` | 12 (shoulders → finger bases) | 2 × 21 | Yes |
+| `hands-arms` | 12 (shoulders → finger bases) | 2 × 21 | Yes |
 | `body` | 33 (face, torso, arms, legs) | 2 × 21 | Yes |
 
 In **hands** mode, pose detection is skipped entirely, which improves
@@ -119,7 +119,7 @@ Single-subject mode has three resilience layers for unreliable body detection
    largest. All hands that passed the age/spatial filters are preserved; only
    body-level matches are re-indexed to the primary body.
 2. **Body carry-forward** — when body detection drops out, reuse the last known
-   body for up to 0.5 s so hand-arm matching can continue.
+   body for up to 0.5 s so hands-arms matching can continue.
 3. **Hand-only fallback** — when carry-forward expires (or no body was ever
    seen), export a row with blank arm columns and hand data assigned left/right
    by x-coordinate.
@@ -132,10 +132,10 @@ coordinates. The number of columns depends on the tracking mode:
 | Mode | Body columns | Hand columns | Metadata | Total |
 |------|-------------|-------------|----------|-------|
 | `hands` | — | 2 × 21 × 3 = 126 | 4 | 130 |
-| `hand-arm` | 12 × 4 = 48 | 2 × 21 × 3 = 126 | 4 | 178 |
+| `hands-arms` | 12 × 4 = 48 | 2 × 21 × 3 = 126 | 4 | 178 |
 | `body` | 33 × 4 = 132 | 2 × 21 × 3 = 126 | 4 | 262 |
 
-Body columns use the prefix `arm_` in hand-arm mode and `body_` in body mode.
+Body columns use the prefix `arm_` in hands-arms mode and `body_` in body mode.
 Each body keypoint has x, y, z, and visibility values. Hand keypoints have
 x, y, z only.
 
@@ -149,7 +149,7 @@ be blank in hand-only fallback frames.
 | `main.py` | Entry point, CLI, video capture loop, pygame display |
 | `models.py` | Downloads MediaPipe TFLite models, converts to OpenVINO IR, compiles |
 | `detection.py` | SSD anchor generation, NMS, detection decoding |
-| `processing.py` | Preprocessing, crop extraction, landmark inference, hand-arm matching |
+| `processing.py` | Preprocessing, crop extraction, landmark inference, hands-arms matching |
 | `drawing.py` | Catmull-Rom splines, skeleton rendering, overlay blending |
 | `smoothing.py` | One Euro Filter with confidence-weighted temporal smoothing |
 | `constraints.py` | Biomechanical constraints (bone-length consistency, joint-angle limits) |

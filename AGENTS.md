@@ -7,12 +7,12 @@ See README.md for project overview, architecture, usage, and dependencies.
 The `--tracking` CLI flag controls body-part scope:
 
 - `hands` — palm + hand landmarks only, no pose detection
-- `hand-arm` — 12 arm keypoints + hands (default)
+- `hands-arms` — 12 arm keypoints + hands (default)
 - `body` — all 33 pose keypoints + hands
 
 Mode-specific constants (keypoint indices, wrist/shoulder pairs,
 arm chains) are defined in `processing.py:tracking_pose_indices()`.
-Export column prefix is `arm_` for hand-arm, `body_` for body mode.
+Export column prefix is `arm_` for hands-arms, `body_` for body mode.
 
 ## Git Conventions
 

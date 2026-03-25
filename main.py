@@ -8,8 +8,8 @@ Usage:
     python main.py --batch-dir videos/      # process all videos in a directory
     python main.py --device CPU             # run on CPU
     python main.py --no-flip                # disable mirror for front camera
-    python main.py --tracking hands         # hands only
-    python main.py --tracking body          # whole body + hands
+    python main.py --tracking hands          # hands only
+    python main.py --tracking body           # whole body + hands
 """
 
 import argparse
@@ -28,7 +28,7 @@ from detection import generate_anchors, PALM_INPUT_SIZE, POSE_INPUT_SIZE
 from processing import (
     process_frame, match_hands_to_arms, select_primary_body,
     tracking_pose_indices,
-    TRACKING_HANDS, TRACKING_HAND_ARM, TRACKING_BODY,
+    TRACKING_HANDS, TRACKING_HANDS_ARMS, TRACKING_BODY,
 )
 from smoothing import PoseSmoother
 from constraints import (
@@ -57,7 +57,7 @@ def frame_to_surface(frame):
 def process_video(source, flip, models, palm_anchors, pose_anchors,
                   screen, csv_writer=None, video_name=None,
                   single_subject=False, diag_writer=None,
-                  tracking=TRACKING_HAND_ARM):
+                  tracking=TRACKING_HANDS_ARMS):
     """Run pose estimation on a single video source with real-time display.
 
     Returns True if the user requested quit (ESC / window close),
@@ -348,10 +348,10 @@ def main():
     parser.add_argument("--single-subject", action="store_true",
                         help="Keep only the most prominent body per frame")
     parser.add_argument(
-        "--tracking", default="hand-arm",
-        choices=["hands", "hand-arm", "body"],
+        "--tracking", default="hands-arms",
+        choices=["hands", "hands-arms", "body"],
         help=("Tracking scope: 'hands' (hands only), "
-              "'hand-arm' (arms + hands, default), "
+              "'hands-arms' (arms + hands, default), "
               "'body' (whole body + hands)"))
     parser.add_argument("--postprocess", action="store_true",
                         help="Apply Savitzky-Golay smoothing to CSVs after processing")
