@@ -113,7 +113,7 @@ def test_smoother_passes_confidence():
     smoothed keypoints should resist movement more than the high-score
     person's.
     """
-    smoother = KeypointSmoother()
+    smoother = KeypointSmoother(min_track_age=1)
 
     n_kps = 133
     rng = np.random.RandomState(5832)

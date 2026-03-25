@@ -142,13 +142,15 @@ class KeypointSmoother:
     SCORE_DECAY = 0.9  # per-frame score multiplier during carry-forward
 
     def __init__(self, min_cutoff=0.5, beta=0.5, score_alpha=0.5,
-                 carry_frames=5, match_thresh=150, carry_damping=0.8):
+                 carry_frames=5, match_thresh=150, carry_damping=0.8,
+                 min_track_age=3):
         self.min_cutoff = min_cutoff
         self.beta = beta
         self.score_alpha = score_alpha
         self.carry_frames = carry_frames
         self.match_thresh = match_thresh
         self.carry_damping = carry_damping
+        self.min_track_age = min_track_age
         self.tracks = []
 
     def reset(self):
@@ -231,9 +233,11 @@ class KeypointSmoother:
                 tr = self.tracks[matched[i]]
                 filt = tr["filter"]
                 prev_sc = tr["scores"]
+                age = tr["age"] + 1
             else:
                 filt = self._make_filters(kp.shape[0])
                 prev_sc = sc
+                age = 1
 
             smooth_kp = self._apply_filters(filt, kp, t, sc)
             smooth_sc = (self.score_alpha * sc
@@ -244,18 +248,23 @@ class KeypointSmoother:
                 "centroid": smooth_kp.mean(axis=0).copy(),
                 "scores": smooth_sc.copy(),
                 "misses": 0,
+                "age": age,
                 "last_kps": smooth_kp.copy(),
                 "last_velocity": self._get_velocity(filt),
                 "last_t": t,
             })
-            out_kps.append(smooth_kp)
-            out_scores.append(smooth_sc)
+            if age >= self.min_track_age:
+                out_kps.append(smooth_kp)
+                out_scores.append(smooth_sc)
 
-        # Carry forward unmatched tracks within grace period
+        # Carry forward unmatched tracks within grace period.
+        # Decrement age each missed frame so intermittent false
+        # positives cannot accumulate age across grace gaps.
         for j, tr in enumerate(self.tracks):
             if j in used_tracks or tr["misses"] >= self.carry_frames:
                 continue
             misses = tr["misses"] + 1
+            age = max(0, tr["age"] - 1)
             predicted = self._extrapolate(
                 tr["last_kps"], tr.get("last_velocity"),
                 tr.get("last_t", 0), t, misses)
@@ -265,12 +274,14 @@ class KeypointSmoother:
                 "centroid": predicted.mean(axis=0).copy(),
                 "scores": decayed,
                 "misses": misses,
+                "age": age,
                 "last_kps": predicted,
                 "last_velocity": tr.get("last_velocity"),
                 "last_t": t,
             })
-            out_kps.append(predicted)
-            out_scores.append(decayed)
+            if age >= self.min_track_age:
+                out_kps.append(predicted)
+                out_scores.append(decayed)
 
         self.tracks = new_tracks
         if out_kps:
@@ -304,6 +315,7 @@ class KeypointSmoother:
             if tr["misses"] >= self.carry_frames:
                 continue
             misses = tr["misses"] + 1
+            age = max(0, tr["age"] - 1)
             if t is not None:
                 predicted = self._extrapolate(
                     tr["last_kps"], tr.get("last_velocity"),
@@ -316,12 +328,14 @@ class KeypointSmoother:
                 "centroid": predicted.mean(axis=0).copy(),
                 "scores": decayed,
                 "misses": misses,
+                "age": age,
                 "last_kps": predicted,
                 "last_velocity": tr.get("last_velocity"),
                 "last_t": t if t is not None else tr.get("last_t", 0),
             })
-            out_kps.append(predicted)
-            out_scores.append(decayed)
+            if age >= self.min_track_age:
+                out_kps.append(predicted)
+                out_scores.append(decayed)
         self.tracks = new_tracks
         if out_kps:
             return np.stack(out_kps), np.stack(out_scores)

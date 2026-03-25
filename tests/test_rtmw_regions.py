@@ -75,7 +75,7 @@ def test_region_smoothing_differs_from_uniform():
 def test_region_filters_independent():
     """Each region filter should be independent — changing confidence in one
     region shouldn't affect another."""
-    sm = KeypointSmoother()
+    sm = KeypointSmoother(min_track_age=1)
 
     kp = _make_kps(133)
     sc = np.ones(133)
@@ -88,7 +88,7 @@ def test_region_filters_independent():
     result_all_high, _ = sm(shifted, scores_all_high, 0.1)
 
     # Run 2: low confidence on hands only
-    sm2 = KeypointSmoother()
+    sm2 = KeypointSmoother(min_track_age=1)
     sc2 = np.ones(133)
     sc2[91:133] = 0.1
     scores_low_hands = sc2[np.newaxis]
@@ -104,7 +104,7 @@ def test_region_filters_independent():
 
 def test_smoother_output_shape_133():
     """Output shape should match input regardless of region splitting."""
-    sm = KeypointSmoother()
+    sm = KeypointSmoother(min_track_age=1)
     kp = _make_kps(133)
     sc = np.ones(133)
     keypoints = np.stack([kp, kp + 500])
@@ -117,7 +117,7 @@ def test_smoother_output_shape_133():
 
 def test_smoother_output_shape_17():
     """Non-133 keypoints should work with the single-filter fallback."""
-    sm = KeypointSmoother()
+    sm = KeypointSmoother(min_track_age=1)
     kp = _make_kps(17)
     sc = np.ones(17)
     keypoints = kp[np.newaxis]

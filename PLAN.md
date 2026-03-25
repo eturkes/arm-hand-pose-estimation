@@ -71,7 +71,7 @@ noted otherwise.
   129-144.
 
 ### 5. Track age gating
-- **Status:** TODO
+- **Status:** DONE
 - **Goal:** Prevent one-frame false-positive detections from flashing a
   skeleton.
 - **What:** Add a `misses` counter (already exists) and an `age` counter to

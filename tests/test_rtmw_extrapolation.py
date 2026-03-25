@@ -87,7 +87,7 @@ def test_damping_decelerates():
 
 def test_extrapolation_capped():
     """Large velocity is capped at match_thresh per keypoint."""
-    sm = KeypointSmoother(match_thresh=80)
+    sm = KeypointSmoother(match_thresh=80, min_track_age=0)
     base = _make_kps()
     sc = np.ones(133)
 

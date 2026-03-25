@@ -24,7 +24,7 @@ def _feed_frame(smoother, centers, t):
 
 def test_basic_matching():
     """Two detections near two existing tracks are correctly paired."""
-    sm = KeypointSmoother(match_thresh=200)
+    sm = KeypointSmoother(match_thresh=200, min_track_age=1)
     _feed_frame(sm, [(100, 100), (300, 300)], t=0.0)
     assert len(sm.tracks) == 2
 
@@ -51,7 +51,7 @@ def test_optimal_over_greedy():
       (4,0)→track(0,0) cost 4, total = 5.
     Optimal: (2,0)→track(0,0) cost 2, (4,0)→track(3,0) cost 1, total = 3.
     """
-    sm = KeypointSmoother(match_thresh=200)
+    sm = KeypointSmoother(match_thresh=200, min_track_age=1)
 
     # Seed tracks at (0, 0) and (30, 0) using single-keypoint arrays
     kps_init = np.array([[[0.0, 0.0]], [[30.0, 0.0]]])
@@ -81,7 +81,7 @@ def test_optimal_over_greedy():
 
 def test_threshold_filtering():
     """Detections beyond match_thresh create new tracks, not false matches."""
-    sm = KeypointSmoother(match_thresh=50)
+    sm = KeypointSmoother(match_thresh=50, min_track_age=1)
     kps1 = np.array([[[100.0, 100.0]]])
     sm(kps1, np.ones((1, 1)), t=0.0)
     assert len(sm.tracks) == 1
@@ -98,7 +98,7 @@ def test_threshold_filtering():
 
 def test_no_tracks_no_crash():
     """First frame with no prior tracks works fine."""
-    sm = KeypointSmoother(match_thresh=200)
+    sm = KeypointSmoother(match_thresh=200, min_track_age=1)
     kps = np.array([[[50.0, 50.0], [60.0, 60.0]]])
     scores = np.ones((1, 2))
     out_kps, out_scores = sm(kps, scores, t=0.0)
@@ -108,7 +108,7 @@ def test_no_tracks_no_crash():
 
 def test_empty_detections():
     """No detections triggers carry-forward, not a crash."""
-    sm = KeypointSmoother(match_thresh=200)
+    sm = KeypointSmoother(match_thresh=200, min_track_age=0)
     kps = np.array([[[50.0, 50.0]]])
     sm(kps, np.ones((1, 1)), t=0.0)
 
