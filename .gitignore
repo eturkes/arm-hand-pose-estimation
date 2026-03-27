@@ -28,3 +28,9 @@ Thumbs.db
 
 # Posit
 .positai/
+
+# Debug logs
+debug.log
+
+# MediaPipe downloaded models
+mediapipe/

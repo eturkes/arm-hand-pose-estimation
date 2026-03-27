@@ -7,9 +7,9 @@ import pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from constraints import BoneLengthSmoother
-from prototype_rtmw import (
-    BONE_SEGMENTS_RTMW,
-    BONE_SEGMENTS_RTMW_BODY,
+from run import (
+    BONE_SEGMENTS_WB,
+    BONE_SEGMENTS_WB_BODY,
     parse_args,
 )
 
@@ -49,21 +49,21 @@ def _make_wholebody_landmarks():
 
 def test_rtmw_segment_indices_valid():
     """All segment indices must be within [0, 133)."""
-    for p, d in BONE_SEGMENTS_RTMW_BODY:
+    for p, d in BONE_SEGMENTS_WB_BODY:
         assert 0 <= p < 133, f"proximal index {p} out of range"
         assert 0 <= d < 133, f"distal index {d} out of range"
 
 
 def test_rtmw_arm_segments_subset_of_body():
     """Arm-only segments should be a prefix of the body segments."""
-    n = len(BONE_SEGMENTS_RTMW)
-    assert BONE_SEGMENTS_RTMW_BODY[:n] == BONE_SEGMENTS_RTMW
+    n = len(BONE_SEGMENTS_WB)
+    assert BONE_SEGMENTS_WB_BODY[:n] == BONE_SEGMENTS_WB
 
 
 def test_rtmw_constant_landmarks_no_correction():
     """Repeated identical 133-kp frames should produce no correction."""
     smoother = BoneLengthSmoother(
-        alpha=0.05, tolerance=0.4, segments=BONE_SEGMENTS_RTMW)
+        alpha=0.05, tolerance=0.4, segments=BONE_SEGMENTS_WB)
     lm = _make_wholebody_landmarks()
     original = lm.copy()
 
@@ -77,7 +77,7 @@ def test_rtmw_constant_landmarks_no_correction():
 def test_rtmw_perturbed_wrist_corrected():
     """Doubling shoulder-elbow distance should trigger correction."""
     smoother = BoneLengthSmoother(
-        alpha=0.05, tolerance=0.4, segments=BONE_SEGMENTS_RTMW)
+        alpha=0.05, tolerance=0.4, segments=BONE_SEGMENTS_WB)
     lm = _make_wholebody_landmarks()
 
     for _ in range(20):
@@ -100,14 +100,14 @@ def test_rtmw_perturbed_wrist_corrected():
 def test_rtmw_body_segments_include_legs():
     """Body segment list should contain hip-knee and knee-ankle pairs."""
     leg_pairs = {(11, 13), (13, 15), (12, 14), (14, 16)}
-    body_set = set(BONE_SEGMENTS_RTMW_BODY)
+    body_set = set(BONE_SEGMENTS_WB_BODY)
     assert leg_pairs.issubset(body_set)
 
 
 def test_rtmw_body_smoother_with_legs():
     """Body-mode smoother should correct perturbed knee position."""
     smoother = BoneLengthSmoother(
-        alpha=0.05, tolerance=0.4, segments=BONE_SEGMENTS_RTMW_BODY)
+        alpha=0.05, tolerance=0.4, segments=BONE_SEGMENTS_WB_BODY)
     lm = _make_wholebody_landmarks()
 
     for _ in range(20):

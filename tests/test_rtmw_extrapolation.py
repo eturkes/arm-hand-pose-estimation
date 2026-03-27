@@ -1,4 +1,4 @@
-"""Tests for velocity-based carry-forward extrapolation in prototype_rtmw.py."""
+"""Tests for velocity-based carry-forward extrapolation."""
 
 import numpy as np
 import pathlib
@@ -6,7 +6,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-from prototype_rtmw import KeypointSmoother
+from run import KeypointSmoother
 
 
 def _make_kps(n=133, seed=3741):

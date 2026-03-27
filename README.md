@@ -244,39 +244,43 @@ Optional (for `--postprocess` / `postprocess.py`):
 |---------|---------|
 | `pandas` | CSV reading/writing for post-processing |
 
-Optional (for `prototype_rtmw.py`):
+Optional (for `run.py` with rtmlib-based models):
 
 | Package | Purpose |
 |---------|---------|
-| `rtmlib` | RTMW/RTMPose whole-body pose estimation (ONNX/OpenVINO) |
+| `rtmlib` | RTMW/RTMPose/DWPose whole-body pose estimation (ONNX/OpenVINO) |
 
-## RTMW Prototype
+## Unified Entry Point
 
-`prototype_rtmw.py` is a standalone proof-of-concept for evaluating
-[RTMW](https://github.com/open-mmlab/mmpose/tree/main/projects/rtmpose)
-whole-body pose estimation (133 keypoints: body + hands + face + feet) as a
-potential replacement for the MediaPipe backend. It uses
-[rtmlib](https://github.com/Tau-J/rtmlib) for lightweight ONNX/OpenVINO
-inference without mmcv/mmpose dependencies.
+`run.py` is the main entry point for pose estimation. It supports multiple
+model backends via the `--model` flag:
+
+| Model | Keypoints | Description |
+|-------|-----------|-------------|
+| `rtmw-l` (default) | 133 | RTMW-L wholebody (body + hands + face + feet) |
+| `dwpose-m` | 133 | DWPose-M wholebody |
+| `rtmpose-m` | 17 | RTMPose-M body only |
+| `mediapipe` | — | MediaPipe pose + hand (delegates to `main.py`) |
+
+rtmlib-based models use [rtmlib](https://github.com/Tau-J/rtmlib) for
+lightweight ONNX/OpenVINO inference without mmcv/mmpose dependencies.
 
 ```bash
 pip install rtmlib
 
-# Quick test on webcam
-python prototype_rtmw.py
+# Quick test on webcam (default: rtmw-l)
+python run.py
 
-# Test on a video with OpenVINO backend
-python prototype_rtmw.py --source video.mp4 --backend openvino
+# Try different models
+python run.py --model dwpose-m
+python run.py --model rtmpose-m
+python run.py --model mediapipe
+
+# Video with OpenVINO backend
+python run.py --source video.mp4 --backend openvino
 
 # Benchmark latency without display
-python prototype_rtmw.py --source video.mp4 --headless
-
-# Try different quality/speed tiers
-python prototype_rtmw.py --mode performance    # best quality
-python prototype_rtmw.py --mode balanced       # default
-python prototype_rtmw.py --mode lightweight    # fastest
+python run.py --source video.mp4 --headless
 ```
 
-Models are downloaded automatically on first run. The prototype is independent
-of the main pipeline — it exists to compare RTMW quality and speed against the
-current MediaPipe models before committing to a backend migration.
+Models are downloaded automatically on first run.

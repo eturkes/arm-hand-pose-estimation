@@ -1,4 +1,4 @@
-"""Tests for track age gating in prototype_rtmw.py KeypointSmoother."""
+"""Tests for track age gating in KeypointSmoother."""
 
 import numpy as np
 import pathlib
@@ -6,7 +6,7 @@ import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-from prototype_rtmw import KeypointSmoother
+from run import KeypointSmoother
 
 
 def _make_kps(n=5, seed=6142):

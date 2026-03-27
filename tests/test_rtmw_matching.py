@@ -1,4 +1,4 @@
-"""Tests for Hungarian matching in prototype_rtmw.py KeypointSmoother."""
+"""Tests for Hungarian matching in KeypointSmoother."""
 
 import numpy as np
 import sys
@@ -6,7 +6,7 @@ import pathlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
-from prototype_rtmw import KeypointSmoother
+from run import KeypointSmoother
 
 
 def _make_kps(center, n=5):

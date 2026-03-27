@@ -1,36 +1,27 @@
-"""Prototype: RTMW whole-body pose estimation via rtmlib.
+"""Pose estimation — unified entry point.
 
-Quick proof-of-concept to evaluate RTMW model quality and inference
-speed on your hardware before integrating into the main pipeline.
+Supports rtmlib-based models (RTMW, DWPose, RTMPose) and MediaPipe.
 
 Usage:
-    # Webcam (default, onnxruntime CPU)
-    python prototype_rtmw.py
-
-    # Video file on GPU
-    python prototype_rtmw.py --source video.mp4 --backend openvino --device GPU
-
-    # NPU (uses yolox-m + rtmw-m, the NPU-compatible pair)
-    python prototype_rtmw.py --backend openvino --device NPU
-
-    # Headless benchmark
-    python prototype_rtmw.py --source video.mp4 --backend openvino --device NPU --headless
-
-    # Body-only (17 kps) instead of whole-body (133 kps)
-    python prototype_rtmw.py --body-only --backend openvino --device NPU
-
-    # Batch processing all videos in a directory
-    python prototype_rtmw.py --batch-dir videos/ --backend openvino --device NPU
-
-    # Single subject, hands-arms tracking scope
-    python prototype_rtmw.py --batch-dir videos/ --single-subject --backend openvino --device NPU --tracking hands-arms
+    python run.py                                     # webcam 0, default model
+    python run.py --model dwpose-m                    # DWPose wholebody
+    python run.py --model rtmpose-m                   # body-only (17 kps)
+    python run.py --model mediapipe                   # MediaPipe pose + hand
+    python run.py --source video.mp4 --backend openvino --device GPU
+    python run.py --backend openvino --device NPU
+    python run.py --source video.mp4 --backend openvino --device NPU --headless
+    python run.py --batch-dir videos/ --backend openvino --device NPU
+    python run.py --batch-dir videos/ --single-subject --backend openvino --device NPU --tracking hands-arms
 
 Requirements:
     pip install rtmlib openvino  # or: pip install rtmlib onnxruntime
 """
 
 import argparse
+import collections
 import os
+import subprocess
+import sys
 import time
 
 import cv2
@@ -41,21 +32,52 @@ from constraints import BoneLengthSmoother
 
 
 # ---------------------------------------------------------------------------
-# NPU-compatible model URLs (verified via test_npu_compat.py)
+# Model registry — NPU-compatible models (verified via test_npu_compat.py)
 # ---------------------------------------------------------------------------
-# NPU requires static shapes and doesn't support all ops.  These specific
-# model variants have been tested and compile successfully on NPU.
-NPU_MODELS = {
-    # Detector: yolox-m is the only YOLOX variant that passes NPU compilation
-    "det": "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/yolox_m_8xb8-300e_humanart-c2c7a14a.zip",
-    "det_input_size": (640, 640),
-    # Whole-body pose: rtmw-l-m (133 kps) — best quality that compiles on NPU
-    "pose_wholebody": "https://download.openmmlab.com/mmpose/v1/projects/rtmw/onnx_sdk/rtmw-dw-l-m_simcc-cocktail14_270e-256x192_20231122.zip",
-    "pose_wholebody_input_size": (192, 256),
-    # Body-only pose: rtmpose-m (17 kps)
-    "pose_body": "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-m_simcc-body7_pt-body7_420e-256x192-e48f03d0_20230504.zip",
-    "pose_body_input_size": (192, 256),
+# Largest variant per model family; all use YOLOX-m for detection.
+
+_DET_URL = (
+    "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/"
+    "yolox_m_8xb8-300e_humanart-c2c7a14a.zip"
+)
+_DET_INPUT_SIZE = (640, 640)
+
+MODEL_REGISTRY = {
+    "rtmw-l": {
+        "pose": (
+            "https://download.openmmlab.com/mmpose/v1/projects/rtmw/onnx_sdk/"
+            "rtmw-dw-l-m_simcc-cocktail14_270e-256x192_20231122.zip"
+        ),
+        "pose_input_size": (192, 256),
+        "pose_class": "RTMPose",
+        "n_kps": 133,
+        "label": "Wholebody 133 kps (RTMW-L, 256x192)",
+    },
+    "dwpose-m": {
+        "pose": (
+            "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/"
+            "onnx_sdk/rtmpose-m_simcc-ucoco_dw-ucoco_270e-256x192"
+            "-c8b76419_20230728.zip"
+        ),
+        "pose_input_size": (192, 256),
+        "pose_class": "RTMPose",
+        "n_kps": 133,
+        "label": "Wholebody 133 kps (DWPose-M, 256x192)",
+    },
+    "rtmpose-m": {
+        "pose": (
+            "https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/"
+            "onnx_sdk/rtmpose-m_simcc-body7_pt-body7_420e-256x192"
+            "-e48f03d0_20230504.zip"
+        ),
+        "pose_input_size": (192, 256),
+        "pose_class": "RTMPose",
+        "n_kps": 17,
+        "label": "Body 17 kps (RTMPose-M, 256x192)",
+    },
 }
+
+DEFAULT_MODEL = "rtmw-l"
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +108,7 @@ REGION_PARAMS = [
 # Bone-length constraint segments for COCO-WholeBody 133 layout
 # ---------------------------------------------------------------------------
 # Ordered proximal→distal so corrections propagate outward.
-BONE_SEGMENTS_RTMW = [
+BONE_SEGMENTS_WB = [
     (5, 7),    # left shoulder → left elbow
     (7, 9),    # left elbow → left wrist
     (9, 91),   # left wrist → left index-finger MCP
@@ -95,7 +117,7 @@ BONE_SEGMENTS_RTMW = [
     (10, 112), # right wrist → right index-finger MCP
 ]
 
-BONE_SEGMENTS_RTMW_BODY = BONE_SEGMENTS_RTMW + [
+BONE_SEGMENTS_WB_BODY = BONE_SEGMENTS_WB + [
     (11, 13),  # left hip → left knee
     (13, 15),  # left knee → left ankle
     (12, 14),  # right hip → right knee
@@ -103,6 +125,14 @@ BONE_SEGMENTS_RTMW_BODY = BONE_SEGMENTS_RTMW + [
 ]
 
 VIDEO_EXTS = {".mp4", ".avi", ".mov", ".mkv", ".webm", ".flv"}
+WINDOW_TITLE = "Pose Estimation"
+
+
+def _frame_to_surface(frame):
+    """Convert a BGR OpenCV frame to a pygame Surface."""
+    import pygame
+    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    return pygame.surfarray.make_surface(rgb.transpose(1, 0, 2))
 
 
 # ---------------------------------------------------------------------------
@@ -375,7 +405,11 @@ _ORIG_BASE_INIT = None  # set lazily after import
 
 
 def _patch_rtmlib_openvino():
-    """Allow rtmlib's OpenVINO backend to use non-CPU devices."""
+    """Allow rtmlib's OpenVINO backend to use non-CPU devices.
+
+    Also generalises the output-layer handling so that models with any
+    number of outputs (e.g. 3 for RTMW3D) work correctly.
+    """
     from rtmlib.tools import base as rtmlib_base
 
     global _ORIG_BASE_INIT
@@ -423,7 +457,6 @@ def _patch_rtmlib_openvino():
                 if ov_device != 'CPU':
                     print(f"WARNING: Failed to compile on {ov_device} "
                           f"({exc}), falling back to CPU.")
-                    # Re-read without reshape for CPU fallback
                     model_onnx = core.read_model(model=onnx_model)
                     self.compiled_model = core.compile_model(
                         model=model_onnx,
@@ -433,11 +466,17 @@ def _patch_rtmlib_openvino():
                 else:
                     raise
 
+            n_outputs = len(self.compiled_model.outputs)
             self.input_layer = self.compiled_model.input(0)
-            self.output_layer0 = self.compiled_model.output(0)
-            self.output_layer1 = self.compiled_model.output(1)
+            self._ov_output_layers = [
+                self.compiled_model.output(i) for i in range(n_outputs)
+            ]
+            # Backward compat for rtmlib code that uses these directly
+            self.output_layer0 = self._ov_output_layers[0]
+            self.output_layer1 = self._ov_output_layers[1]
 
-            print(f'load {onnx_model} with openvino/{ov_device} backend')
+            print(f'load {onnx_model} with openvino/{ov_device} backend'
+                  f' ({n_outputs} outputs)')
 
             self.onnx_model = onnx_model
             self.model_input_size = model_input_size
@@ -452,6 +491,23 @@ def _patch_rtmlib_openvino():
                             backend=backend, device=device)
 
     rtmlib_base.BaseTool.__init__ = _patched_init
+
+    # Patch inference() so models with >2 outputs work.
+    _orig_inference = rtmlib_base.BaseTool.inference
+
+    def _patched_inference(self, img):
+        if self.backend != 'openvino' \
+                or not hasattr(self, '_ov_output_layers'):
+            return _orig_inference(self, img)
+
+        img = img.transpose(2, 0, 1)
+        img = np.ascontiguousarray(img, dtype=np.float32)
+        input_tensor = img[None, :, :, :]
+
+        results = self.compiled_model(input_tensor)
+        return [results[layer] for layer in self._ov_output_layers]
+
+    rtmlib_base.BaseTool.inference = _patched_inference
 
 
 # ---------------------------------------------------------------------------
@@ -501,7 +557,7 @@ def mask_tracking_scores(scores, tracking_mode):
 # ---------------------------------------------------------------------------
 
 def parse_args():
-    p = argparse.ArgumentParser(description="RTMW prototype")
+    p = argparse.ArgumentParser(description="Pose estimation")
     p.add_argument("--source", default="0",
                    help="Camera index or video path (default: 0)")
     p.add_argument("--batch-dir", default=None,
@@ -509,21 +565,29 @@ def parse_args():
                         "(overrides --source, implies --headless)")
     p.add_argument("--single-subject", action="store_true",
                    help="Track only the highest-confidence person")
-    p.add_argument("--backend", default="onnxruntime",
+    p.add_argument("--backend", default="openvino",
                    choices=["onnxruntime", "openvino", "opencv"],
-                   help="Inference backend (default: onnxruntime)")
-    p.add_argument("--device", default="cpu",
-                   help="Device for inference: cpu, NPU, GPU (default: cpu)")
+                   help="Inference backend (default: openvino)")
+    p.add_argument("--device", default="NPU",
+                   help="Device for inference: NPU, CPU, GPU (default: NPU)")
     p.add_argument("--mode", default="balanced",
                    choices=["performance", "balanced", "lightweight"],
                    help="Model quality/speed tier (default: balanced)")
+    model_names = list(MODEL_REGISTRY.keys()) + ["mediapipe"]
+    p.add_argument(
+        "--model", default=DEFAULT_MODEL, choices=model_names,
+        help=(f"Pose model (default: {DEFAULT_MODEL}).  "
+              + ", ".join(
+                  f"{k}: {v['label']}" for k, v in MODEL_REGISTRY.items()
+              )
+              + ", mediapipe: MediaPipe pose + hand (TFLite)"))
+    # Kept for backward compatibility; --model takes precedence.
     p.add_argument("--body-only", action="store_true",
-                   help="Use Body (17 kps) instead of Wholebody (133 kps)")
-    p.add_argument("--tracking", default=None,
+                   help=argparse.SUPPRESS)
+    p.add_argument("--tracking", default="hands-arms",
                    choices=["hands", "hands-arms", "body"],
-                   help="Keypoint scope for visualization "
-                        "(hands/hands-arms require Wholebody, "
-                        "overrides --body-only)")
+                   help="Keypoint scope (default: hands-arms). "
+                        "hands/hands-arms require Wholebody.")
     p.add_argument("--det-frequency", type=int, default=7,
                    help="Run detector every N frames (default: 7)")
     p.add_argument("--headless", action="store_true",
@@ -542,7 +606,7 @@ def parse_args():
 # ---------------------------------------------------------------------------
 
 def process_source(args, pose_tracker, source_str, draw_skeleton,
-                   smoother=None, bone_smoother=None):
+                   smoother=None, bone_smoother=None, screen=None):
     """Process a single video/camera source.  Returns latency list (ms)."""
     source = int(source_str) if source_str.isdigit() else source_str
     cap = cv2.VideoCapture(source)
@@ -558,10 +622,25 @@ def process_source(args, pose_tracker, source_str, draw_skeleton,
           f"{f', {total_frames} frames' if total_frames > 0 else ''})")
     print()
 
+    use_pygame = not args.headless and screen is not None
+    if use_pygame:
+        import pygame
+
     latencies = []
+    processing_times = collections.deque(maxlen=60)
     frame_idx = 0
     try:
         while cap.isOpened():
+            if use_pygame:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        cap.release()
+                        return latencies
+                    if (event.type == pygame.KEYDOWN
+                            and event.key == pygame.K_ESCAPE):
+                        cap.release()
+                        return latencies
+
             ret, frame = cap.read()
             if not ret:
                 break
@@ -609,24 +688,38 @@ def process_source(args, pose_tracker, source_str, draw_skeleton,
                         img_show, keypoints, draw_scores,
                         openpose_skeleton=False, kpt_thr=0.3)
 
-                # Overlay FPS
-                fps_text = (f"{1000 / latencies[-1]:.0f} fps"
-                            if latencies[-1] > 0 else "")
-                cv2.putText(img_show, fps_text, (10, 30),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                cv2.putText(img_show, f"{n_persons} person(s)", (10, 65),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+                # FPS / progress overlay (matches main.py style)
+                processing_times.append(dt)
+                avg_ms = np.mean(processing_times) * 1000
+                fps = 1000 / avg_ms
+                _, f_width = img_show.shape[:2]
+                label = f"Inference: {avg_ms:.1f}ms ({fps:.1f} FPS)"
+                if total_frames > 0:
+                    pct = frame_idx / total_frames * 100
+                    label += (f"  |  Frame {frame_idx}/"
+                              f"{total_frames} ({pct:.0f}%)")
+                cv2.putText(img_show, label, (20, 40),
+                            cv2.FONT_HERSHEY_COMPLEX, f_width / 1000,
+                            (0, 0, 255), 1, cv2.LINE_AA)
 
-                cv2.imshow("RTMW Prototype", img_show)
-                if cv2.waitKey(1) & 0xFF in (27, ord('q')):
-                    break
+                if use_pygame:
+                    # Resize window to match first frame
+                    if frame_idx == 1:
+                        fh, fw = img_show.shape[:2]
+                        screen = pygame.display.set_mode((fw, fh))
+                        video_name = (os.path.basename(source_str)
+                                      if not source_str.isdigit()
+                                      else None)
+                        if video_name:
+                            pygame.display.set_caption(
+                                f"{WINDOW_TITLE} — {video_name}")
+                    screen.blit(_frame_to_surface(img_show), (0, 0))
+                    pygame.display.flip()
 
     except KeyboardInterrupt:
         print("\nInterrupted.")
     finally:
         cap.release()
-        if not args.headless:
-            cv2.destroyAllWindows()
 
     return latencies
 
@@ -653,13 +746,50 @@ def print_latency_summary(latencies):
 # Main
 # ---------------------------------------------------------------------------
 
+def _run_mediapipe(args):
+    """Delegate to main.py for the MediaPipe pipeline."""
+    cmd = [sys.executable, "main.py"]
+    if args.batch_dir:
+        cmd += ["--batch-dir", args.batch_dir]
+    elif args.source != "0":
+        cmd += ["--source", args.source]
+    cmd += ["--device", args.device]
+    cmd += ["--tracking", args.tracking]
+    if args.single_subject:
+        cmd.append("--single-subject")
+    if args.headless:
+        cmd.append("--headless")
+    if args.no_smooth:
+        # main.py doesn't have --no-smooth; pass through silently
+        pass
+    if args.max_frames:
+        # main.py doesn't have --max-frames; pass through silently
+        pass
+    print(f"Delegating to MediaPipe pipeline: {' '.join(cmd)}")
+    return subprocess.call(cmd)
+
+
 def main():
     args = parse_args()
 
-    # --tracking hands/hands-arms needs Wholebody (133 kps)
-    if args.tracking and args.tracking != "body" and args.body_only:
-        print("NOTE: --tracking overrides --body-only; "
-              "using Wholebody model.")
+    # ── MediaPipe delegates to main.py ──────────────────────────────
+    if args.model == "mediapipe":
+        sys.exit(_run_mediapipe(args))
+
+    # ── Resolve model — legacy --body-only maps to rtmpose-m ────────
+    model_name = args.model
+    if args.body_only and model_name == DEFAULT_MODEL:
+        model_name = "rtmpose-m"
+
+    model = MODEL_REGISTRY[model_name]
+    args.body_only = model["n_kps"] == 17
+
+    # --tracking hands/hands-arms needs wholebody (133 kps)
+    if args.tracking != "body" and args.body_only:
+        print(f"NOTE: --tracking {args.tracking} requires wholebody; "
+              f"switching from {model_name} to {DEFAULT_MODEL}.")
+        model_name = DEFAULT_MODEL
+        model = MODEL_REGISTRY[model_name]
         args.body_only = False
 
     # ── Patch rtmlib before importing its classes ────────────────────
@@ -667,35 +797,22 @@ def main():
         _patch_rtmlib_openvino()
 
     # ── Import rtmlib (deferred so --help works without it) ─────────
-    from rtmlib import Body, Custom, PoseTracker, Wholebody, draw_skeleton
+    from rtmlib import Custom, PoseTracker, draw_skeleton
+    from functools import partial
 
-    # ── Set up model ────────────────────────────────────────────────
-    is_npu = args.device.upper() == "NPU"
+    # ── Set up model (explicit URLs from registry for all devices) ──
+    solution_cls = partial(
+        Custom,
+        det_class="YOLOX",
+        det=_DET_URL,
+        det_input_size=_DET_INPUT_SIZE,
+        pose_class=model["pose_class"],
+        pose=model["pose"],
+        pose_input_size=model["pose_input_size"],
+    )
+    print(f"Model:   {model['label']} [{model_name}]")
 
-    if is_npu:
-        # Use NPU-verified models explicitly via Custom class
-        from functools import partial
-
-        pose_key = "pose_body" if args.body_only else "pose_wholebody"
-        solution_cls = partial(
-            Custom,
-            det_class="YOLOX",
-            det=NPU_MODELS["det"],
-            det_input_size=NPU_MODELS["det_input_size"],
-            pose_class="RTMPose",
-            pose=NPU_MODELS[pose_key],
-            pose_input_size=NPU_MODELS[f"{pose_key}_input_size"],
-        )
-        label = "Body (17 kps)" if args.body_only else "Wholebody (133 kps)"
-        print(f"Model:   {label}, NPU-verified (yolox-m + "
-              f"{'rtmpose-m' if args.body_only else 'rtmw-m'})")
-    else:
-        # Use rtmlib's built-in mode selection
-        solution_cls = Body if args.body_only else Wholebody
-        label = "Body (17 kps)" if args.body_only else "Wholebody (133 kps)"
-        print(f"Model:   {label}, mode={args.mode}")
-
-    tracking_label = f", tracking={args.tracking}" if args.tracking else ""
+    tracking_label = f", tracking={args.tracking}"
     single_label = ", single-subject" if args.single_subject else ""
     smooth_label = ", no-smooth" if args.no_smooth else ", smooth"
     constraint_label = ", no-constraints" if args.no_constraints else ""
@@ -716,9 +833,9 @@ def main():
 
     bone_smoother = None
     if not args.no_constraints:
-        segments = (BONE_SEGMENTS_RTMW_BODY
+        segments = (BONE_SEGMENTS_WB_BODY
                     if args.tracking == "body" or args.body_only
-                    else BONE_SEGMENTS_RTMW)
+                    else BONE_SEGMENTS_WB)
         bone_smoother = BoneLengthSmoother(segments=segments)
 
     # ── Collect sources ─────────────────────────────────────────────
@@ -728,21 +845,36 @@ def main():
     else:
         sources = [args.source]
 
+    # ── Display ─────────────────────────────────────────────────────
+    screen = None
+    if not args.headless:
+        import pygame as _pg
+        _pg.init()
+        screen = _pg.display.set_mode((640, 480))
+        _pg.display.set_caption(WINDOW_TITLE)
+
     # ── Process each source ─────────────────────────────────────────
     all_latencies = []
-    for i, src in enumerate(sources):
-        if len(sources) > 1:
-            print(f"\n{'=' * 60}")
-            print(f"[{i + 1}/{len(sources)}] {src}")
-            print("=" * 60)
+    try:
+        for i, src in enumerate(sources):
+            if len(sources) > 1:
+                print(f"\n{'=' * 60}")
+                print(f"[{i + 1}/{len(sources)}] {src}")
+                print("=" * 60)
 
-        if smoother is not None:
-            smoother.reset()
-        latencies = process_source(args, pose_tracker, src, draw_skeleton,
-                                   smoother=smoother,
-                                   bone_smoother=bone_smoother)
-        print_latency_summary(latencies)
-        all_latencies.extend(latencies)
+            if smoother is not None:
+                smoother.reset()
+            latencies = process_source(args, pose_tracker, src,
+                                       draw_skeleton,
+                                       smoother=smoother,
+                                       bone_smoother=bone_smoother,
+                                       screen=screen)
+            print_latency_summary(latencies)
+            all_latencies.extend(latencies)
+    finally:
+        if not args.headless:
+            import pygame as _pg
+            _pg.quit()
 
     # ── Batch summary ───────────────────────────────────────────────
     if len(sources) > 1 and all_latencies:
