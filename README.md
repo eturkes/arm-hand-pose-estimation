@@ -167,6 +167,8 @@ Rscript analysis/keypoint_detail.R output/     # per-keypoint analysis
 Rscript analysis/compare.R run_a.json run_b.json  # before/after comparison
 Rscript analysis/clinical_features.R output/  # clinical kinematic features
 Rscript analysis/clinical_correlation.R output/ clinical_scores.csv  # correlate with scores
+Rscript analysis/longitudinal.R output/ sessions.csv                # longitudinal recovery tracking
+Rscript analysis/longitudinal.R output/ sessions.csv clinical_scores.csv  # with score overlay
 ```
 
 `clinical_features.R` reads landmark CSVs (hands-arms or body mode) and
@@ -182,6 +184,15 @@ Benjamini-Hochberg FDR correction.  Outputs a tidy
 `*_correlation_table.csv`, a Spearman rho heatmap
 (`*_correlation_matrix.png`), and scatter plots for the top 6 pairs
 (`*_scatter_top.png`).
+
+`longitudinal.R` compares clinical features from the same patient across
+multiple sessions to track recovery.  Requires a `sessions.csv` mapping
+each video to a `patient_id` and `session_date` (ISO 8601).  Aggregates
+per-video features, computes session-to-session deltas and percentage
+changes from baseline, and flags changes exceeding 1 SD of the baseline
+session.  Outputs `*_longitudinal_summary.csv` and per-patient line plots
+(`*_longitudinal_<patient_id>.png`).  Optionally overlays clinical scores
+from `clinical_scores.csv` on a secondary axis.
 
 ### Parameter benchmarking
 

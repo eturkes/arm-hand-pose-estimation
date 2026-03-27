@@ -44,6 +44,20 @@ the live video:
   `*_correlation_matrix.png` (Spearman heatmap with
   significance stars), `*_scatter_top.png` (top 6 pairs).
   Warns and continues on unmatched videos or missing scores.
+- `analysis/longitudinal.R` — compares clinical features for
+  the same patient across multiple sessions (time points) to
+  track recovery.  Requires `sessions.csv` with columns:
+  `video`, `patient_id`, `session_date` (ISO 8601).  Aggregates
+  per-video features (reuses `aggregate_per_video` pattern),
+  computes session-to-session deltas and percentage changes from
+  baseline, flags changes exceeding 1 SD of baseline.  Outputs:
+  `*_longitudinal_summary.csv` (patient_id, feature,
+  session_date, value, delta_from_baseline, pct_change, flagged),
+  `*_longitudinal_<patient_id>.png` (line plots of top 6 most
+  variable features per patient).  Optionally overlays clinical
+  scores from `clinical_scores.csv` on plots when a third CLI
+  argument is provided.  Patients with a single session are
+  included in the summary (no deltas) but skipped for flagging.
 - `benchmark.py` — parameter sweep harness using `--headless`
   mode and env-var overrides (`POSE_BENCH_*`).
 - `--headless` flag on `main.py` skips pygame for batch metrics.

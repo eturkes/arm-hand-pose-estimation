@@ -130,7 +130,7 @@ table and produces correlation analyses and visualisations.
 
 ## Section 3 — Longitudinal Comparison Across Sessions
 
-**Status:** [ ] incomplete
+**Status:** [x] complete
 
 **Goal:** Create `analysis/longitudinal.R` that compares
 clinical features from the same patient across multiple
