@@ -161,7 +161,7 @@ patterns.
 
 ## Section 4 — Dimensionality Reduction on Clinical Features
 
-**Status:** [ ] incomplete
+**Status:** [x] complete
 
 **Goal:** Create `analysis/clinical_dimreduce.R` that applies
 PCA and UMAP to the per-video aggregated clinical features to

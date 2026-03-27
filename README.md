@@ -172,6 +172,7 @@ Rscript analysis/longitudinal.R output/ sessions.csv clinical_scores.csv  # with
 Rscript analysis/explore_clinical.R output/         # exploratory summary & sanity-check plots
 Rscript analysis/temporal_clinical.R output/        # per-video temporal feature plots
 Rscript analysis/compare_clinical.R output/        # between-video feature comparison
+Rscript analysis/clinical_dimreduce.R output/      # PCA + UMAP on aggregated clinical features
 ```
 
 `clinical_features.R` reads landmark CSVs (hands-arms or body mode) and
@@ -220,6 +221,16 @@ between-video differences with a parallel-coordinate plot of z-scored
 feature means (`all_clinical_radar.png`) and a clustered heatmap
 (`all_clinical_heatmap.png`).  Flags videos that are outliers (>2 SD
 from the group mean) on any feature.
+
+`clinical_dimreduce.R` applies PCA and UMAP to the per-video aggregated
+clinical features (same aggregation as `compare_clinical.R`).  Drops
+zero-variance and high-NA columns, imputes remaining NAs with column
+medians, and z-scores all features.  Outputs a scree plot
+(`all_clinical_pca_scree.png`), a biplot with video labels and feature
+loading arrows (`all_clinical_pca_biplot.png`), a 2D UMAP scatter with
+video labels (`all_clinical_umap.png`), and a tidy loadings table
+(`all_clinical_pca_loadings.csv`).  Requires R packages `uwot` and
+`tidyverse`.
 
 ### Parameter benchmarking
 

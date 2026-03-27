@@ -76,6 +76,20 @@ the live video:
   `all_clinical_radar.png` (parallel-coordinate plot of z-scored
   means) and `all_clinical_heatmap.png` (clustered heatmap).
   Flags outlier videos (>2 SD from group mean).
+- `analysis/clinical_dimreduce.R` — PCA and UMAP on per-video
+  aggregated clinical features.  Loads `*_clinical.csv` and
+  `*_clinical_windows.csv`, aggregates per video (mean, median,
+  SD, min, max for frame features; mean, SD for window features),
+  drops zero-variance / >50 % NA columns, imputes remaining NAs
+  with column medians, z-scores, then runs PCA and UMAP.
+  Outputs: `all_clinical_pca_scree.png` (scree plot),
+  `all_clinical_pca_biplot.png` (PC1 vs PC2 with video labels
+  and top-10 loading arrows),
+  `all_clinical_umap.png` (2D UMAP with video labels),
+  `all_clinical_pca_loadings.csv` (feature loadings on first
+  PCs).  Prints console summary of variance explained and top
+  features on PC1/PC2.  Requires R packages `uwot` and
+  `tidyverse`.
 - `analysis/explore_clinical.R` — exploratory summary and
   sanity-check of clinical features.  Loads all `*_clinical.csv`
   and `*_clinical_windows.csv` from a directory, prints per-video
