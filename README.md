@@ -13,10 +13,10 @@ with temporal smoothing and skeleton visualization.
 ## Setup
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+uv sync
 ```
+
+
 
 ## Usage
 
@@ -226,7 +226,7 @@ python benchmark.py --source video.mp4 --config sweep_quick.yaml
 
 ## Dependencies
 
-Defined in `requirements.txt`:
+Defined in `pyproject.toml`. Core dependencies:
 
 | Package | Purpose |
 |---------|---------|
@@ -237,18 +237,9 @@ Defined in `requirements.txt`:
 | `pygame-ce` | Display (SDL2, Wayland-compatible) |
 | `tqdm` | Progress bars for model downloads |
 | `requests` | HTTP for model downloads |
-
-Optional (for `--postprocess` / `postprocess.py`):
-
-| Package | Purpose |
-|---------|---------|
-| `pandas` | CSV reading/writing for post-processing |
-
-Optional (for `run.py` with rtmlib-based models):
-
-| Package | Purpose |
-|---------|---------|
 | `rtmlib` | RTMW/RTMPose/DWPose whole-body pose estimation (ONNX/OpenVINO) |
+| `pandas` | CSV reading/writing for post-processing |
+| `pyyaml` | YAML sweep config parsing for benchmarking |
 
 ## Unified Entry Point
 
@@ -266,8 +257,6 @@ rtmlib-based models use [rtmlib](https://github.com/Tau-J/rtmlib) for
 lightweight ONNX/OpenVINO inference without mmcv/mmpose dependencies.
 
 ```bash
-pip install rtmlib
-
 # Quick test on webcam (default: rtmw-l)
 python run.py
 

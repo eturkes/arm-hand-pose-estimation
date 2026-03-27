@@ -68,6 +68,7 @@ Export column prefix is `arm_` for hands-arms, `body_` for body mode.
 
 ## Environment
 
+- Managed by `uv` (`pyproject.toml` + `uv.lock`)
 - Python virtual environment in `.venv/`
 - Host runs Linux with GNOME Wayland and Homebrew Python 3.14
 - The `.venv` must be created on the host, not inside a container
@@ -75,10 +76,9 @@ Export column prefix is `arm_` for hands-arms, `body_` for body mode.
 
 ## Package Installation
 
-- The user installs packages on the host (add to `requirements.txt`)
-- The assistant can install packages inside its container for
-  testing, but the user runs the project on the host, not in
-  the container
+- Python deps live in `pyproject.toml`; add new deps there and
+  run `uv sync` on the host (the assistant cannot do this in
+  the container because `.venv` symlinks are host-specific)
+
+- `uv.lock` is committed for reproducible installs
 - When installing R packages, use `renv` (not the global library)
-- When installing Python or other language packages, use the
-  available virtual environment (`.venv/`) rather than system-wide

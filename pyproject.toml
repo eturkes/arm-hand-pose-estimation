@@ -1,0 +1,19 @@
+[project]
+name = "pose-estimation"
+version = "0.1.0"
+description = "Real-time pose estimation combining MediaPipe TFLite models with Intel OpenVINO inference"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0 WITH LLVM-exception"
+dependencies = [
+    "openvino>=2023.1.0",
+    "opencv-python-headless",
+    "numpy",
+    "scipy",
+    "pandas",
+    "pygame-ce",
+    "tqdm",
+    "requests",
+    "rtmlib",
+    "pyyaml",
+]
