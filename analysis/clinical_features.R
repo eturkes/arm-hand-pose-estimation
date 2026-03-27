@@ -279,6 +279,7 @@ compute_window_features <- function(df, frame_features, tracking,
     t_end   <- ts[n]
 
     # 50 %-overlapping windows.
+    if (t_end - t_start < window_sec) next
     win_starts <- seq(t_start, t_end - window_sec, by = window_sec / 2)
     if (length(win_starts) == 0) next
 
@@ -340,7 +341,7 @@ if (dir.exists(path)) {
   files <- list.files(path, pattern = "\\.csv$", full.names = TRUE)
   files <- files[!str_detect(
     basename(files),
-    "(metrics|kp_detail|diag|summary|smooth|feature_rank|clinical)\\.csv$"
+    "(metrics|kp_detail|diag|summary|smooth|feature_rank|clinical[_a-z]*)\\.csv$"
   )]
   if (length(files) == 0) stop("No landmark CSVs found in ", path)
 } else {

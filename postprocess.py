@@ -66,7 +66,8 @@ def _smooth_column(series, window, polyorder, savgol_filter):
         gap_lengths = is_nan.groupby(groups).transform("sum")
         short_gap = is_nan & (gap_lengths <= max_gap)
         if short_gap.any():
-            interp = series.interpolate(limit=max_gap, limit_area="inside")
+            safe_limit = min(max_gap, len(series) - 1) or 1
+            interp = series.interpolate(limit=safe_limit, limit_area="inside")
 
     # After interpolation, identify contiguous non-NaN segments
     valid = interp.notna()
