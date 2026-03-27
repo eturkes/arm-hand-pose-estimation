@@ -69,6 +69,13 @@ the live video:
   `all_clinical_timeseries_overview.png` comparing normalised
   reach across all qualifying videos.  Videos with <10 rows are
   skipped.  Requires R packages `patchwork` and `tidyverse`.
+- `analysis/compare_clinical.R` — between-video comparison of
+  aggregated clinical features.  Aggregates per-frame features
+  per video (mean, median, SD, min, max) and window features
+  (mean, SD) into `all_clinical_video_summary.csv`.  Produces
+  `all_clinical_radar.png` (parallel-coordinate plot of z-scored
+  means) and `all_clinical_heatmap.png` (clustered heatmap).
+  Flags outlier videos (>2 SD from group mean).
 - `analysis/explore_clinical.R` — exploratory summary and
   sanity-check of clinical features.  Loads all `*_clinical.csv`
   and `*_clinical_windows.csv` from a directory, prints per-video

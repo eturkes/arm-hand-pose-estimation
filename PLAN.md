@@ -117,7 +117,7 @@ revealing task structure and movement dynamics.
 
 ## Section 3 — Between-Video Feature Comparison
 
-**Status:** [ ] incomplete
+**Status:** [x] complete
 
 **Goal:** Create `analysis/compare_clinical.R` that aggregates
 clinical features per video and compares them across videos to

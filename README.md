@@ -171,6 +171,7 @@ Rscript analysis/longitudinal.R output/ sessions.csv                # longitudin
 Rscript analysis/longitudinal.R output/ sessions.csv clinical_scores.csv  # with score overlay
 Rscript analysis/explore_clinical.R output/         # exploratory summary & sanity-check plots
 Rscript analysis/temporal_clinical.R output/        # per-video temporal feature plots
+Rscript analysis/compare_clinical.R output/        # between-video feature comparison
 ```
 
 `clinical_features.R` reads landmark CSVs (hands-arms or body mode) and
@@ -211,6 +212,14 @@ window-level SAL and velocity panels where available.  Outputs one
 `<stem>_clinical_timeseries.png` per video and a summary
 `all_clinical_timeseries_overview.png` comparing one key feature
 (normalised reach) across all videos.
+
+`compare_clinical.R` aggregates per-frame clinical features per video
+(mean, median, SD, min, max) and window features (mean, SD), producing a
+wide summary table (`all_clinical_video_summary.csv`).  Visualises
+between-video differences with a parallel-coordinate plot of z-scored
+feature means (`all_clinical_radar.png`) and a clustered heatmap
+(`all_clinical_heatmap.png`).  Flags videos that are outliers (>2 SD
+from the group mean) on any feature.
 
 ### Parameter benchmarking
 
