@@ -158,14 +158,21 @@ Add `--metrics-detail` to also write a per-keypoint `*_kp_detail.csv` (large).
 
 ### Analysis suite (R)
 
-Four R scripts in `analysis/` consume the metrics CSVs:
+R scripts in `analysis/` consume the metrics and landmark CSVs:
 
 ```bash
 Rscript analysis/summary.R output/            # text report + JSON
 Rscript analysis/timeseries.R output/          # temporal diagnostic plots
 Rscript analysis/keypoint_detail.R output/     # per-keypoint analysis
 Rscript analysis/compare.R run_a.json run_b.json  # before/after comparison
+Rscript analysis/clinical_features.R output/  # clinical kinematic features
 ```
+
+`clinical_features.R` reads landmark CSVs (hands-arms or body mode) and
+computes per-frame joint angles, reach distances, grasp apertures, and
+frame-to-frame displacement, plus per-window (1 s, 50 % overlap) spectral
+arc length and wrist velocity statistics.  Outputs `*_clinical.csv`
+(per-frame) and `*_clinical_windows.csv` (per-window) alongside each input.
 
 ### Parameter benchmarking
 

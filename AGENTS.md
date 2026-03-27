@@ -21,6 +21,18 @@ the live video:
   visualisation from landmark CSVs (variance, correlation
   heatmap, scree plot, biplot, UMAP by time/video, feature
   ranking CSV).  Requires R packages `uwot` and `tidyverse`.
+- `analysis/clinical_features.R` — derives clinically meaningful
+  kinematic features from landmark CSVs (hands-arms or body
+  mode).  Per-frame outputs (`*_clinical.csv`): joint angles
+  (elbow flexion, wrist deviation, finger spread), reach
+  distance (raw and shoulder-width-normalised), grasp aperture
+  (thumb–index, thumb–pinky), wrist and fingertip displacement.
+  Per-window outputs (`*_clinical_windows.csv`, 1 s windows,
+  50 % overlap): spectral arc length (SAL), mean and peak wrist
+  velocity.  Hands-only CSVs are skipped (no arm keypoints).
+  Helper functions (`angle_at_vertex`, `dist_3d`,
+  `spectral_arc_length`) are unit-testable at the top of the
+  file.
 - `benchmark.py` — parameter sweep harness using `--headless`
   mode and env-var overrides (`POSE_BENCH_*`).
 - `--headless` flag on `main.py` skips pygame for batch metrics.

@@ -11,7 +11,7 @@ Mark a section `[x]` when complete.
 
 ## Section 1 — Derive Clinical Features from Landmark CSVs
 
-**Status:** [ ] incomplete
+**Status:** [x] complete
 
 **Goal:** Create `analysis/clinical_features.R` that reads the
 landmark CSVs produced by `export.py` and computes clinically
