@@ -58,6 +58,17 @@ the live video:
   scores from `clinical_scores.csv` on plots when a third CLI
   argument is provided.  Patients with a single session are
   included in the summary (no deltas) but skipped for flagging.
+- `analysis/explore_clinical.R` — exploratory summary and
+  sanity-check of clinical features.  Loads all `*_clinical.csv`
+  and `*_clinical_windows.csv` from a directory, prints per-video
+  row counts, per-column NA rates, summary statistics, and
+  data-quality warnings (>50 % NA features, zero-row videos,
+  constant-valued features).  Outputs:
+  `all_clinical_distributions.png` (per-feature density by video),
+  `all_clinical_na_heatmap.png` (video × feature missingness),
+  `all_clinical_boxplots.png` (box plots by video),
+  `all_clinical_window_distributions.png` (window feature
+  densities).
 - `benchmark.py` — parameter sweep harness using `--headless`
   mode and env-var overrides (`POSE_BENCH_*`).
 - `--headless` flag on `main.py` skips pygame for batch metrics.

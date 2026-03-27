@@ -17,7 +17,7 @@ Mark a section `[x]` when complete.
 
 ## Section 1 — Explore and Sanity-Check Clinical Features
 
-**Status:** [ ] incomplete
+**Status:** [x] complete
 
 **Goal:** Create `analysis/explore_clinical.R` that loads all
 `*_clinical.csv` and `*_clinical_windows.csv` files from a
