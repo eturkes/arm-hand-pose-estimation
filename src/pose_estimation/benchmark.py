@@ -60,74 +60,9 @@ TUNEABLE_PARAMS = {
 }
 
 
-def _apply_param_overrides(overrides):
-    """Monkey-patch modules with parameter overrides.
-
-    This modifies the constructors and default arguments so that
-    process_video picks them up without code changes.
-
-    Returns a cleanup function that restores originals.
-    """
-    from . import constraints, processing, smoothing
-
-    originals = {}
-
-    for key, value in overrides.items():
-        if key not in TUNEABLE_PARAMS:
-            raise ValueError(f"Unknown tuneable parameter: {key}")
-
-        # Patch the OneEuroFilter defaults via PoseSmoother methods
-        if key == "body_min_cutoff":
-            originals["body_min_cutoff"] = 0.3
-            # Patch the lambda in smooth_bodies
-            _patch_body_filter(smoothing, "min_cutoff", value)
-        elif key == "body_beta":
-            originals["body_beta"] = 0.5
-            _patch_body_filter(smoothing, "beta", value)
-        elif key == "hand_min_cutoff":
-            originals["hand_min_cutoff"] = 1.0
-            _patch_hand_filter(smoothing, "min_cutoff", value)
-        elif key == "hand_beta":
-            originals["hand_beta"] = 0.3
-            _patch_hand_filter(smoothing, "beta", value)
-        elif key == "confidence_gamma":
-            originals["confidence_gamma"] = 2.0
-            _patch_body_filter(smoothing, "gamma", value)
-            _patch_hand_filter(smoothing, "gamma", value)
-        elif key == "carry_grace":
-            originals["carry_grace"] = 10
-            smoothing._BENCH_CARRY_GRACE = int(value)
-        elif key == "carry_damping":
-            originals["carry_damping"] = 0.8
-            smoothing._BENCH_CARRY_DAMPING = float(value)
-        elif key == "det_smooth_alpha":
-            originals["det_smooth_alpha"] = 0.5
-            processing._BENCH_DET_ALPHA = float(value)
-        elif key == "bone_ema_alpha":
-            originals["bone_ema_alpha"] = 0.05
-            constraints._BENCH_BONE_ALPHA = float(value)
-        elif key == "bone_tolerance":
-            originals["bone_tolerance"] = 0.4
-            constraints._BENCH_BONE_TOL = float(value)
-        elif key == "bone_distal_weight":
-            originals["bone_distal_weight"] = 0.8
-            constraints._BENCH_BONE_DISTAL_WEIGHT = float(value)
-
-    return originals
-
-
-def _patch_body_filter(smoothing_mod, attr, value):
-    """Store override for body filter construction."""
-    if not hasattr(smoothing_mod, "_BENCH_BODY_FILTER"):
-        smoothing_mod._BENCH_BODY_FILTER = {}
-    smoothing_mod._BENCH_BODY_FILTER[attr] = value
-
-
-def _patch_hand_filter(smoothing_mod, attr, value):
-    """Store override for hand filter construction."""
-    if not hasattr(smoothing_mod, "_BENCH_HAND_FILTER"):
-        smoothing_mod._BENCH_HAND_FILTER = {}
-    smoothing_mod._BENCH_HAND_FILTER[attr] = value
+# Parameter overrides are applied via POSE_BENCH_* environment variables
+# (see run_single below) rather than in-process monkey-patching, so each
+# benchmark combination runs in its own subprocess with clean state.
 
 
 # ---------------------------------------------------------------------------

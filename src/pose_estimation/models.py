@@ -61,7 +61,8 @@ def download_and_compile_models(model_dir="model", device="NPU"):
         ir_files[name] = ir_path
 
     core = ov.Core()
-    config = {hints.performance_mode(): hints.PerformanceMode.LATENCY}
+    # openvino exposes `performance_mode()` via __getattr__ (ty can't see it)
+    config = {hints.performance_mode(): hints.PerformanceMode.LATENCY}  # ty: ignore[unresolved-attribute]
 
     compiled = {}
     for name, ir_path in ir_files.items():

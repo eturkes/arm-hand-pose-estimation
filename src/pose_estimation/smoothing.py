@@ -34,6 +34,8 @@ class OneEuroFilter:
             self.t_prev = t
             return x.copy()
 
+        assert self.x_prev is not None
+        assert self.dx_prev is not None
         dt = max(t - self.t_prev, 1e-6)
 
         a_d = 1.0 / (1.0 + 1.0 / (2 * np.pi * self.d_cutoff * dt))

@@ -160,6 +160,8 @@ class _OneEuro:
             self.t_prev = t
             return x.copy()
 
+        assert self.x_prev is not None
+        assert self.dx_prev is not None
         dt = max(t - self.t_prev, 1e-6)
         a_d = 1.0 / (1.0 + 1.0 / (2 * np.pi * self.d_cutoff * dt))
         dx = (x - self.x_prev) / dt
@@ -442,6 +444,8 @@ def _patch_rtmlib_openvino():
             from openvino import Core
             from rtmlib.tools.file import download_checkpoint
 
+            if onnx_model is None:
+                raise ValueError("onnx_model is required for the openvino backend")
             if not Path(onnx_model).exists():
                 onnx_model = download_checkpoint(onnx_model)
 
@@ -496,6 +500,12 @@ def _patch_rtmlib_openvino():
             self.backend = backend
             self.device = device
         else:
+            # rtmlib typed these `str = None` / `tuple = None`; in practice
+            # non-None is always passed when the non-openvino branch runs.
+            assert onnx_model is not None
+            assert model_input_size is not None
+            assert mean is not None
+            assert std is not None
             _ORIG_BASE_INIT(
                 self,
                 onnx_model=onnx_model,
@@ -506,7 +516,7 @@ def _patch_rtmlib_openvino():
                 device=device,
             )
 
-    rtmlib_base.BaseTool.__init__ = _patched_init
+    rtmlib_base.BaseTool.__init__ = _patched_init  # ty: ignore[invalid-assignment]
 
     # Patch inference() so models with >2 outputs work.
     _orig_inference = rtmlib_base.BaseTool.inference
@@ -522,7 +532,7 @@ def _patch_rtmlib_openvino():
         results = self.compiled_model(input_tensor)
         return [results[layer] for layer in self._ov_output_layers]
 
-    rtmlib_base.BaseTool.inference = _patched_inference
+    rtmlib_base.BaseTool.inference = _patched_inference  # ty: ignore[invalid-assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -736,6 +746,7 @@ def process_source(
                 )
 
                 if use_pygame:
+                    assert screen is not None  # implied by use_pygame
                     # Resize window to match first frame
                     if frame_idx == 1:
                         fh, fw = img_show.shape[:2]
@@ -861,7 +872,7 @@ def main():
     )
 
     pose_tracker = PoseTracker(
-        solution_cls,
+        solution_cls,  # ty: ignore[invalid-argument-type]  # rtmlib accepts any callable
         mode=args.mode,
         det_frequency=args.det_frequency,
         backend=args.backend,

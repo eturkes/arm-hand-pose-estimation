@@ -311,8 +311,9 @@ class MetricsCollector:
         return round(float(np.sum(deltas)), 2)
 
     def _write_detail(self, frame_idx, person_idx, smooth_lm, raw_lm, vis, part):
-        """Write per-keypoint rows to the detail CSV."""
-        if smooth_lm is None:
+        """Write per-keypoint rows to the detail CSV.  Caller guards on
+        ``self._detail_w is not None``."""
+        if smooth_lm is None or self._detail_w is None:
             return
         n_kp = smooth_lm.shape[0]
         prev_key = {

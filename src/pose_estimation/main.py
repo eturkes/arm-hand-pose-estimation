@@ -658,7 +658,7 @@ def main():
 
     # Post-process CSVs with Savitzky-Golay if requested
     if args.postprocess and csv_paths:
-        from postprocess import savgol_smooth_csv
+        from .postprocess import savgol_smooth_csv
 
         print(
             f"\nPost-processing {len(csv_paths)} CSV(s) "
