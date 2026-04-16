@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from pose_estimation.constraints import BoneLengthSmoother, BONE_SEGMENTS, clamp_joint_angles
+from pose_estimation.constraints import BONE_SEGMENTS, BoneLengthSmoother, clamp_joint_angles
 
 
 def _make_landmarks():
@@ -71,10 +71,10 @@ def test_perturbed_keypoint_corrected():
     assert correction > 0
 
     # Both endpoints should have shifted (proportional correction)
-    assert np.linalg.norm(result[4] - wrist_before) > 1e-6, \
-        "distal keypoint should have moved"
-    assert np.linalg.norm(result[2] - elbow_before) > 1e-6, \
+    assert np.linalg.norm(result[4] - wrist_before) > 1e-6, "distal keypoint should have moved"
+    assert np.linalg.norm(result[2] - elbow_before) > 1e-6, (
         "proximal keypoint should also have moved"
+    )
 
     # After correction the left elbow→wrist distance should be close
     # to the EMA (within tolerance), not 2x.
@@ -90,9 +90,7 @@ def test_ema_converges():
     smoother = BoneLengthSmoother(alpha=0.05, tolerance=0.4)
     lm = _make_landmarks()
 
-    true_lengths = np.array([
-        np.linalg.norm(lm[d] - lm[p]) for p, d in BONE_SEGMENTS
-    ])
+    true_lengths = np.array([np.linalg.norm(lm[d] - lm[p]) for p, d in BONE_SEGMENTS])
 
     for i in range(25):
         _, _ = smoother.update(0, lm.copy())
@@ -139,8 +137,9 @@ def test_proportional_correction_direction():
     toward_distal = perturbed[4] - elbow_before
     proximal_shift = result[2] - elbow_before
     # Positive dot product means same general direction
-    assert np.dot(toward_distal, proximal_shift) > 0, \
+    assert np.dot(toward_distal, proximal_shift) > 0, (
         "proximal keypoint should move toward the distal keypoint"
+    )
 
 
 def test_small_movements_within_tolerance_pass_through():
@@ -155,7 +154,7 @@ def test_small_movements_within_tolerance_pass_through():
     perturbed = lm.copy()
     elbow = lm[2]
     wrist = lm[4]
-    direction = (wrist - elbow)
+    direction = wrist - elbow
     direction /= np.linalg.norm(direction)
     perturbed[4] = wrist + direction * np.linalg.norm(wrist - elbow) * 0.1
 
@@ -169,6 +168,7 @@ def test_small_movements_within_tolerance_pass_through():
 # -----------------------------------------------------------------------
 # Joint-angle clamping tests
 # -----------------------------------------------------------------------
+
 
 def _make_bent_landmarks():
     """Return (12, 3) landmarks with naturally bent elbows (~120°).
@@ -217,10 +217,12 @@ def test_angle_below_minimum_clamped():
     # Angle = 10° from v1 direction
     angle_10 = np.radians(10)
     cos_a, sin_a = np.cos(angle_10), np.sin(angle_10)
-    rotated = np.array([
-        v1_hat[0] * cos_a - v1_hat[1] * sin_a,
-        v1_hat[0] * sin_a + v1_hat[1] * cos_a,
-    ])
+    rotated = np.array(
+        [
+            v1_hat[0] * cos_a - v1_hat[1] * sin_a,
+            v1_hat[0] * sin_a + v1_hat[1] * cos_a,
+        ]
+    )
     lm[4, :2] = lm[2, :2] + rotated * forearm_len
 
     assert _angle_at_joint(lm, 0, 2, 4) < 30
@@ -245,10 +247,12 @@ def test_angle_above_maximum_clamped():
     forearm_len = np.linalg.norm(lm[4, :2] - lm[2, :2])
     angle_175 = np.radians(175)
     cos_a, sin_a = np.cos(angle_175), np.sin(angle_175)
-    rotated = np.array([
-        v1_hat[0] * cos_a - v1_hat[1] * sin_a,
-        v1_hat[0] * sin_a + v1_hat[1] * cos_a,
-    ])
+    rotated = np.array(
+        [
+            v1_hat[0] * cos_a - v1_hat[1] * sin_a,
+            v1_hat[0] * sin_a + v1_hat[1] * cos_a,
+        ]
+    )
     lm[4, :2] = lm[2, :2] + rotated * forearm_len
 
     assert _angle_at_joint(lm, 0, 2, 4) > 170
@@ -271,10 +275,12 @@ def test_angle_clamp_preserves_z():
     forearm_len = np.linalg.norm(lm[4, :2] - lm[2, :2])
     angle_10 = np.radians(10)
     cos_a, sin_a = np.cos(angle_10), np.sin(angle_10)
-    rotated = np.array([
-        v1_hat[0] * cos_a - v1_hat[1] * sin_a,
-        v1_hat[0] * sin_a + v1_hat[1] * cos_a,
-    ])
+    rotated = np.array(
+        [
+            v1_hat[0] * cos_a - v1_hat[1] * sin_a,
+            v1_hat[0] * sin_a + v1_hat[1] * cos_a,
+        ]
+    )
     lm[4, :2] = lm[2, :2] + rotated * forearm_len
     z_before = lm[4, 2]
 
@@ -291,10 +297,12 @@ def test_angle_clamp_right_elbow():
     forearm_len = np.linalg.norm(lm[5, :2] - lm[3, :2])
     angle_10 = np.radians(10)
     cos_a, sin_a = np.cos(angle_10), np.sin(angle_10)
-    rotated = np.array([
-        v1_hat[0] * cos_a - v1_hat[1] * sin_a,
-        v1_hat[0] * sin_a + v1_hat[1] * cos_a,
-    ])
+    rotated = np.array(
+        [
+            v1_hat[0] * cos_a - v1_hat[1] * sin_a,
+            v1_hat[0] * sin_a + v1_hat[1] * cos_a,
+        ]
+    )
     lm[5, :2] = lm[3, :2] + rotated * forearm_len
 
     _, n_clamped = clamp_joint_angles(lm)

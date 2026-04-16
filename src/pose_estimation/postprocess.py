@@ -19,15 +19,11 @@ def _lazy_imports():
     try:
         import pandas as pd
     except ImportError:
-        raise ImportError(
-            "postprocess requires pandas. Install with: pip install pandas"
-        )
+        raise ImportError("postprocess requires pandas. Install with: pip install pandas")
     try:
         from scipy.signal import savgol_filter
     except ImportError:
-        raise ImportError(
-            "postprocess requires scipy. Install with: pip install scipy"
-        )
+        raise ImportError("postprocess requires scipy. Install with: pip install scipy")
     return pd, savgol_filter
 
 
@@ -139,7 +135,10 @@ def savgol_smooth_csv(input_path, output_path, window=11, polyorder=3):
             idx = grp.index
             for c in coord_cols:
                 df.loc[idx, c] = _smooth_column(
-                    grp[c], window, polyorder, savgol_filter,
+                    grp[c],
+                    window,
+                    polyorder,
+                    savgol_filter,
                 )
     else:
         for c in coord_cols:
@@ -155,15 +154,21 @@ def main():
     )
     parser.add_argument("input", help="Input CSV path")
     parser.add_argument(
-        "-o", "--output", default=None,
+        "-o",
+        "--output",
+        default=None,
         help="Output CSV path (default: <stem>_smooth.csv alongside input)",
     )
     parser.add_argument(
-        "--window", type=int, default=11,
+        "--window",
+        type=int,
+        default=11,
         help="Filter window length, must be odd (default: 11)",
     )
     parser.add_argument(
-        "--polyorder", type=int, default=3,
+        "--polyorder",
+        type=int,
+        default=3,
         help="Polynomial order (default: 3)",
     )
     args = parser.parse_args()

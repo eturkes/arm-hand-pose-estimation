@@ -8,13 +8,14 @@ landmark flickering.
 """
 
 import os
+
 import cv2
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
 from .detection import (
-    PALM_INPUT_SIZE,
     HAND_INPUT_SIZE,
+    PALM_INPUT_SIZE,
     POSE_INPUT_SIZE,
     POSE_LM_INPUT_SIZE,
     decode_detections,
@@ -30,8 +31,8 @@ TRACKING_HANDS_ARMS = "hands-arms"
 TRACKING_BODY = "body"
 
 # Pose landmark indices to extract per mode
-ARM_KEYPOINT_INDICES = list(range(11, 23))   # 12 arm keypoints
-BODY_KEYPOINT_INDICES = list(range(33))      # all 33 pose keypoints
+ARM_KEYPOINT_INDICES = list(range(11, 23))  # 12 arm keypoints
+BODY_KEYPOINT_INDICES = list(range(33))  # all 33 pose keypoints
 
 # (shoulder, elbow, wrist) triplets used for synthetic hand detections,
 # indexed into the extracted keypoint array for each mode.
@@ -49,15 +50,14 @@ SHOULDER_KPS_33 = (11, 12)
 def tracking_pose_indices(tracking):
     """Return (keypoint_indices, wrist_kps, shoulder_kps, arm_chains)."""
     if tracking == TRACKING_BODY:
-        return (BODY_KEYPOINT_INDICES, WRIST_KPS_33,
-                SHOULDER_KPS_33, _ARM_CHAINS_33)
-    return (ARM_KEYPOINT_INDICES, WRIST_KPS_12,
-            SHOULDER_KPS_12, _ARM_CHAINS_12)
+        return (BODY_KEYPOINT_INDICES, WRIST_KPS_33, SHOULDER_KPS_33, _ARM_CHAINS_33)
+    return (ARM_KEYPOINT_INDICES, WRIST_KPS_12, SHOULDER_KPS_12, _ARM_CHAINS_12)
 
 
 # ---------------------------------------------------------------------------
 # Preprocessing
 # ---------------------------------------------------------------------------
+
 
 def _preprocess(frame, size, compiled_model):
     """Resize, convert to RGB float32, and batch for the given compiled model."""
@@ -71,6 +71,7 @@ def _preprocess(frame, size, compiled_model):
 # ---------------------------------------------------------------------------
 # SSD detection
 # ---------------------------------------------------------------------------
+
 
 def run_detection(frame, compiled_model, input_size, anchors, num_keypoints):
     """Run an SSD detection model (pose or palm) on a frame."""
@@ -92,6 +93,7 @@ def run_detection(frame, compiled_model, input_size, anchors, num_keypoints):
 # Detection smoothing
 # ---------------------------------------------------------------------------
 
+
 def _smooth_detections(new_dets, prev_dets, match_threshold=0.15, alpha=None):
     """Smooth detection keypoints and boxes with an exponential moving average.
 
@@ -111,8 +113,7 @@ def _smooth_detections(new_dets, prev_dets, match_threshold=0.15, alpha=None):
     # Indices of prev_dets eligible for carry-forward (not already carried)
     carry_eligible = set()
     if prev_dets:
-        carry_eligible = {i for i, d in enumerate(prev_dets)
-                          if not d.get("_carried")}
+        carry_eligible = {i for i, d in enumerate(prev_dets) if not d.get("_carried")}
 
     if not prev_dets or not new_dets:
         # No new detections: carry forward eligible prev_dets for one frame
@@ -147,11 +148,13 @@ def _smooth_detections(new_dets, prev_dets, match_threshold=0.15, alpha=None):
     for i, new_det in enumerate(new_dets):
         if i in matched:
             prev = prev_dets[matched[i]]
-            smoothed.append({
-                "keypoints": alpha * new_det["keypoints"] + (1 - alpha) * prev["keypoints"],
-                "box": alpha * new_det["box"] + (1 - alpha) * prev["box"],
-                "score": new_det["score"],
-            })
+            smoothed.append(
+                {
+                    "keypoints": alpha * new_det["keypoints"] + (1 - alpha) * prev["keypoints"],
+                    "box": alpha * new_det["box"] + (1 - alpha) * prev["box"],
+                    "score": new_det["score"],
+                }
+            )
         else:
             smoothed.append(new_det)
 
@@ -170,9 +173,16 @@ def _smooth_detections(new_dets, prev_dets, match_threshold=0.15, alpha=None):
 # Arm-guided synthetic hand detections
 # ---------------------------------------------------------------------------
 
-def _synthesise_hand_detections(body_landmarks, body_visibilities,
-                                existing_palm_dets, frame_h, frame_w,
-                                arm_chains=None, overlap_threshold=0.1):
+
+def _synthesise_hand_detections(
+    body_landmarks,
+    body_visibilities,
+    existing_palm_dets,
+    frame_h,
+    frame_w,
+    arm_chains=None,
+    overlap_threshold=0.1,
+):
     """Create synthetic palm detections from arm wrist keypoints.
 
     When the palm SSD detector fails (e.g. top-down camera, partial
@@ -207,8 +217,7 @@ def _synthesise_hand_detections(body_landmarks, body_visibilities,
             wrist_norm = wrist_px / scale
 
             # Skip if a real palm detection already covers this wrist
-            if any(np.linalg.norm(wrist_norm - pc) < overlap_threshold
-                   for pc in palm_centres):
+            if any(np.linalg.norm(wrist_norm - pc) < overlap_threshold for pc in palm_centres):
                 continue
 
             # Forearm vector and length (pixel space)
@@ -226,24 +235,25 @@ def _synthesise_hand_detections(body_landmarks, body_visibilities,
             middle_finger_norm = (wrist_px + forearm_dir * forearm_len * 0.7) / scale
 
             # Square box sized at 80 % of forearm length, centred on hand
-            box_half = forearm_len * 0.4   # half of 0.8 * forearm_len
+            box_half = forearm_len * 0.4  # half of 0.8 * forearm_len
             x1 = (hand_centre_px[0] - box_half) / frame_w
             y1 = (hand_centre_px[1] - box_half) / frame_h
             x2 = (hand_centre_px[0] + box_half) / frame_w
             y2 = (hand_centre_px[1] + box_half) / frame_h
 
             # Build 7-keypoint array (get_hand_crop uses kp[0] and kp[2])
-            keypoints = np.broadcast_to(
-                hand_centre_norm, (7, 2)).astype(np.float32).copy()
+            keypoints = np.broadcast_to(hand_centre_norm, (7, 2)).astype(np.float32).copy()
             keypoints[0] = wrist_norm
             keypoints[2] = middle_finger_norm
 
-            synthetic.append({
-                "box": np.array([x1, y1, x2, y2], dtype=np.float32),
-                "keypoints": keypoints,
-                "score": float(body_vis[wrist_idx]),
-                "synthetic": True,
-            })
+            synthetic.append(
+                {
+                    "box": np.array([x1, y1, x2, y2], dtype=np.float32),
+                    "keypoints": keypoints,
+                    "score": float(body_vis[wrist_idx]),
+                    "synthetic": True,
+                }
+            )
 
     return synthetic
 
@@ -252,8 +262,10 @@ def _synthesise_hand_detections(body_landmarks, body_visibilities,
 # Landmark-based re-crop detections
 # ---------------------------------------------------------------------------
 
-def _recrop_from_landmarks(prev_hand_landmarks, real_palm_dets,
-                           frame_h, frame_w, overlap_threshold=0.1):
+
+def _recrop_from_landmarks(
+    prev_hand_landmarks, real_palm_dets, frame_h, frame_w, overlap_threshold=0.1
+):
     """Create palm-format detections from previous-frame hand landmarks.
 
     When a tracked hand has no nearby *real* palm detection (e.g. due to
@@ -285,8 +297,7 @@ def _recrop_from_landmarks(prev_hand_landmarks, real_palm_dets,
         wrist_norm = wrist_px / scale
 
         # Skip if a real palm detection already covers this hand
-        if any(np.linalg.norm(wrist_norm - pc) < overlap_threshold
-               for pc in palm_centres):
+        if any(np.linalg.norm(wrist_norm - pc) < overlap_threshold for pc in palm_centres):
             continue
 
         # Palm-centred box sized from wrist-to-MCP distance
@@ -303,17 +314,18 @@ def _recrop_from_landmarks(prev_hand_landmarks, real_palm_dets,
 
         # 7-keypoint array matching palm detection format
         center_norm = center_px / scale
-        keypoints = np.broadcast_to(
-            center_norm, (7, 2)).astype(np.float32).copy()
+        keypoints = np.broadcast_to(center_norm, (7, 2)).astype(np.float32).copy()
         keypoints[0] = wrist_norm
         keypoints[2] = middle_mcp_px / scale
 
-        recrops.append({
-            "box": np.array([x1, y1, x2, y2], dtype=np.float32),
-            "keypoints": keypoints,
-            "score": 0.9,
-            "recrop": True,
-        })
+        recrops.append(
+            {
+                "box": np.array([x1, y1, x2, y2], dtype=np.float32),
+                "keypoints": keypoints,
+                "score": 0.9,
+                "recrop": True,
+            }
+        )
 
     return recrops
 
@@ -322,6 +334,7 @@ def _recrop_from_landmarks(prev_hand_landmarks, real_palm_dets,
 # Affine crop helpers
 # ---------------------------------------------------------------------------
 
+
 def _affine_matrix(cx, cy, rotation, size, target_size):
     """Compute the 2x3 affine warp matrix for a rotation-aware crop.
 
@@ -329,20 +342,22 @@ def _affine_matrix(cx, cy, rotation, size, target_size):
     degenerate, so callers can bail out instead of producing a singular
     matrix.
     """
-    if size < 1 or not (np.isfinite(cx) and np.isfinite(cy)
-                        and np.isfinite(rotation) and np.isfinite(size)):
+    if size < 1 or not (
+        np.isfinite(cx) and np.isfinite(cy) and np.isfinite(rotation) and np.isfinite(size)
+    ):
         return None
 
     cos_r = np.cos(np.radians(-rotation))
     sin_r = np.sin(np.radians(-rotation))
     scale = target_size / size
 
-    M = np.array([
-        [cos_r * scale, -sin_r * scale,
-         target_size / 2 - (cx * cos_r - cy * sin_r) * scale],
-        [sin_r * scale, cos_r * scale,
-         target_size / 2 - (cx * sin_r + cy * cos_r) * scale],
-    ], dtype=np.float32)
+    M = np.array(
+        [
+            [cos_r * scale, -sin_r * scale, target_size / 2 - (cx * cos_r - cy * sin_r) * scale],
+            [sin_r * scale, cos_r * scale, target_size / 2 - (cx * sin_r + cy * cos_r) * scale],
+        ],
+        dtype=np.float32,
+    )
 
     if not np.all(np.isfinite(M)):
         return None
@@ -379,8 +394,7 @@ def get_hand_crop(img, detection, scale_factor=2.6, target_size=HAND_INPUT_SIZE)
     cy = (box[1] + box[3]) / 2
     box_size = max(box[2] - box[0], box[3] - box[1]) * scale_factor
 
-    rotation = np.degrees(np.arctan2(
-        kp_middle[0] - kp_wrist[0], -(kp_middle[1] - kp_wrist[1])))
+    rotation = np.degrees(np.arctan2(kp_middle[0] - kp_wrist[0], -(kp_middle[1] - kp_wrist[1])))
     shift = box_size * 0.05
     cx += shift * np.sin(np.radians(rotation))
     cy -= shift * np.cos(np.radians(rotation))
@@ -394,6 +408,7 @@ def get_hand_crop(img, detection, scale_factor=2.6, target_size=HAND_INPUT_SIZE)
 # ---------------------------------------------------------------------------
 # Coordinate transforms
 # ---------------------------------------------------------------------------
+
 
 def transform_landmarks_to_image(landmarks, M):
     """Transform landmarks from crop coordinates back to original image coordinates."""
@@ -417,8 +432,8 @@ def transform_landmarks_to_image(landmarks, M):
 # Landmark inference
 # ---------------------------------------------------------------------------
 
-def detect_pose_landmarks(frame, detection, pose_lm_compiled,
-                          keypoint_indices=None):
+
+def detect_pose_landmarks(frame, detection, pose_lm_compiled, keypoint_indices=None):
     """Run pose landmark model and extract the requested keypoints.
 
     *keypoint_indices* selects which of the 39 raw landmarks to return.
@@ -481,8 +496,7 @@ def detect_hand_landmarks(frame, detection, hand_compiled):
     if len(landmark_candidates) == 1:
         landmarks = landmark_candidates[0]
     else:
-        landmarks = max(landmark_candidates,
-                        key=lambda lm: np.abs(lm[:, :2]).max())
+        landmarks = max(landmark_candidates, key=lambda lm: np.abs(lm[:, :2]).max())
 
     landmarks = transform_landmarks_to_image(landmarks, M)
     return landmarks, float(hand_flag)
@@ -492,8 +506,10 @@ def detect_hand_landmarks(frame, detection, hand_compiled):
 # Hands-arms matching & primary-body selection
 # ---------------------------------------------------------------------------
 
-def match_hands_to_arms(body_landmarks, hand_landmarks, threshold=100,
-                        wrist_kps=None, shoulder_kps=None):
+
+def match_hands_to_arms(
+    body_landmarks, hand_landmarks, threshold=100, wrist_kps=None, shoulder_kps=None
+):
     """Match detected hands to arm wrists using optimal assignment.
 
     Uses the Hungarian algorithm (``linear_sum_assignment``) for
@@ -524,8 +540,7 @@ def match_hands_to_arms(body_landmarks, hand_landmarks, threshold=100,
     wrist_positions = []
     shoulder_mids = []
     for arm_idx, arm_lm in enumerate(body_landmarks):
-        shoulder_mid = (arm_lm[shoulder_kps[0], :2]
-                        + arm_lm[shoulder_kps[1], :2]) / 2
+        shoulder_mid = (arm_lm[shoulder_kps[0], :2] + arm_lm[shoulder_kps[1], :2]) / 2
         for wrist_kp in wrist_kps:
             rows.append((arm_idx, wrist_kp))
             wrist_positions.append(arm_lm[wrist_kp, :2])
@@ -537,8 +552,7 @@ def match_hands_to_arms(body_landmarks, hand_landmarks, threshold=100,
     # Cost matrix: Euclidean distance between each wrist and hand wrist
     hand_wrists = np.array([h[0, :2] for h in hand_landmarks])
     wrist_arr = np.array(wrist_positions)
-    cost = np.linalg.norm(
-        wrist_arr[:, None, :] - hand_wrists[None, :, :], axis=2)
+    cost = np.linalg.norm(wrist_arr[:, None, :] - hand_wrists[None, :, :], axis=2)
 
     row_ind, col_ind = linear_sum_assignment(cost)
 
@@ -595,10 +609,19 @@ def select_primary_body(body_landmarks, body_visibilities, hand_landmarks, match
 # Main per-frame pipeline
 # ---------------------------------------------------------------------------
 
-def process_frame(frame, models, palm_anchors, pose_anchors,
-                  prev_state=None, prev_hand_landmarks=None,
-                  det_score_threshold=None, lm_score_threshold=None,
-                  synthesise_hands=True, tracking=TRACKING_HANDS_ARMS):
+
+def process_frame(
+    frame,
+    models,
+    palm_anchors,
+    pose_anchors,
+    prev_state=None,
+    prev_hand_landmarks=None,
+    det_score_threshold=None,
+    lm_score_threshold=None,
+    synthesise_hands=True,
+    tracking=TRACKING_HANDS_ARMS,
+):
     """Full pipeline: detect body poses and hand landmarks.
 
     *tracking* controls what is detected:
@@ -627,11 +650,9 @@ def process_frame(frame, models, palm_anchors, pose_anchors,
     *frame_diagnostics* is a :class:`metrics.FrameDiagnostics` instance.
     """
     if det_score_threshold is None:
-        det_score_threshold = float(
-            os.environ.get("POSE_BENCH_DET_SCORE_THRESH", "0.5"))
+        det_score_threshold = float(os.environ.get("POSE_BENCH_DET_SCORE_THRESH", "0.5"))
     if lm_score_threshold is None:
-        lm_score_threshold = float(
-            os.environ.get("POSE_BENCH_HAND_FLAG_THRESH", "0.65"))
+        lm_score_threshold = float(os.environ.get("POSE_BENCH_HAND_FLAG_THRESH", "0.65"))
 
     palm_det_model = models["palm_detection"]
     hand_lm_model = models["hand_landmark"]
@@ -649,18 +670,17 @@ def process_frame(frame, models, palm_anchors, pose_anchors,
         pose_det_model = models["pose_detection"]
         pose_lm_model = models["pose_landmark"]
 
-        pose_detections = run_detection(
-            frame, pose_det_model, POSE_INPUT_SIZE, pose_anchors, 4)
+        pose_detections = run_detection(frame, pose_det_model, POSE_INPUT_SIZE, pose_anchors, 4)
         prev_pose = prev_state.get("pose_dets", []) if prev_state else []
-        pose_detections = _smooth_detections(pose_detections, prev_pose,
-                                             match_threshold=0.10)
+        pose_detections = _smooth_detections(pose_detections, prev_pose, match_threshold=0.10)
 
         best_body_score = 0.0
         for det in pose_detections:
             if det["score"] < det_score_threshold:
                 continue
             lm, vis, confidence = detect_pose_landmarks(
-                frame, det, pose_lm_model, keypoint_indices=kp_indices)
+                frame, det, pose_lm_model, keypoint_indices=kp_indices
+            )
             if lm is not None and confidence > lm_score_threshold:
                 body_landmarks.append(lm)
                 body_visibilities.append(vis)
@@ -671,11 +691,9 @@ def process_frame(frame, models, palm_anchors, pose_anchors,
         diag.body_det_score = best_body_score
 
     # --- Hand pose estimation ----------------------------------------------
-    palm_detections = run_detection(
-        frame, palm_det_model, PALM_INPUT_SIZE, palm_anchors, 7)
+    palm_detections = run_detection(frame, palm_det_model, PALM_INPUT_SIZE, palm_anchors, 7)
     prev_palm = prev_state.get("palm_dets", []) if prev_state else []
-    palm_detections = _smooth_detections(palm_detections, prev_palm,
-                                         match_threshold=0.15)
+    palm_detections = _smooth_detections(palm_detections, prev_palm, match_threshold=0.15)
 
     # Snapshot real SSD detections before adding fallbacks; re-crop
     # overlap is checked against real detections only so that synthetic
@@ -689,16 +707,24 @@ def process_frame(frame, models, palm_anchors, pose_anchors,
     n_before_synth = len(palm_detections)
     if body_landmarks and synthesise_hands and tracking != TRACKING_HANDS:
         _, _, _, arm_chains = tracking_pose_indices(tracking)
-        palm_detections.extend(_synthesise_hand_detections(
-            body_landmarks, body_visibilities, palm_detections,
-            frame_h, frame_w, arm_chains=arm_chains))
+        palm_detections.extend(
+            _synthesise_hand_detections(
+                body_landmarks,
+                body_visibilities,
+                palm_detections,
+                frame_h,
+                frame_w,
+                arm_chains=arm_chains,
+            )
+        )
     diag.n_hands_synthetic = len(palm_detections) - n_before_synth
 
     # Re-crop from previous hand landmarks when palm detector misses
     n_before_recrop = len(palm_detections)
     if prev_hand_landmarks:
-        palm_detections.extend(_recrop_from_landmarks(
-            prev_hand_landmarks, real_palm_dets, frame_h, frame_w))
+        palm_detections.extend(
+            _recrop_from_landmarks(prev_hand_landmarks, real_palm_dets, frame_h, frame_w)
+        )
     diag.n_hands_recrop = len(palm_detections) - n_before_recrop
 
     hand_landmarks = []
@@ -717,12 +743,14 @@ def process_frame(frame, models, palm_anchors, pose_anchors,
             kind = "real"
         lm, confidence = detect_hand_landmarks(frame, det, hand_lm_model)
         accepted = lm is not None and confidence > lm_score_threshold
-        hand_diag.append({
-            "kind": kind,
-            "det_score": float(det["score"]),
-            "hand_flag": round(float(confidence), 4),
-            "accepted": accepted,
-        })
+        hand_diag.append(
+            {
+                "kind": kind,
+                "det_score": float(det["score"]),
+                "hand_flag": round(float(confidence), 4),
+                "accepted": accepted,
+            }
+        )
         if accepted:
             hand_landmarks.append(lm)
             hand_flags.append(float(confidence))
@@ -735,6 +763,5 @@ def process_frame(frame, models, palm_anchors, pose_anchors,
     diag.raw_body_visibilities = [v.copy() for v in body_visibilities]
     diag.raw_hand_landmarks = [lm.copy() for lm in hand_landmarks]
 
-    state = {"pose_dets": kept_pose_dets, "palm_dets": kept_palm_dets,
-             "hand_diag": hand_diag}
+    state = {"pose_dets": kept_pose_dets, "palm_dets": kept_palm_dets, "hand_diag": hand_diag}
     return body_landmarks, body_visibilities, hand_landmarks, hand_flags, state, diag

@@ -104,8 +104,7 @@ def test_mixed_confidence():
     move_high = np.mean(np.linalg.norm(result[:2] - lm[:2], axis=1))
     move_low = np.mean(np.linalg.norm(result[2:] - lm[2:], axis=1))
     assert move_low < move_high, (
-        f"Low-conf kps should move less: "
-        f"move_low={move_low:.2f}, move_high={move_high:.2f}"
+        f"Low-conf kps should move less: move_low={move_low:.2f}, move_high={move_high:.2f}"
     )
 
 
@@ -157,14 +156,11 @@ def test_smooth_bodies_passes_confidence():
     # Second frame with shift — low-vis body should resist the shift more
     shifted1 = lm1 + 30.0
     shifted2 = lm2 + 30.0
-    result, _, _ = smoother.smooth_bodies(
-        [shifted1, shifted2], [vis1, vis2], 0.1)
+    result, _, _ = smoother.smooth_bodies([shifted1, shifted2], [vis1, vis2], 0.1)
 
     move1 = np.linalg.norm(result[0] - lm1)
     move2 = np.linalg.norm(result[1] - lm2)
-    assert move2 < move1, (
-        f"Low-vis body should move less: move1={move1:.2f}, move2={move2:.2f}"
-    )
+    assert move2 < move1, f"Low-vis body should move less: move1={move1:.2f}, move2={move2:.2f}"
 
 
 def test_hand_path_unaffected():
@@ -197,8 +193,7 @@ def test_hand_confidence_smoothing():
     move_hi = np.linalg.norm(r_hi[0] - lm[0])
     move_lo = np.linalg.norm(r_lo[0] - lm[0])
     assert move_lo < move_hi, (
-        f"Low hand_flag should move less: move_lo={move_lo:.2f}, "
-        f"move_hi={move_hi:.2f}"
+        f"Low hand_flag should move less: move_lo={move_lo:.2f}, move_hi={move_hi:.2f}"
     )
 
 

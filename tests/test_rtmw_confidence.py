@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from pose_estimation.run import _OneEuro, KeypointSmoother
+from pose_estimation.run import KeypointSmoother, _OneEuro
 
 
 def _make_kps(n=133):
@@ -132,8 +132,7 @@ def test_smoother_passes_confidence():
     move_high = np.linalg.norm(smooth_kps[0] - kp1)
     move_low = np.linalg.norm(smooth_kps[1] - kp2)
     assert move_low < move_high, (
-        f"Low-score person should move less: "
-        f"move_low={move_low:.2f}, move_high={move_high:.2f}"
+        f"Low-score person should move less: move_low={move_low:.2f}, move_high={move_high:.2f}"
     )
 
 

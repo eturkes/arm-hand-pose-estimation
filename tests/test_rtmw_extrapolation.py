@@ -56,8 +56,7 @@ def test_moving_carry_extrapolates():
 
     # Subsequent frames should continue advancing
     for j in range(1, len(carry)):
-        assert carry[j][0, 0] > carry[j - 1][0, 0], \
-            f"carry frame {j} didn't advance"
+        assert carry[j][0, 0] > carry[j - 1][0, 0], f"carry frame {j} didn't advance"
 
 
 def test_damping_decelerates():
@@ -77,8 +76,9 @@ def test_damping_decelerates():
 
     steps = [carry[j] - carry[j - 1] for j in range(1, len(carry))]
     for j in range(1, len(steps)):
-        assert steps[j] < steps[j - 1], \
-            f"step {j} ({steps[j]:.4f}) >= step {j-1} ({steps[j-1]:.4f})"
+        assert steps[j] < steps[j - 1], (
+            f"step {j} ({steps[j]:.4f}) >= step {j - 1} ({steps[j - 1]:.4f})"
+        )
 
 
 def test_extrapolation_capped():
@@ -96,8 +96,7 @@ def test_extrapolation_capped():
     out_kps, _ = sm(np.empty((0, 133, 2)), np.empty((0, 133)), 0.066)
     step = out_kps[0] - last
     max_norm = np.max(np.linalg.norm(step, axis=1))
-    assert max_norm <= 80 + 1e-3, \
-        f"per-keypoint step {max_norm:.1f} exceeds match_thresh 80"
+    assert max_norm <= 80 + 1e-3, f"per-keypoint step {max_norm:.1f} exceeds match_thresh 80"
 
 
 def test_carry_damping_configurable():
@@ -116,10 +115,11 @@ def test_carry_damping_configurable():
             positions.append(out_kps[0][0, 0])
         return positions[-1] - positions[0]
 
-    travel_fast = _run(0.5)   # fast decay
+    travel_fast = _run(0.5)  # fast decay
     travel_slow = _run(0.95)  # slow decay
-    assert travel_slow > travel_fast, \
+    assert travel_slow > travel_fast, (
         f"slow damping ({travel_slow:.3f}) should travel further than fast ({travel_fast:.3f})"
+    )
 
 
 def test_no_detection_carry_with_time():
@@ -157,8 +157,9 @@ def test_carry_centroid_updates():
     new_centroid = sm.tracks[0]["centroid"]
 
     # Centroid should have moved right
-    assert new_centroid[0] > old_centroid[0], \
+    assert new_centroid[0] > old_centroid[0], (
         "carried centroid should reflect extrapolated position"
+    )
 
 
 def test_17kp_carry_extrapolates():

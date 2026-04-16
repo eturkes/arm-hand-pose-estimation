@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from pose_estimation.smoothing import PoseSmoother, OneEuroFilter
+from pose_estimation.smoothing import PoseSmoother
 
 
 def make_body(x_offset=0.0, y_offset=0.0):
@@ -66,15 +66,18 @@ def test_moving_landmarks_extrapolate():
 
     # Each subsequent carry frame should move further right (but slower)
     for j in range(1, len(carry_outputs)):
-        assert carry_outputs[j][0, 0] > carry_outputs[j - 1][0, 0], \
+        assert carry_outputs[j][0, 0] > carry_outputs[j - 1][0, 0], (
             f"carry frame {j} didn't advance"
+        )
 
     # Damping: step size should decrease over consecutive carry frames
-    steps = [carry_outputs[j][0, 0] - carry_outputs[j - 1][0, 0]
-             for j in range(1, len(carry_outputs))]
+    steps = [
+        carry_outputs[j][0, 0] - carry_outputs[j - 1][0, 0] for j in range(1, len(carry_outputs))
+    ]
     for j in range(1, len(steps)):
-        assert steps[j] < steps[j - 1], \
-            f"step {j} ({steps[j]:.3f}) >= step {j-1} ({steps[j-1]:.3f})"
+        assert steps[j] < steps[j - 1], (
+            f"step {j} ({steps[j]:.3f}) >= step {j - 1} ({steps[j - 1]:.3f})"
+        )
     print("PASS: moving_landmarks_extrapolate")
 
 
@@ -95,8 +98,7 @@ def test_extrapolation_capped():
     smoothed, _, _ = smoother.smooth_bodies([], [], 0.066)
     step = smoothed[0] - last_real
     max_norm = np.max(np.linalg.norm(step, axis=1))
-    assert max_norm <= 100 + 1e-3, \
-        f"per-keypoint step {max_norm:.1f} exceeds match_threshold 100"
+    assert max_norm <= 100 + 1e-3, f"per-keypoint step {max_norm:.1f} exceeds match_threshold 100"
     print("PASS: extrapolation_capped")
 
 
@@ -148,8 +150,7 @@ def test_damping_converges_to_static():
         final_step = abs(positions[-1] - positions[-2])
         first_step = abs(positions[1] - positions[0])
         ratio = final_step / max(first_step, 1e-9)
-        assert ratio < 0.5, \
-            f"damping ratio {ratio:.3f} — expected significant decay"
+        assert ratio < 0.5, f"damping ratio {ratio:.3f} — expected significant decay"
     print("PASS: damping_converges_to_static")
 
 
@@ -179,8 +180,9 @@ def test_damping_factor_configurable():
     # Slow damping (0.95) should have moved further than fast damping (0.5)
     total_fast = positions_fast[-1] - positions_fast[0]
     total_slow = positions_slow[-1] - positions_slow[0]
-    assert total_slow > total_fast, \
+    assert total_slow > total_fast, (
         f"slow damping ({total_slow:.3f}) should move further than fast ({total_fast:.3f})"
+    )
     print("PASS: damping_factor_configurable")
 
 

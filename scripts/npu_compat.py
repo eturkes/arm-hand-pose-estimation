@@ -76,6 +76,7 @@ MODELS = {
 def download_onnx(url: str, cache_dir: Path) -> Path:
     """Download and extract ONNX model from a .zip URL. Return .onnx path."""
     from rtmlib.tools.file import download_checkpoint
+
     return Path(download_checkpoint(url))
 
 
@@ -90,13 +91,12 @@ def test_compile(onnx_path: Path, static_shape: tuple, device: str):
     model.reshape(static_shape)
 
     t0 = time.perf_counter()
-    compiled = core.compile_model(
-        model, device_name=device,
-        config={"PERFORMANCE_HINT": "LATENCY"})
+    compiled = core.compile_model(model, device_name=device, config={"PERFORMANCE_HINT": "LATENCY"})
     dt = time.perf_counter() - t0
 
     # Quick inference test with zeros
     import numpy as np
+
     dummy = np.zeros(static_shape, dtype=np.float32)
     result = compiled([dummy])
 

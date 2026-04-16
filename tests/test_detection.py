@@ -2,22 +2,22 @@
 
 import numpy as np
 
+from pose_estimation.detection import decode_detections, generate_anchors, nms
 from pose_estimation.processing import _smooth_detections
-from pose_estimation.detection import nms, decode_detections, generate_anchors
 
 
 def _make_det(cx, cy, size=0.1, score=0.9):
     """Create a minimal detection dict centred at (cx, cy) in normalised coords."""
     half = size / 2
     return {
-        "box": np.array([cx - half, cy - half, cx + half, cy + half],
-                        dtype=np.float32),
+        "box": np.array([cx - half, cy - half, cx + half, cy + half], dtype=np.float32),
         "keypoints": np.array([[cx, cy]] * 7, dtype=np.float32),
         "score": score,
     }
 
 
 # ---- Stable detection: EMA blending ----------------------------------------
+
 
 def test_stable_detection_blends():
     """Two consecutive frames with the same detection produce EMA-blended output."""
@@ -35,6 +35,7 @@ def test_stable_detection_blends():
 
 # ---- One-frame dropout: carry forward --------------------------------------
 
+
 def test_one_frame_dropout_carries():
     """Frame 1 has a detection, frame 2 has none: carried detection returned."""
     det1 = _make_det(0.5, 0.5, score=0.8)
@@ -46,6 +47,7 @@ def test_one_frame_dropout_carries():
 
 
 # ---- Two-frame dropout: no second carry ------------------------------------
+
 
 def test_two_frame_dropout_no_carry():
     """A detection already carried is not carried again (1-frame grace)."""
@@ -63,6 +65,7 @@ def test_two_frame_dropout_no_carry():
 
 # ---- Carry score decay ------------------------------------------------------
 
+
 def test_carry_score_decay():
     """Carried detection's score is reduced by 0.7 decay factor."""
     original_score = 0.8
@@ -76,6 +79,7 @@ def test_carry_score_decay():
 
 
 # ---- Re-acquisition: blends with carried entry -----------------------------
+
 
 def test_reacquisition_blends_with_carried():
     """After carry, a new matching detection blends smoothly with the carried entry."""
@@ -100,6 +104,7 @@ def test_reacquisition_blends_with_carried():
 
 
 # ---- Edge cases -------------------------------------------------------------
+
 
 def test_empty_both():
     """No previous and no new detections returns empty list."""
@@ -143,12 +148,16 @@ def test_partial_carry_with_new_dets():
 
 # ---- NMS tests --------------------------------------------------------------
 
+
 def test_nms_no_overlap():
     """Two non-overlapping boxes both survive NMS."""
-    boxes = np.array([
-        [0.0, 0.0, 0.1, 0.1],
-        [0.8, 0.8, 0.9, 0.9],
-    ], dtype=np.float32)
+    boxes = np.array(
+        [
+            [0.0, 0.0, 0.1, 0.1],
+            [0.8, 0.8, 0.9, 0.9],
+        ],
+        dtype=np.float32,
+    )
     scores = np.array([0.9, 0.8], dtype=np.float32)
 
     keep = nms(boxes, scores, iou_threshold=0.3)
@@ -158,25 +167,29 @@ def test_nms_no_overlap():
 
 def test_nms_full_overlap():
     """Two identical boxes: only the higher-scored one survives."""
-    boxes = np.array([
-        [0.1, 0.1, 0.5, 0.5],
-        [0.1, 0.1, 0.5, 0.5],
-    ], dtype=np.float32)
+    boxes = np.array(
+        [
+            [0.1, 0.1, 0.5, 0.5],
+            [0.1, 0.1, 0.5, 0.5],
+        ],
+        dtype=np.float32,
+    )
     scores = np.array([0.7, 0.95], dtype=np.float32)
 
     keep = nms(boxes, scores, iou_threshold=0.3)
 
     assert len(keep) == 1
-    assert keep[0] == 1   # higher score
+    assert keep[0] == 1  # higher score
 
 
 # ---- decode_detections tests -----------------------------------------------
+
 
 def test_decode_no_detections():
     """All scores below threshold produce empty list."""
     input_size = 192
     num_keypoints = 7
-    values_per_anchor = 4 + num_keypoints * 2   # 18
+    values_per_anchor = 4 + num_keypoints * 2  # 18
 
     anchors = generate_anchors(input_size, [8, 16, 16, 16])
     n_anchors = len(anchors)
@@ -185,8 +198,9 @@ def test_decode_no_detections():
     raw_scores = np.full((1, n_anchors, 1), -10.0, dtype=np.float32)
     raw_boxes = np.zeros((1, n_anchors, values_per_anchor), dtype=np.float32)
 
-    result = decode_detections(raw_boxes, raw_scores, anchors, input_size,
-                               num_keypoints, score_threshold=0.5)
+    result = decode_detections(
+        raw_boxes, raw_scores, anchors, input_size, num_keypoints, score_threshold=0.5
+    )
 
     assert result == []
 
@@ -194,8 +208,7 @@ def test_decode_no_detections():
 # ---- Run all tests ----------------------------------------------------------
 
 if __name__ == "__main__":
-    test_funcs = [v for k, v in sorted(globals().items())
-                  if k.startswith("test_") and callable(v)]
+    test_funcs = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for fn in test_funcs:
         fn()
         print(f"  PASS  {fn.__name__}")

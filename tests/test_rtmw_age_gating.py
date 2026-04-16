@@ -33,8 +33,8 @@ def test_track_emitted_after_reaching_age():
     """Track becomes visible once age reaches min_track_age."""
     sm = KeypointSmoother(min_track_age=3)
 
-    _feed(sm, [(100, 100)], t=0.0)     # age=1, suppressed
-    _feed(sm, [(102, 102)], t=0.033)    # age=2, suppressed
+    _feed(sm, [(100, 100)], t=0.0)  # age=1, suppressed
+    _feed(sm, [(102, 102)], t=0.033)  # age=2, suppressed
     out_kps, _ = _feed(sm, [(104, 104)], t=0.066)  # age=3, emitted
 
     assert out_kps is not None

@@ -4,37 +4,62 @@ import csv
 import pathlib
 
 from .processing import (
-    TRACKING_HANDS, TRACKING_HANDS_ARMS, TRACKING_BODY,
-    WRIST_KPS_12, WRIST_KPS_33,
+    TRACKING_BODY,
+    TRACKING_HANDS,
+    TRACKING_HANDS_ARMS,
+    WRIST_KPS_12,
+    WRIST_KPS_33,
 )
 
-
 ARM_KEYPOINT_NAMES = [
-    "left_shoulder", "right_shoulder",
-    "left_elbow", "right_elbow",
-    "left_wrist", "right_wrist",
-    "left_index_base", "right_index_base",
-    "left_middle_base", "right_middle_base",
-    "left_pinky_base", "right_pinky_base",
+    "left_shoulder",
+    "right_shoulder",
+    "left_elbow",
+    "right_elbow",
+    "left_wrist",
+    "right_wrist",
+    "left_index_base",
+    "right_index_base",
+    "left_middle_base",
+    "right_middle_base",
+    "left_pinky_base",
+    "right_pinky_base",
 ]
 
 BODY_KEYPOINT_NAMES = [
     "nose",
-    "left_eye_inner", "left_eye", "left_eye_outer",
-    "right_eye_inner", "right_eye", "right_eye_outer",
-    "left_ear", "right_ear",
-    "mouth_left", "mouth_right",
-    "left_shoulder", "right_shoulder",
-    "left_elbow", "right_elbow",
-    "left_wrist", "right_wrist",
-    "left_pinky", "right_pinky",
-    "left_index", "right_index",
-    "left_thumb", "right_thumb",
-    "left_hip", "right_hip",
-    "left_knee", "right_knee",
-    "left_ankle", "right_ankle",
-    "left_heel", "right_heel",
-    "left_foot_index", "right_foot_index",
+    "left_eye_inner",
+    "left_eye",
+    "left_eye_outer",
+    "right_eye_inner",
+    "right_eye",
+    "right_eye_outer",
+    "left_ear",
+    "right_ear",
+    "mouth_left",
+    "mouth_right",
+    "left_shoulder",
+    "right_shoulder",
+    "left_elbow",
+    "right_elbow",
+    "left_wrist",
+    "right_wrist",
+    "left_pinky",
+    "right_pinky",
+    "left_index",
+    "right_index",
+    "left_thumb",
+    "right_thumb",
+    "left_hip",
+    "right_hip",
+    "left_knee",
+    "right_knee",
+    "left_ankle",
+    "right_ankle",
+    "left_heel",
+    "right_heel",
+    "left_foot_index",
+    "right_foot_index",
 ]
 
 HAND_KEYPOINT_COUNT = 21
@@ -61,13 +86,18 @@ def make_csv_header(tracking=TRACKING_HANDS_ARMS):
     if tracking != TRACKING_HANDS:
         prefix, names = _body_keypoint_names(tracking)
         for name in names:
-            cols.extend([f"{prefix}_{name}_x", f"{prefix}_{name}_y",
-                         f"{prefix}_{name}_z", f"{prefix}_{name}_vis"])
+            cols.extend(
+                [
+                    f"{prefix}_{name}_x",
+                    f"{prefix}_{name}_y",
+                    f"{prefix}_{name}_z",
+                    f"{prefix}_{name}_vis",
+                ]
+            )
 
     for side in ("left", "right"):
         for i in range(HAND_KEYPOINT_COUNT):
-            cols.extend([f"{side}_hand_{i}_x", f"{side}_hand_{i}_y",
-                         f"{side}_hand_{i}_z"])
+            cols.extend([f"{side}_hand_{i}_x", f"{side}_hand_{i}_y", f"{side}_hand_{i}_z"])
 
     return cols
 
@@ -88,9 +118,19 @@ def _fill_hand_side(row, side, hlm, frame_h, frame_w):
         row[f"{side}_hand_{i}_z"] = round(hlm[i, 2] / frame_w, 6)
 
 
-def frame_to_rows(video_name, frame_idx, timestamp_sec, frame_h, frame_w,
-                  body_landmarks, body_visibilities, hand_landmarks, matches,
-                  tracking=TRACKING_HANDS_ARMS, hand_only=False):
+def frame_to_rows(
+    video_name,
+    frame_idx,
+    timestamp_sec,
+    frame_h,
+    frame_w,
+    body_landmarks,
+    body_visibilities,
+    hand_landmarks,
+    matches,
+    tracking=TRACKING_HANDS_ARMS,
+    hand_only=False,
+):
     """Convert one frame's landmark data into CSV rows (one per person).
 
     Coordinates are normalised to [0, 1] by dividing by frame dimensions.
@@ -118,12 +158,11 @@ def frame_to_rows(video_name, frame_idx, timestamp_sec, frame_h, frame_w,
             "timestamp_sec": round(timestamp_sec, 4),
             "person_idx": 0,
         }
-        sorted_hands = sorted(hand_landmarks[:2],
-                              key=lambda lm: lm[0, 0]) if hand_landmarks else []
+        sorted_hands = sorted(hand_landmarks[:2], key=lambda lm: lm[0, 0]) if hand_landmarks else []
         sides = ["left", "right"]
         for i, hlm in enumerate(sorted_hands):
             _fill_hand_side(row, sides[i], hlm, frame_h, frame_w)
-        for side in sides[len(sorted_hands):]:
+        for side in sides[len(sorted_hands) :]:
             _blank_hand_side(row, side)
         rows.append(row)
         return rows
@@ -135,8 +174,7 @@ def frame_to_rows(video_name, frame_idx, timestamp_sec, frame_h, frame_w,
         for arm_idx, wrist_kp, hand_idx in matches:
             hand_map.setdefault(arm_idx, {})[wrist_kp] = hand_idx
 
-        for person_idx, (lm, vis) in enumerate(
-                zip(body_landmarks, body_visibilities)):
+        for person_idx, (lm, vis) in enumerate(zip(body_landmarks, body_visibilities)):
             row = {
                 "video": video_name,
                 "frame_idx": frame_idx,
@@ -154,8 +192,7 @@ def frame_to_rows(video_name, frame_idx, timestamp_sec, frame_h, frame_w,
             for wrist_kp, side in sorted(wrist_side.items()):
                 hand_idx = matched_hands.get(wrist_kp)
                 if hand_idx is not None:
-                    _fill_hand_side(row, side, hand_landmarks[hand_idx],
-                                    frame_h, frame_w)
+                    _fill_hand_side(row, side, hand_landmarks[hand_idx], frame_h, frame_w)
                 else:
                     _blank_hand_side(row, side)
 
@@ -177,12 +214,11 @@ def frame_to_rows(video_name, frame_idx, timestamp_sec, frame_h, frame_w,
             row[f"{prefix}_{name}_vis"] = ""
 
         # Assign hands left/right by wrist x-coordinate (max 2).
-        sorted_hands = sorted(hand_landmarks[:2],
-                              key=lambda lm: lm[0, 0])
+        sorted_hands = sorted(hand_landmarks[:2], key=lambda lm: lm[0, 0])
         sides = ["left", "right"]
         for i, hlm in enumerate(sorted_hands):
             _fill_hand_side(row, sides[i], hlm, frame_h, frame_w)
-        for side in sides[len(sorted_hands):]:
+        for side in sides[len(sorted_hands) :]:
             _blank_hand_side(row, side)
 
         rows.append(row)

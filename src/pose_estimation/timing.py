@@ -12,7 +12,7 @@ class FrameTimer:
         timer.start("pose_detection")
         ...
         timer.stop("pose_detection")
-        print(timer.to_dict())   # {"pose_detection": 0.0042, ...}
+        print(timer.to_dict())  # {"pose_detection": 0.0042, ...}
     """
 
     def __init__(self):

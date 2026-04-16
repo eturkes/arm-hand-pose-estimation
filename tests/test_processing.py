@@ -7,20 +7,25 @@ degenerate-input handling.
 import numpy as np
 
 from pose_estimation.processing import (
-    _synthesise_hand_detections,
-    _recrop_from_landmarks,
-    _affine_matrix,
     _ARM_CHAINS_12,
+    _affine_matrix,
+    _recrop_from_landmarks,
+    _synthesise_hand_detections,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_body(shoulder_l=(100, 200), elbow_l=(100, 300),
-               wrist_l=(100, 400), shoulder_r=(300, 200),
-               elbow_r=(300, 300), wrist_r=(300, 400)):
+
+def _make_body(
+    shoulder_l=(100, 200),
+    elbow_l=(100, 300),
+    wrist_l=(100, 400),
+    shoulder_r=(300, 200),
+    elbow_r=(300, 300),
+    wrist_r=(300, 400),
+):
     """Create a (12, 3) arm landmark array with known geometry.
 
     12-keypoint arm scheme index mapping:
@@ -63,8 +68,9 @@ def _make_palm_det(cx_norm, cy_norm, size=0.1, score=0.9):
     """Create a minimal palm detection dict in normalised coordinates."""
     half = size / 2
     return {
-        "box": np.array([cx_norm - half, cy_norm - half,
-                         cx_norm + half, cy_norm + half], dtype=np.float32),
+        "box": np.array(
+            [cx_norm - half, cy_norm - half, cx_norm + half, cy_norm + half], dtype=np.float32
+        ),
         "keypoints": np.array([[cx_norm, cy_norm]] * 7, dtype=np.float32),
         "score": score,
     }
@@ -74,18 +80,25 @@ def _make_palm_det(cx_norm, cy_norm, size=0.1, score=0.9):
 # Synthetic hand detection tests
 # ---------------------------------------------------------------------------
 
+
 def test_synthesise_hand_from_arm():
     """Synthetic detection box centre ≈ 40% of forearm beyond wrist,
     box size ≈ 80% of forearm length."""
     body = _make_body(
-        elbow_l=(100, 300), wrist_l=(100, 400),
-        elbow_r=(300, 300), wrist_r=(300, 400),
+        elbow_l=(100, 300),
+        wrist_l=(100, 400),
+        elbow_r=(300, 300),
+        wrist_r=(300, 400),
     )
     vis = _make_vis()
     frame_h, frame_w = 640, 480
 
     result = _synthesise_hand_detections(
-        [body], [vis], [], frame_h, frame_w,
+        [body],
+        [vis],
+        [],
+        frame_h,
+        frame_w,
         arm_chains=_ARM_CHAINS_12,
     )
 
@@ -107,7 +120,8 @@ def test_synthesise_hand_from_arm():
     # Centre should be ~40 px beyond wrist (wrist is at y=400, forearm points down)
     expected_centre_y = 400 + forearm_len * 0.4
     assert abs(box_centre_y - expected_centre_y) < 2.0, (
-        f"Centre Y {box_centre_y} != expected {expected_centre_y}")
+        f"Centre Y {box_centre_y} != expected {expected_centre_y}"
+    )
 
     # Box size should be ~80% of forearm length = 80 px (square)
     expected_size = forearm_len * 0.8
@@ -127,7 +141,11 @@ def test_synthesise_skips_covered_wrist():
     palm_det = _make_palm_det(left_wrist_norm_x, left_wrist_norm_y, size=0.05)
 
     result = _synthesise_hand_detections(
-        [body], [vis], [palm_det], frame_h, frame_w,
+        [body],
+        [vis],
+        [palm_det],
+        frame_h,
+        frame_w,
         arm_chains=_ARM_CHAINS_12,
     )
 
@@ -140,11 +158,12 @@ def test_synthesise_skips_covered_wrist():
 # Re-crop from landmarks tests
 # ---------------------------------------------------------------------------
 
+
 def test_recrop_from_landmarks():
     """Re-crop detection returned with correct centre and size."""
     frame_h, frame_w = 640, 480
     wrist_px = np.array([200, 300])
-    mcp_px = np.array([200, 240])     # 60 px palm length, above wrist
+    mcp_px = np.array([200, 240])  # 60 px palm length, above wrist
     hand_lm = _make_hand_landmarks(wrist_px, mcp_px)
 
     result = _recrop_from_landmarks([hand_lm], [], frame_h, frame_w)
@@ -188,6 +207,7 @@ def test_recrop_skips_covered_hand():
 # Affine matrix degenerate input tests
 # ---------------------------------------------------------------------------
 
+
 def test_affine_matrix_zero_size():
     """Zero-size crop returns None."""
     assert _affine_matrix(100, 100, 0, 0, 256) is None
@@ -220,8 +240,7 @@ def test_affine_matrix_valid():
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    test_funcs = [v for k, v in sorted(globals().items())
-                  if k.startswith("test_") and callable(v)]
+    test_funcs = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     for fn in test_funcs:
         fn()
         print(f"  PASS  {fn.__name__}")

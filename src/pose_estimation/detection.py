@@ -19,8 +19,10 @@ def generate_anchors(input_size, strides):
     while layer_id < len(strides):
         stride = strides[layer_id]
         same_stride_count = 0
-        while (layer_id + same_stride_count < len(strides)
-               and strides[layer_id + same_stride_count] == stride):
+        while (
+            layer_id + same_stride_count < len(strides)
+            and strides[layer_id + same_stride_count] == stride
+        ):
             same_stride_count += 1
         grid_size = input_size // stride
         for y in range(grid_size):
@@ -62,8 +64,15 @@ def nms(boxes, scores, iou_threshold=0.3):
     return keep
 
 
-def decode_detections(raw_boxes, raw_scores, anchors, input_size, num_keypoints,
-                      score_threshold=0.5, iou_threshold=0.3):
+def decode_detections(
+    raw_boxes,
+    raw_scores,
+    anchors,
+    input_size,
+    num_keypoints,
+    score_threshold=0.5,
+    iou_threshold=0.3,
+):
     """Decode detection model outputs into detection results.
 
     Works for both pose detection (4 keypoints, 12 values) and palm detection
@@ -97,9 +106,11 @@ def decode_detections(raw_boxes, raw_scores, anchors, input_size, num_keypoints,
 
     detections = []
     for i in indices:
-        detections.append({
-            "box": boxes[i],
-            "score": filtered_scores[i],
-            "keypoints": keypoints[i],
-        })
+        detections.append(
+            {
+                "box": boxes[i],
+                "score": filtered_scores[i],
+                "keypoints": keypoints[i],
+            }
+        )
     return detections

@@ -22,7 +22,6 @@ YAML config format:
 """
 
 import argparse
-import csv
 import itertools
 import json
 import os
@@ -39,31 +38,25 @@ import time
 # The benchmark monkey-patches these before running.
 TUNEABLE_PARAMS = {
     # Detection thresholds
-    "det_score_thresh":  ("processing", "det_score_threshold", 0.5),
-    "hand_flag_thresh":  ("processing", "lm_score_threshold", 0.65),
-
+    "det_score_thresh": ("processing", "det_score_threshold", 0.5),
+    "hand_flag_thresh": ("processing", "lm_score_threshold", 0.65),
     # One-Euro filter: body
-    "body_min_cutoff":   ("smoothing", "body_min_cutoff", 0.3),
-    "body_beta":         ("smoothing", "body_beta", 0.5),
-
+    "body_min_cutoff": ("smoothing", "body_min_cutoff", 0.3),
+    "body_beta": ("smoothing", "body_beta", 0.5),
     # One-Euro filter: hand
-    "hand_min_cutoff":   ("smoothing", "hand_min_cutoff", 1.0),
-    "hand_beta":         ("smoothing", "hand_beta", 0.3),
-
+    "hand_min_cutoff": ("smoothing", "hand_min_cutoff", 1.0),
+    "hand_beta": ("smoothing", "hand_beta", 0.3),
     # Confidence weighting
-    "confidence_gamma":  ("smoothing", "confidence_gamma", 2.0),
-
+    "confidence_gamma": ("smoothing", "confidence_gamma", 2.0),
     # Detection smoothing
-    "det_smooth_alpha":  ("processing", "det_smooth_alpha", 0.5),
-
+    "det_smooth_alpha": ("processing", "det_smooth_alpha", 0.5),
     # Bone-length constraints
-    "bone_ema_alpha":    ("constraints", "bone_ema_alpha", 0.05),
-    "bone_tolerance":    ("constraints", "bone_tolerance", 0.4),
+    "bone_ema_alpha": ("constraints", "bone_ema_alpha", 0.05),
+    "bone_tolerance": ("constraints", "bone_tolerance", 0.4),
     "bone_distal_weight": ("constraints", "bone_distal_weight", 0.8),
-
     # Carry-forward
-    "carry_grace":       ("smoothing", "carry_grace", 10),
-    "carry_damping":     ("smoothing", "carry_damping", 0.8),
+    "carry_grace": ("smoothing", "carry_grace", 10),
+    "carry_damping": ("smoothing", "carry_damping", 0.8),
 }
 
 
@@ -75,9 +68,7 @@ def _apply_param_overrides(overrides):
 
     Returns a cleanup function that restores originals.
     """
-    from . import smoothing
-    from . import processing
-    from . import constraints
+    from . import constraints, processing, smoothing
 
     originals = {}
 
@@ -85,9 +76,9 @@ def _apply_param_overrides(overrides):
         if key not in TUNEABLE_PARAMS:
             raise ValueError(f"Unknown tuneable parameter: {key}")
         module_name, attr, _ = TUNEABLE_PARAMS[key]
-        mod = {"smoothing": smoothing,
-               "processing": processing,
-               "constraints": constraints}[module_name]
+        mod = {"smoothing": smoothing, "processing": processing, "constraints": constraints}[
+            module_name
+        ]
 
         # Patch the OneEuroFilter defaults via PoseSmoother methods
         if key == "body_min_cutoff":
@@ -147,9 +138,19 @@ def _patch_hand_filter(smoothing_mod, attr, value):
 # Run engine
 # ---------------------------------------------------------------------------
 
-def run_single(source, output_dir, run_label, overrides, device, tracking,
-               single_subject, models=None, palm_anchors=None,
-               pose_anchors=None):
+
+def run_single(
+    source,
+    output_dir,
+    run_label,
+    overrides,
+    device,
+    tracking,
+    single_subject,
+    models=None,
+    palm_anchors=None,
+    pose_anchors=None,
+):
     """Run the pipeline once with given parameters, collect metrics.
 
     Uses a subprocess call to pose_estimation.main with --headless to ensure
@@ -166,11 +167,17 @@ def run_single(source, output_dir, run_label, overrides, device, tracking,
     # For now, use subprocess to pose_estimation.main in headless mode.
     # This is simpler and avoids state leakage between runs.
     cmd = [
-        sys.executable, "-m", "pose_estimation.main",
-        "--source", str(source),
-        "--output-dir", str(run_dir),
-        "--device", device,
-        "--tracking", tracking,
+        sys.executable,
+        "-m",
+        "pose_estimation.main",
+        "--source",
+        str(source),
+        "--output-dir",
+        str(run_dir),
+        "--device",
+        device,
+        "--tracking",
+        tracking,
         "--headless",
     ]
     if single_subject:
@@ -231,30 +238,32 @@ def generate_grid(sweep_spec):
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main():
-    parser = argparse.ArgumentParser(
-        description="Parameter sweep benchmark for pose estimation")
+    parser = argparse.ArgumentParser(description="Parameter sweep benchmark for pose estimation")
 
     source_group = parser.add_mutually_exclusive_group(required=True)
     source_group.add_argument("--source", help="Single video file")
     source_group.add_argument("--batch-dir", help="Directory of videos")
 
-    parser.add_argument("--output-dir", default="benchmark_output",
-                        help="Base directory for benchmark results")
-    parser.add_argument("--device", default="NPU",
-                        help="OpenVINO device (default: NPU)")
-    parser.add_argument("--tracking", default="hands-arms",
-                        choices=["hands", "hands-arms", "body"])
+    parser.add_argument(
+        "--output-dir", default="benchmark_output", help="Base directory for benchmark results"
+    )
+    parser.add_argument("--device", default="NPU", help="OpenVINO device (default: NPU)")
+    parser.add_argument("--tracking", default="hands-arms", choices=["hands", "hands-arms", "body"])
     parser.add_argument("--single-subject", action="store_true")
 
     # Parameter sweep: --sweep <name> <val1> <val2> ...
-    parser.add_argument("--sweep", nargs="+", action="append",
-                        metavar="PARAM_OR_VALUE",
-                        help="Sweep a parameter: --sweep body_min_cutoff 0.1 0.3 0.5")
+    parser.add_argument(
+        "--sweep",
+        nargs="+",
+        action="append",
+        metavar="PARAM_OR_VALUE",
+        help="Sweep a parameter: --sweep body_min_cutoff 0.1 0.3 0.5",
+    )
 
     # YAML config
-    parser.add_argument("--config",
-                        help="YAML file with parameter grid spec")
+    parser.add_argument("--config", help="YAML file with parameter grid spec")
 
     args = parser.parse_args()
 
@@ -269,13 +278,15 @@ def main():
             if param_name not in TUNEABLE_PARAMS:
                 parser.error(
                     f"Unknown parameter: {param_name}\n"
-                    f"Available: {', '.join(sorted(TUNEABLE_PARAMS))}")
+                    f"Available: {', '.join(sorted(TUNEABLE_PARAMS))}"
+                )
             values = [float(v) for v in sweep_args[1:]]
             sweep_spec[param_name] = values
 
     if args.config:
         try:
             import yaml
+
             with open(args.config) as f:
                 yaml_spec = yaml.safe_load(f)
             if isinstance(yaml_spec, dict):
@@ -302,8 +313,7 @@ def main():
         VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
         batch_path = pathlib.Path(args.batch_dir)
         sources = sorted(
-            p for p in batch_path.iterdir()
-            if p.is_file() and p.suffix.lower() in VIDEO_EXTENSIONS
+            p for p in batch_path.iterdir() if p.is_file() and p.suffix.lower() in VIDEO_EXTENSIONS
         )
         if not sources:
             print(f"No video files found in {args.batch_dir}")
@@ -321,10 +331,10 @@ def main():
 
     for source in sources:
         video_stem = source.stem
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"  Video: {source.name}")
         print(f"  Grid: {len(grid)} parameter combinations")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         for i, overrides in enumerate(grid):
             run_num += 1
@@ -337,8 +347,13 @@ def main():
 
             print(f"\n  Run {run_num}/{total_runs}")
             result = run_single(
-                source, out_base, label, overrides,
-                args.device, args.tracking, args.single_subject,
+                source,
+                out_base,
+                label,
+                overrides,
+                args.device,
+                args.tracking,
+                args.single_subject,
             )
             if result:
                 all_results.append(result)
@@ -351,11 +366,11 @@ def main():
 
     # Summary table
     if all_results:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("  Benchmark Summary")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"  {'Run':<40} {'Time(s)':>8} {'Metrics CSV'}")
-        print(f"  {'-'*40} {'-'*8} {'-'*30}")
+        print(f"  {'-' * 40} {'-' * 8} {'-' * 30}")
         for r in all_results:
             csv_str = pathlib.Path(r["metrics_csv"]).name if r["metrics_csv"] else "MISSING"
             print(f"  {r['run']:<40} {r['elapsed_s']:>8.1f} {csv_str}")

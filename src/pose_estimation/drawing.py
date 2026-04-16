@@ -15,8 +15,14 @@ BODY_CHAINS = [
 # Arm segments drawn as straight lines.
 BODY_SEGMENTS = [
     ((0, 1), "shoulder"),
-    ((4, 6), "left_arm"), ((4, 8), "left_arm"), ((4, 10), "left_arm"), ((6, 8), "left_arm"),
-    ((5, 7), "right_arm"), ((5, 9), "right_arm"), ((5, 11), "right_arm"), ((7, 9), "right_arm"),
+    ((4, 6), "left_arm"),
+    ((4, 8), "left_arm"),
+    ((4, 10), "left_arm"),
+    ((6, 8), "left_arm"),
+    ((5, 7), "right_arm"),
+    ((5, 9), "right_arm"),
+    ((5, 11), "right_arm"),
+    ((7, 9), "right_arm"),
 ]
 
 BODY_COLOR_MAP = {
@@ -42,16 +48,30 @@ FULL_BODY_SEGMENTS = [
     ((12, 24), "torso"),
     ((23, 24), "torso"),
     # Wrist → finger connections
-    ((15, 17), "left_arm"), ((15, 19), "left_arm"),
-    ((15, 21), "left_arm"), ((17, 19), "left_arm"),
-    ((16, 18), "right_arm"), ((16, 20), "right_arm"),
-    ((16, 22), "right_arm"), ((18, 20), "right_arm"),
+    ((15, 17), "left_arm"),
+    ((15, 19), "left_arm"),
+    ((15, 21), "left_arm"),
+    ((17, 19), "left_arm"),
+    ((16, 18), "right_arm"),
+    ((16, 20), "right_arm"),
+    ((16, 22), "right_arm"),
+    ((18, 20), "right_arm"),
     # Feet
-    ((27, 29), "left_leg"), ((29, 31), "left_leg"), ((27, 31), "left_leg"),
-    ((28, 30), "right_leg"), ((30, 32), "right_leg"), ((28, 32), "right_leg"),
+    ((27, 29), "left_leg"),
+    ((29, 31), "left_leg"),
+    ((27, 31), "left_leg"),
+    ((28, 30), "right_leg"),
+    ((30, 32), "right_leg"),
+    ((28, 32), "right_leg"),
     # Face
-    ((0, 1), "face"), ((1, 2), "face"), ((2, 3), "face"), ((3, 7), "face"),
-    ((0, 4), "face"), ((4, 5), "face"), ((5, 6), "face"), ((6, 8), "face"),
+    ((0, 1), "face"),
+    ((1, 2), "face"),
+    ((2, 3), "face"),
+    ((3, 7), "face"),
+    ((0, 4), "face"),
+    ((4, 5), "face"),
+    ((5, 6), "face"),
+    ((6, 8), "face"),
     ((9, 10), "face"),
 ]
 
@@ -181,8 +201,14 @@ def draw_body_landmarks(img, body_landmarks, body_visibilities, visibility_thres
 
         for (i, j), group in segments:
             if visibility[i] > visibility_threshold and visibility[j] > visibility_threshold:
-                cv2.line(img_limbs, tuple(points[i].astype(np.int32)),
-                         tuple(points[j].astype(np.int32)), color_map[group], 2, cv2.LINE_AA)
+                cv2.line(
+                    img_limbs,
+                    tuple(points[i].astype(np.int32)),
+                    tuple(points[j].astype(np.int32)),
+                    color_map[group],
+                    2,
+                    cv2.LINE_AA,
+                )
 
         for idx, pt in enumerate(points):
             if visibility[idx] > visibility_threshold:
@@ -210,8 +236,14 @@ def draw_hand_landmarks(img, hand_landmarks):
             cv2.polylines(img_limbs, [curve], False, HAND_COLOR_MAP[group], 2, cv2.LINE_AA)
 
         for (i, j), group in HAND_SEGMENTS:
-            cv2.line(img_limbs, tuple(points[i].astype(np.int32)),
-                     tuple(points[j].astype(np.int32)), HAND_COLOR_MAP[group], 2, cv2.LINE_AA)
+            cv2.line(
+                img_limbs,
+                tuple(points[i].astype(np.int32)),
+                tuple(points[j].astype(np.int32)),
+                HAND_COLOR_MAP[group],
+                2,
+                cv2.LINE_AA,
+            )
 
         for idx, pt in enumerate(points):
             pt_int = tuple(pt.astype(np.int32))

@@ -3,7 +3,9 @@
 import numpy as np
 
 from pose_estimation.run import (
-    REGION_PARAMS, KeypointSmoother, _OneEuro,
+    REGION_PARAMS,
+    KeypointSmoother,
+    _OneEuro,
 )
 
 
@@ -55,16 +57,13 @@ def test_region_smoothing_differs_from_uniform():
 
     # Uniform smoother: override to use a single filter for all keypoints
     sm_uniform = KeypointSmoother()
-    sm_uniform._make_filters = lambda n: {
-        "all": _OneEuro(min_cutoff=0.5, beta=0.5)
-    }
+    sm_uniform._make_filters = lambda n: {"all": _OneEuro(min_cutoff=0.5, beta=0.5)}
     for step, f in enumerate(frames):
         r_uniform, _ = sm_uniform(f[np.newaxis], sc[np.newaxis], step * 0.033)
 
     diff = np.abs(r_region[0] - r_uniform[0]).max()
     assert diff > 0.01, (
-        f"Region and uniform smoothing should produce different output, "
-        f"max diff={diff:.6f}"
+        f"Region and uniform smoothing should produce different output, max diff={diff:.6f}"
     )
 
 
@@ -93,8 +92,10 @@ def test_region_filters_independent():
 
     # Body region should be identical between runs (same params, same conf)
     np.testing.assert_allclose(
-        result_all_high[0, :17], result_low_hands[0, :17], atol=1e-10,
-        err_msg="Body region affected by hand confidence change"
+        result_all_high[0, :17],
+        result_low_hands[0, :17],
+        atol=1e-10,
+        err_msg="Body region affected by hand confidence change",
     )
 
 

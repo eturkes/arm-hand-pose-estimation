@@ -19,11 +19,11 @@ def _make_wholebody_landmarks():
     lm = np.zeros((133, 3), dtype=np.float64)
 
     # Body keypoints (0-16): rough standing pose
-    lm[5] = [100, 100, 0]   # left shoulder
-    lm[6] = [200, 100, 0]   # right shoulder
-    lm[7] = [80, 200, 0]    # left elbow
-    lm[8] = [220, 200, 0]   # right elbow
-    lm[9] = [60, 300, 0]    # left wrist
+    lm[5] = [100, 100, 0]  # left shoulder
+    lm[6] = [200, 100, 0]  # right shoulder
+    lm[7] = [80, 200, 0]  # left elbow
+    lm[8] = [220, 200, 0]  # right elbow
+    lm[9] = [60, 300, 0]  # left wrist
     lm[10] = [240, 300, 0]  # right wrist
     lm[11] = [120, 250, 0]  # left hip
     lm[12] = [180, 250, 0]  # right hip
@@ -58,8 +58,7 @@ def test_rtmw_arm_segments_subset_of_body():
 
 def test_rtmw_constant_landmarks_no_correction():
     """Repeated identical 133-kp frames should produce no correction."""
-    smoother = BoneLengthSmoother(
-        alpha=0.05, tolerance=0.4, segments=BONE_SEGMENTS_WB)
+    smoother = BoneLengthSmoother(alpha=0.05, tolerance=0.4, segments=BONE_SEGMENTS_WB)
     lm = _make_wholebody_landmarks()
     original = lm.copy()
 
@@ -72,8 +71,7 @@ def test_rtmw_constant_landmarks_no_correction():
 
 def test_rtmw_perturbed_wrist_corrected():
     """Doubling shoulder-elbow distance should trigger correction."""
-    smoother = BoneLengthSmoother(
-        alpha=0.05, tolerance=0.4, segments=BONE_SEGMENTS_WB)
+    smoother = BoneLengthSmoother(alpha=0.05, tolerance=0.4, segments=BONE_SEGMENTS_WB)
     lm = _make_wholebody_landmarks()
 
     for _ in range(20):
@@ -102,8 +100,7 @@ def test_rtmw_body_segments_include_legs():
 
 def test_rtmw_body_smoother_with_legs():
     """Body-mode smoother should correct perturbed knee position."""
-    smoother = BoneLengthSmoother(
-        alpha=0.05, tolerance=0.4, segments=BONE_SEGMENTS_WB_BODY)
+    smoother = BoneLengthSmoother(alpha=0.05, tolerance=0.4, segments=BONE_SEGMENTS_WB_BODY)
     lm = _make_wholebody_landmarks()
 
     for _ in range(20):
@@ -122,6 +119,7 @@ def test_rtmw_body_smoother_with_legs():
 def test_no_constraints_flag():
     """--no-constraints flag should be parsed correctly."""
     import sys
+
     orig = sys.argv
     try:
         sys.argv = ["prog", "--no-constraints"]

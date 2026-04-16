@@ -30,7 +30,6 @@ from scipy.optimize import linear_sum_assignment
 
 from .constraints import BoneLengthSmoother
 
-
 # ---------------------------------------------------------------------------
 # Model registry — NPU-compatible models (verified via scripts/npu_compat.py)
 # ---------------------------------------------------------------------------
@@ -83,9 +82,9 @@ DEFAULT_MODEL = "rtmw-l"
 # ---------------------------------------------------------------------------
 # COCO-WholeBody 133 keypoint tracking masks
 # ---------------------------------------------------------------------------
-_KP_ARMS = {5, 6, 7, 8, 9, 10}           # shoulders, elbows, wrists
-_KP_LHAND = set(range(91, 112))           # 21 left-hand landmarks
-_KP_RHAND = set(range(112, 133))          # 21 right-hand landmarks
+_KP_ARMS = {5, 6, 7, 8, 9, 10}  # shoulders, elbows, wrists
+_KP_LHAND = set(range(91, 112))  # 21 left-hand landmarks
+_KP_RHAND = set(range(112, 133))  # 21 right-hand landmarks
 
 TRACKING_INDICES = {
     "hands": _KP_LHAND | _KP_RHAND,
@@ -109,12 +108,12 @@ REGION_PARAMS = [
 # ---------------------------------------------------------------------------
 # Ordered proximal→distal so corrections propagate outward.
 BONE_SEGMENTS_WB = [
-    (5, 7),    # left shoulder → left elbow
-    (7, 9),    # left elbow → left wrist
-    (9, 91),   # left wrist → left index-finger MCP
-    (6, 8),    # right shoulder → right elbow
-    (8, 10),   # right elbow → right wrist
-    (10, 112), # right wrist → right index-finger MCP
+    (5, 7),  # left shoulder → left elbow
+    (7, 9),  # left elbow → left wrist
+    (9, 91),  # left wrist → left index-finger MCP
+    (6, 8),  # right shoulder → right elbow
+    (8, 10),  # right elbow → right wrist
+    (10, 112),  # right wrist → right index-finger MCP
 ]
 
 BONE_SEGMENTS_WB_BODY = BONE_SEGMENTS_WB + [
@@ -131,6 +130,7 @@ WINDOW_TITLE = "Pose Estimation"
 def _frame_to_surface(frame):
     """Convert a BGR OpenCV frame to a pygame Surface."""
     import pygame
+
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     return pygame.surfarray.make_surface(rgb.transpose(1, 0, 2))
 
@@ -138,6 +138,7 @@ def _frame_to_surface(frame):
 # ---------------------------------------------------------------------------
 # Temporal smoothing — reduces frame-to-frame keypoint jitter
 # ---------------------------------------------------------------------------
+
 
 class _OneEuro:
     """Minimal One Euro Filter for array-valued signals."""
@@ -193,9 +194,16 @@ class KeypointSmoother:
 
     SCORE_DECAY = 0.9  # per-frame score multiplier during carry-forward
 
-    def __init__(self, min_cutoff=0.5, beta=0.5, score_alpha=0.5,
-                 carry_frames=5, match_thresh=150, carry_damping=0.8,
-                 min_track_age=3):
+    def __init__(
+        self,
+        min_cutoff=0.5,
+        beta=0.5,
+        score_alpha=0.5,
+        carry_frames=5,
+        match_thresh=150,
+        carry_damping=0.8,
+        min_track_age=3,
+    ):
         self.min_cutoff = min_cutoff
         self.beta = beta
         self.score_alpha = score_alpha
@@ -212,8 +220,7 @@ class KeypointSmoother:
     def _make_filters(self, n_kps):
         """Create per-region or single filter depending on keypoint count."""
         if n_kps == 133:
-            return {name: _OneEuro(min_cutoff=mc, beta=b)
-                    for name, _, _, mc, b in REGION_PARAMS}
+            return {name: _OneEuro(min_cutoff=mc, beta=b) for name, _, _, mc, b in REGION_PARAMS}
         return {"all": _OneEuro(min_cutoff=self.min_cutoff, beta=self.beta)}
 
     def _apply_filters(self, filters, kp, t, confidence):
@@ -222,10 +229,8 @@ class KeypointSmoother:
             return filters["all"](kp, t, confidence=confidence)
         result = np.empty_like(kp)
         for name, start, end, _, _ in REGION_PARAMS:
-            conf_slice = (confidence[start:end]
-                          if confidence is not None else None)
-            result[start:end] = filters[name](
-                kp[start:end], t, confidence=conf_slice)
+            conf_slice = confidence[start:end] if confidence is not None else None
+            result[start:end] = filters[name](kp[start:end], t, confidence=conf_slice)
         return result
 
     def _get_velocity(self, filters):
@@ -253,7 +258,7 @@ class KeypointSmoother:
         dt = t - last_t
         if dt <= 0:
             return last_kps
-        damping = self.carry_damping ** misses
+        damping = self.carry_damping**misses
         step = last_velocity * dt * damping
         # Cap per-keypoint displacement magnitude
         norms = np.linalg.norm(step, axis=1, keepdims=True)
@@ -264,8 +269,7 @@ class KeypointSmoother:
 
     def __call__(self, keypoints, scores, t):
         """Return (smoothed_keypoints, smoothed_scores) or (None, None)."""
-        if (keypoints is None or len(keypoints.shape) != 3
-                or keypoints.shape[0] == 0):
+        if keypoints is None or len(keypoints.shape) != 3 or keypoints.shape[0] == 0:
             return self._carry(t)
 
         n_det = keypoints.shape[0]
@@ -292,19 +296,20 @@ class KeypointSmoother:
                 age = 1
 
             smooth_kp = self._apply_filters(filt, kp, t, sc)
-            smooth_sc = (self.score_alpha * sc
-                         + (1 - self.score_alpha) * prev_sc)
+            smooth_sc = self.score_alpha * sc + (1 - self.score_alpha) * prev_sc
 
-            new_tracks.append({
-                "filter": filt,
-                "centroid": smooth_kp.mean(axis=0).copy(),
-                "scores": smooth_sc.copy(),
-                "misses": 0,
-                "age": age,
-                "last_kps": smooth_kp.copy(),
-                "last_velocity": self._get_velocity(filt),
-                "last_t": t,
-            })
+            new_tracks.append(
+                {
+                    "filter": filt,
+                    "centroid": smooth_kp.mean(axis=0).copy(),
+                    "scores": smooth_sc.copy(),
+                    "misses": 0,
+                    "age": age,
+                    "last_kps": smooth_kp.copy(),
+                    "last_velocity": self._get_velocity(filt),
+                    "last_t": t,
+                }
+            )
             if age >= self.min_track_age:
                 out_kps.append(smooth_kp)
                 out_scores.append(smooth_sc)
@@ -318,19 +323,21 @@ class KeypointSmoother:
             misses = tr["misses"] + 1
             age = max(0, tr["age"] - 1)
             predicted = self._extrapolate(
-                tr["last_kps"], tr.get("last_velocity"),
-                tr.get("last_t", 0), t, misses)
+                tr["last_kps"], tr.get("last_velocity"), tr.get("last_t", 0), t, misses
+            )
             decayed = tr["scores"] * self.SCORE_DECAY
-            new_tracks.append({
-                "filter": tr["filter"],
-                "centroid": predicted.mean(axis=0).copy(),
-                "scores": decayed,
-                "misses": misses,
-                "age": age,
-                "last_kps": predicted,
-                "last_velocity": tr.get("last_velocity"),
-                "last_t": t,
-            })
+            new_tracks.append(
+                {
+                    "filter": tr["filter"],
+                    "centroid": predicted.mean(axis=0).copy(),
+                    "scores": decayed,
+                    "misses": misses,
+                    "age": age,
+                    "last_kps": predicted,
+                    "last_velocity": tr.get("last_velocity"),
+                    "last_t": t,
+                }
+            )
             if age >= self.min_track_age:
                 out_kps.append(predicted)
                 out_scores.append(decayed)
@@ -348,8 +355,7 @@ class KeypointSmoother:
             return matched, used_tracks
 
         trk_c = np.array([tr["centroid"] for tr in self.tracks])
-        cost = np.linalg.norm(
-            det_centroids[:, None, :] - trk_c[None, :, :], axis=2)
+        cost = np.linalg.norm(det_centroids[:, None, :] - trk_c[None, :, :], axis=2)
         row_ind, col_ind = linear_sum_assignment(cost)
         for r, c in zip(row_ind, col_ind):
             if cost[r, c] < self.match_thresh:
@@ -370,21 +376,23 @@ class KeypointSmoother:
             age = max(0, tr["age"] - 1)
             if t is not None:
                 predicted = self._extrapolate(
-                    tr["last_kps"], tr.get("last_velocity"),
-                    tr.get("last_t", 0), t, misses)
+                    tr["last_kps"], tr.get("last_velocity"), tr.get("last_t", 0), t, misses
+                )
             else:
                 predicted = tr["last_kps"]
             decayed = tr["scores"] * self.SCORE_DECAY
-            new_tracks.append({
-                "filter": tr["filter"],
-                "centroid": predicted.mean(axis=0).copy(),
-                "scores": decayed,
-                "misses": misses,
-                "age": age,
-                "last_kps": predicted,
-                "last_velocity": tr.get("last_velocity"),
-                "last_t": t if t is not None else tr.get("last_t", 0),
-            })
+            new_tracks.append(
+                {
+                    "filter": tr["filter"],
+                    "centroid": predicted.mean(axis=0).copy(),
+                    "scores": decayed,
+                    "misses": misses,
+                    "age": age,
+                    "last_kps": predicted,
+                    "last_velocity": tr.get("last_velocity"),
+                    "last_t": t if t is not None else tr.get("last_t", 0),
+                }
+            )
             if age >= self.min_track_age:
                 out_kps.append(predicted)
                 out_scores.append(decayed)
@@ -418,13 +426,19 @@ def _patch_rtmlib_openvino():
 
     _ORIG_BASE_INIT = rtmlib_base.BaseTool.__init__
 
-    def _patched_init(self, onnx_model=None, model_input_size=None,
-                      mean=None, std=None, backend='opencv', device='cpu'):
-        if backend == 'openvino':
+    def _patched_init(
+        self,
+        onnx_model=None,
+        model_input_size=None,
+        mean=None,
+        std=None,
+        backend="opencv",
+        device="cpu",
+    ):
+        if backend == "openvino":
             import os
 
             from openvino import Core
-
             from rtmlib.tools.file import download_checkpoint
 
             if not os.path.exists(onnx_model):
@@ -433,10 +447,10 @@ def _patch_rtmlib_openvino():
             core = Core()
             model_onnx = core.read_model(model=onnx_model)
 
-            ov_device = device.upper() if device else 'CPU'
+            ov_device = device.upper() if device else "CPU"
 
             # NPU requires static shapes — freeze any dynamic dimensions
-            if ov_device == 'NPU':
+            if ov_device == "NPU":
                 input_shape = model_onnx.input(0).partial_shape
                 if input_shape.is_dynamic:
                     static = []
@@ -450,33 +464,29 @@ def _patch_rtmlib_openvino():
 
             try:
                 self.compiled_model = core.compile_model(
-                    model=model_onnx,
-                    device_name=ov_device,
-                    config={'PERFORMANCE_HINT': 'LATENCY'})
+                    model=model_onnx, device_name=ov_device, config={"PERFORMANCE_HINT": "LATENCY"}
+                )
             except RuntimeError as exc:
-                if ov_device != 'CPU':
-                    print(f"WARNING: Failed to compile on {ov_device} "
-                          f"({exc}), falling back to CPU.")
+                if ov_device != "CPU":
+                    print(
+                        f"WARNING: Failed to compile on {ov_device} ({exc}), falling back to CPU."
+                    )
                     model_onnx = core.read_model(model=onnx_model)
                     self.compiled_model = core.compile_model(
-                        model=model_onnx,
-                        device_name='CPU',
-                        config={'PERFORMANCE_HINT': 'LATENCY'})
-                    ov_device = 'CPU'
+                        model=model_onnx, device_name="CPU", config={"PERFORMANCE_HINT": "LATENCY"}
+                    )
+                    ov_device = "CPU"
                 else:
                     raise
 
             n_outputs = len(self.compiled_model.outputs)
             self.input_layer = self.compiled_model.input(0)
-            self._ov_output_layers = [
-                self.compiled_model.output(i) for i in range(n_outputs)
-            ]
+            self._ov_output_layers = [self.compiled_model.output(i) for i in range(n_outputs)]
             # Backward compat for rtmlib code that uses these directly
             self.output_layer0 = self._ov_output_layers[0]
             self.output_layer1 = self._ov_output_layers[1]
 
-            print(f'load {onnx_model} with openvino/{ov_device} backend'
-                  f' ({n_outputs} outputs)')
+            print(f"load {onnx_model} with openvino/{ov_device} backend ({n_outputs} outputs)")
 
             self.onnx_model = onnx_model
             self.model_input_size = model_input_size
@@ -485,10 +495,15 @@ def _patch_rtmlib_openvino():
             self.backend = backend
             self.device = device
         else:
-            _ORIG_BASE_INIT(self, onnx_model=onnx_model,
-                            model_input_size=model_input_size,
-                            mean=mean, std=std,
-                            backend=backend, device=device)
+            _ORIG_BASE_INIT(
+                self,
+                onnx_model=onnx_model,
+                model_input_size=model_input_size,
+                mean=mean,
+                std=std,
+                backend=backend,
+                device=device,
+            )
 
     rtmlib_base.BaseTool.__init__ = _patched_init
 
@@ -496,8 +511,7 @@ def _patch_rtmlib_openvino():
     _orig_inference = rtmlib_base.BaseTool.inference
 
     def _patched_inference(self, img):
-        if self.backend != 'openvino' \
-                or not hasattr(self, '_ov_output_layers'):
+        if self.backend != "openvino" or not hasattr(self, "_ov_output_layers"):
             return _orig_inference(self, img)
 
         img = img.transpose(2, 0, 1)
@@ -513,6 +527,7 @@ def _patch_rtmlib_openvino():
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def collect_video_files(batch_dir):
     """Return sorted list of video file paths in *batch_dir*."""
@@ -533,7 +548,7 @@ def filter_single_subject(keypoints, scores):
         return keypoints, scores
     mean_scores = scores.mean(axis=1)
     best = np.argmax(mean_scores)
-    return keypoints[best:best + 1], scores[best:best + 1]
+    return keypoints[best : best + 1], scores[best : best + 1]
 
 
 def mask_tracking_scores(scores, tracking_mode):
@@ -556,48 +571,59 @@ def mask_tracking_scores(scores, tracking_mode):
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def parse_args():
     p = argparse.ArgumentParser(description="Pose estimation")
-    p.add_argument("--source", default="0",
-                   help="Camera index or video path (default: 0)")
-    p.add_argument("--batch-dir", default=None,
-                   help="Process all video files in a directory "
-                        "(overrides --source, implies --headless)")
-    p.add_argument("--single-subject", action="store_true",
-                   help="Track only the highest-confidence person")
-    p.add_argument("--backend", default="openvino",
-                   choices=["onnxruntime", "openvino", "opencv"],
-                   help="Inference backend (default: openvino)")
-    p.add_argument("--device", default="NPU",
-                   help="Device for inference: NPU, CPU, GPU (default: NPU)")
-    p.add_argument("--mode", default="balanced",
-                   choices=["performance", "balanced", "lightweight"],
-                   help="Model quality/speed tier (default: balanced)")
+    p.add_argument("--source", default="0", help="Camera index or video path (default: 0)")
+    p.add_argument(
+        "--batch-dir",
+        default=None,
+        help="Process all video files in a directory (overrides --source, implies --headless)",
+    )
+    p.add_argument(
+        "--single-subject", action="store_true", help="Track only the highest-confidence person"
+    )
+    p.add_argument(
+        "--backend",
+        default="openvino",
+        choices=["onnxruntime", "openvino", "opencv"],
+        help="Inference backend (default: openvino)",
+    )
+    p.add_argument(
+        "--device", default="NPU", help="Device for inference: NPU, CPU, GPU (default: NPU)"
+    )
+    p.add_argument(
+        "--mode",
+        default="balanced",
+        choices=["performance", "balanced", "lightweight"],
+        help="Model quality/speed tier (default: balanced)",
+    )
     model_names = list(MODEL_REGISTRY.keys()) + ["mediapipe"]
     p.add_argument(
-        "--model", default=DEFAULT_MODEL, choices=model_names,
-        help=(f"Pose model (default: {DEFAULT_MODEL}).  "
-              + ", ".join(
-                  f"{k}: {v['label']}" for k, v in MODEL_REGISTRY.items()
-              )
-              + ", mediapipe: MediaPipe pose + hand (TFLite)"))
+        "--model",
+        default=DEFAULT_MODEL,
+        choices=model_names,
+        help=(
+            f"Pose model (default: {DEFAULT_MODEL}).  "
+            + ", ".join(f"{k}: {v['label']}" for k, v in MODEL_REGISTRY.items())
+            + ", mediapipe: MediaPipe pose + hand (TFLite)"
+        ),
+    )
     # Kept for backward compatibility; --model takes precedence.
-    p.add_argument("--body-only", action="store_true",
-                   help=argparse.SUPPRESS)
-    p.add_argument("--tracking", default="hands-arms",
-                   choices=["hands", "hands-arms", "body"],
-                   help="Keypoint scope (default: hands-arms). "
-                        "hands/hands-arms require Wholebody.")
-    p.add_argument("--det-frequency", type=int, default=7,
-                   help="Run detector every N frames (default: 7)")
-    p.add_argument("--headless", action="store_true",
-                   help="No display — just print latency stats")
-    p.add_argument("--max-frames", type=int, default=0,
-                   help="Stop after N frames (0 = unlimited)")
-    p.add_argument("--no-smooth", action="store_true",
-                   help="Disable temporal smoothing")
-    p.add_argument("--no-constraints", action="store_true",
-                   help="Disable bone-length constraints")
+    p.add_argument("--body-only", action="store_true", help=argparse.SUPPRESS)
+    p.add_argument(
+        "--tracking",
+        default="hands-arms",
+        choices=["hands", "hands-arms", "body"],
+        help="Keypoint scope (default: hands-arms). hands/hands-arms require Wholebody.",
+    )
+    p.add_argument(
+        "--det-frequency", type=int, default=7, help="Run detector every N frames (default: 7)"
+    )
+    p.add_argument("--headless", action="store_true", help="No display — just print latency stats")
+    p.add_argument("--max-frames", type=int, default=0, help="Stop after N frames (0 = unlimited)")
+    p.add_argument("--no-smooth", action="store_true", help="Disable temporal smoothing")
+    p.add_argument("--no-constraints", action="store_true", help="Disable bone-length constraints")
     return p.parse_args()
 
 
@@ -605,8 +631,10 @@ def parse_args():
 # Per-source processing
 # ---------------------------------------------------------------------------
 
-def process_source(args, pose_tracker, source_str, draw_skeleton,
-                   smoother=None, bone_smoother=None, screen=None):
+
+def process_source(
+    args, pose_tracker, source_str, draw_skeleton, smoother=None, bone_smoother=None, screen=None
+):
     """Process a single video/camera source.  Returns latency list (ms)."""
     source = int(source_str) if source_str.isdigit() else source_str
     cap = cv2.VideoCapture(source)
@@ -618,8 +646,10 @@ def process_source(args, pose_tracker, source_str, draw_skeleton,
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    print(f"Source:  {source_str} ({w}x{h} @ {fps_video:.1f} fps"
-          f"{f', {total_frames} frames' if total_frames > 0 else ''})")
+    print(
+        f"Source:  {source_str} ({w}x{h} @ {fps_video:.1f} fps"
+        f"{f', {total_frames} frames' if total_frames > 0 else ''})"
+    )
     print()
 
     use_pygame = not args.headless and screen is not None
@@ -636,8 +666,7 @@ def process_source(args, pose_tracker, source_str, draw_skeleton,
                     if event.type == pygame.QUIT:
                         cap.release()
                         return latencies
-                    if (event.type == pygame.KEYDOWN
-                            and event.key == pygame.K_ESCAPE):
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                         cap.release()
                         return latencies
 
@@ -661,32 +690,31 @@ def process_source(args, pose_tracker, source_str, draw_skeleton,
 
             if bone_smoother is not None and keypoints is not None:
                 for pi in range(keypoints.shape[0]):
-                    keypoints[pi], _ = bone_smoother.update(
-                        pi, keypoints[pi])
+                    keypoints[pi], _ = bone_smoother.update(pi, keypoints[pi])
                 bone_smoother.prune(range(keypoints.shape[0]))
 
-            n_persons = (keypoints.shape[0]
-                         if keypoints is not None
-                         and len(keypoints.shape) == 3
-                         else 0)
+            n_persons = (
+                keypoints.shape[0] if keypoints is not None and len(keypoints.shape) == 3 else 0
+            )
             n_kps = keypoints.shape[1] if n_persons > 0 else 0
 
             # Print periodic stats
             if frame_idx <= 5 or frame_idx % 50 == 0:
                 mean_lat = np.mean(latencies[-50:])
-                print(f"Frame {frame_idx:5d} | "
-                      f"{dt*1000:6.1f} ms | "
-                      f"avg {mean_lat:6.1f} ms | "
-                      f"{n_persons} person(s), {n_kps} kps")
+                print(
+                    f"Frame {frame_idx:5d} | "
+                    f"{dt * 1000:6.1f} ms | "
+                    f"avg {mean_lat:6.1f} ms | "
+                    f"{n_persons} person(s), {n_kps} kps"
+                )
 
             if not args.headless:
                 img_show = frame.copy()
                 if n_persons > 0:
-                    draw_scores = mask_tracking_scores(
-                        scores, args.tracking)
+                    draw_scores = mask_tracking_scores(scores, args.tracking)
                     img_show = draw_skeleton(
-                        img_show, keypoints, draw_scores,
-                        openpose_skeleton=False, kpt_thr=0.3)
+                        img_show, keypoints, draw_scores, openpose_skeleton=False, kpt_thr=0.3
+                    )
 
                 # FPS / progress overlay (matches main.py style)
                 processing_times.append(dt)
@@ -696,23 +724,28 @@ def process_source(args, pose_tracker, source_str, draw_skeleton,
                 label = f"Inference: {avg_ms:.1f}ms ({fps:.1f} FPS)"
                 if total_frames > 0:
                     pct = frame_idx / total_frames * 100
-                    label += (f"  |  Frame {frame_idx}/"
-                              f"{total_frames} ({pct:.0f}%)")
-                cv2.putText(img_show, label, (20, 40),
-                            cv2.FONT_HERSHEY_COMPLEX, f_width / 1000,
-                            (0, 0, 255), 1, cv2.LINE_AA)
+                    label += f"  |  Frame {frame_idx}/{total_frames} ({pct:.0f}%)"
+                cv2.putText(
+                    img_show,
+                    label,
+                    (20, 40),
+                    cv2.FONT_HERSHEY_COMPLEX,
+                    f_width / 1000,
+                    (0, 0, 255),
+                    1,
+                    cv2.LINE_AA,
+                )
 
                 if use_pygame:
                     # Resize window to match first frame
                     if frame_idx == 1:
                         fh, fw = img_show.shape[:2]
                         screen = pygame.display.set_mode((fw, fh))
-                        video_name = (os.path.basename(source_str)
-                                      if not source_str.isdigit()
-                                      else None)
+                        video_name = (
+                            os.path.basename(source_str) if not source_str.isdigit() else None
+                        )
                         if video_name:
-                            pygame.display.set_caption(
-                                f"{WINDOW_TITLE} — {video_name}")
+                            pygame.display.set_caption(f"{WINDOW_TITLE} — {video_name}")
                     screen.blit(_frame_to_surface(img_show), (0, 0))
                     pygame.display.flip()
 
@@ -730,21 +763,24 @@ def print_latency_summary(latencies):
         return
     arr = np.array(latencies)
     # Skip first few frames (model warmup)
-    warm = arr[min(3, len(arr)):]
+    warm = arr[min(3, len(arr)) :]
     print()
     print("─── Latency summary ───")
     print(f"  Frames processed: {len(arr)}")
     print(f"  Warmup (first 3):  {np.mean(arr[:3]):.1f} ms avg")
     if len(warm) > 0:
-        print(f"  Steady-state:      {np.mean(warm):.1f} ms avg, "
-              f"{np.median(warm):.1f} ms median, "
-              f"{np.percentile(warm, 95):.1f} ms p95")
+        print(
+            f"  Steady-state:      {np.mean(warm):.1f} ms avg, "
+            f"{np.median(warm):.1f} ms median, "
+            f"{np.percentile(warm, 95):.1f} ms p95"
+        )
         print(f"  Effective FPS:     {1000 / np.mean(warm):.1f}")
 
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def _run_mediapipe(args):
     """Delegate to pose_estimation.main for the MediaPipe pipeline."""
@@ -786,8 +822,10 @@ def main():
 
     # --tracking hands/hands-arms needs wholebody (133 kps)
     if args.tracking != "body" and args.body_only:
-        print(f"NOTE: --tracking {args.tracking} requires wholebody; "
-              f"switching from {model_name} to {DEFAULT_MODEL}.")
+        print(
+            f"NOTE: --tracking {args.tracking} requires wholebody; "
+            f"switching from {model_name} to {DEFAULT_MODEL}."
+        )
         model_name = DEFAULT_MODEL
         model = MODEL_REGISTRY[model_name]
         args.body_only = False
@@ -797,8 +835,9 @@ def main():
         _patch_rtmlib_openvino()
 
     # ── Import rtmlib (deferred so --help works without it) ─────────
-    from rtmlib import Custom, PoseTracker, draw_skeleton
     from functools import partial
+
+    from rtmlib import Custom, PoseTracker, draw_skeleton
 
     # ── Set up model (explicit URLs from registry for all devices) ──
     solution_cls = partial(
@@ -816,9 +855,11 @@ def main():
     single_label = ", single-subject" if args.single_subject else ""
     smooth_label = ", no-smooth" if args.no_smooth else ", smooth"
     constraint_label = ", no-constraints" if args.no_constraints else ""
-    print(f"Backend: {args.backend}, device={args.device}"
-          f"{tracking_label}{single_label}{smooth_label}"
-          f"{constraint_label}")
+    print(
+        f"Backend: {args.backend}, device={args.device}"
+        f"{tracking_label}{single_label}{smooth_label}"
+        f"{constraint_label}"
+    )
 
     pose_tracker = PoseTracker(
         solution_cls,
@@ -833,9 +874,9 @@ def main():
 
     bone_smoother = None
     if not args.no_constraints:
-        segments = (BONE_SEGMENTS_WB_BODY
-                    if args.tracking == "body" or args.body_only
-                    else BONE_SEGMENTS_WB)
+        segments = (
+            BONE_SEGMENTS_WB_BODY if args.tracking == "body" or args.body_only else BONE_SEGMENTS_WB
+        )
         bone_smoother = BoneLengthSmoother(segments=segments)
 
     # ── Collect sources ─────────────────────────────────────────────
@@ -849,6 +890,7 @@ def main():
     screen = None
     if not args.headless:
         import pygame as _pg
+
         _pg.init()
         screen = _pg.display.set_mode((640, 480))
         _pg.display.set_caption(WINDOW_TITLE)
@@ -864,16 +906,21 @@ def main():
 
             if smoother is not None:
                 smoother.reset()
-            latencies = process_source(args, pose_tracker, src,
-                                       draw_skeleton,
-                                       smoother=smoother,
-                                       bone_smoother=bone_smoother,
-                                       screen=screen)
+            latencies = process_source(
+                args,
+                pose_tracker,
+                src,
+                draw_skeleton,
+                smoother=smoother,
+                bone_smoother=bone_smoother,
+                screen=screen,
+            )
             print_latency_summary(latencies)
             all_latencies.extend(latencies)
     finally:
         if not args.headless:
             import pygame as _pg
+
             _pg.quit()
 
     # ── Batch summary ───────────────────────────────────────────────

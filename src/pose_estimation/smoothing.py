@@ -77,17 +77,26 @@ class PoseSmoother:
     def __init__(self, match_threshold=150, carry_damping=None):
         self.match_threshold = match_threshold
         if carry_damping is None:
-            carry_damping = float(
-                os.environ.get("POSE_BENCH_CARRY_DAMPING", "0.8"))
+            carry_damping = float(os.environ.get("POSE_BENCH_CARRY_DAMPING", "0.8"))
         self.carry_damping = carry_damping
         self.body_tracks = []
         self.hand_tracks = []
         self._n_active_bodies = 0
         self._n_active_hands = 0
 
-    def _match_and_smooth(self, tracks, landmarks, get_anchor, new_filter_fn,
-                          t, grace=0, max_tracks=None, emit_carry=False,
-                          confidences=None, static_carry=False):
+    def _match_and_smooth(
+        self,
+        tracks,
+        landmarks,
+        get_anchor,
+        new_filter_fn,
+        t,
+        grace=0,
+        max_tracks=None,
+        emit_carry=False,
+        confidences=None,
+        static_carry=False,
+    ):
         """Match landmarks to existing tracks, smooth, and return.
 
         Each track is a 7-tuple:
@@ -157,8 +166,7 @@ class PoseSmoother:
             conf = confidences[lm_idx] if confidences is not None else None
             s = filt(lm, t, confidence=conf)
             velocity = filt.dx_prev.copy() if filt.dx_prev is not None else None
-            new_tracks.append(
-                (filt, get_anchor(s).copy(), age, 0, s.copy(), velocity, t))
+            new_tracks.append((filt, get_anchor(s).copy(), age, 0, s.copy(), velocity, t))
             smoothed.append(s)
 
         n_active = len(smoothed)
@@ -166,8 +174,7 @@ class PoseSmoother:
         # Carry forward unmatched tracks within grace period.
         # Decrement age each missed frame so intermittent false
         # positives cannot accumulate age across grace gaps.
-        for i, (filt, prev_anchor, age, misses, last_out,
-                last_vel, last_t) in enumerate(tracks):
+        for i, (filt, prev_anchor, age, misses, last_out, last_vel, last_t) in enumerate(tracks):
             if i in used or misses >= grace:
                 continue
             new_misses = misses + 1
@@ -176,17 +183,16 @@ class PoseSmoother:
                 if static_carry:
                     predicted = last_out
                 else:
-                    predicted = self._extrapolate(
-                        last_out, last_vel, last_t, t, new_misses)
+                    predicted = self._extrapolate(last_out, last_vel, last_t, t, new_misses)
                 new_anchor = get_anchor(predicted).copy()
                 new_tracks.append(
-                    (filt, new_anchor, decayed_age, new_misses,
-                     predicted.copy(), last_vel, t))
+                    (filt, new_anchor, decayed_age, new_misses, predicted.copy(), last_vel, t)
+                )
                 smoothed.append(predicted)
             else:
                 new_tracks.append(
-                    (filt, prev_anchor, decayed_age, new_misses,
-                     last_out, last_vel, last_t))
+                    (filt, prev_anchor, decayed_age, new_misses, last_out, last_vel, last_t)
+                )
 
         return new_tracks, smoothed, n_active
 
@@ -204,7 +210,7 @@ class PoseSmoother:
         if dt <= 0:
             return last_output
 
-        damping = self.carry_damping ** misses
+        damping = self.carry_damping**misses
         step = last_velocity * dt * damping
 
         # Cap per-keypoint displacement magnitude
@@ -217,16 +223,13 @@ class PoseSmoother:
 
     def body_track_ages(self):
         """Return the age (in frames) of each active body track."""
-        return [age for _, _, age, _, _, _, _ in
-                self.body_tracks[:self._n_active_bodies]]
+        return [age for _, _, age, _, _, _, _ in self.body_tracks[: self._n_active_bodies]]
 
     def hand_track_ages(self):
         """Return the age (in frames) of each active hand track."""
-        return [age for _, _, age, _, _, _, _ in
-                self.hand_tracks[:self._n_active_hands]]
+        return [age for _, _, age, _, _, _, _ in self.hand_tracks[: self._n_active_hands]]
 
-    def smooth_bodies(self, body_landmarks, body_visibilities, t,
-                      shoulder_indices=(0, 1)):
+    def smooth_bodies(self, body_landmarks, body_visibilities, t, shoulder_indices=(0, 1)):
         """Smooth body landmarks and return (landmarks, visibilities, n_detected).
 
         *n_detected* is the number of bodies that were genuinely matched
@@ -246,10 +249,10 @@ class PoseSmoother:
         body_g = float(os.environ.get("POSE_BENCH_CONFIDENCE_GAMMA", "2.0"))
         grace = int(os.environ.get("POSE_BENCH_CARRY_GRACE", "10"))
         self.body_tracks, smoothed, n_active = self._match_and_smooth(
-            self.body_tracks, lm_list,
+            self.body_tracks,
+            lm_list,
             get_anchor=lambda lm: (lm[si[0], :2] + lm[si[1], :2]) / 2,
-            new_filter_fn=lambda: OneEuroFilter(
-                min_cutoff=body_mc, beta=body_b, gamma=body_g),
+            new_filter_fn=lambda: OneEuroFilter(min_cutoff=body_mc, beta=body_b, gamma=body_g),
             t=t,
             grace=grace,
             emit_carry=True,
@@ -265,8 +268,7 @@ class PoseSmoother:
             vis.extend([np.ones(n_kp)] * n_carried)
         return smoothed, vis, n_active
 
-    def smooth_hands(self, hand_landmarks, t, hand_flags=None,
-                     grace=None, max_tracks=None):
+    def smooth_hands(self, hand_landmarks, t, hand_flags=None, grace=None, max_tracks=None):
         if grace is None:
             grace = int(os.environ.get("POSE_BENCH_CARRY_GRACE", "10"))
         hand_mc = float(os.environ.get("POSE_BENCH_HAND_MIN_CUTOFF", "1.0"))
@@ -276,10 +278,10 @@ class PoseSmoother:
         if hand_flags is not None:
             confs = [np.full(21, f) for f in hand_flags]
         self.hand_tracks, smoothed, n_active = self._match_and_smooth(
-            self.hand_tracks, hand_landmarks or [],
+            self.hand_tracks,
+            hand_landmarks or [],
             get_anchor=lambda lm: lm[0, :2],
-            new_filter_fn=lambda: OneEuroFilter(
-                min_cutoff=hand_mc, beta=hand_b, gamma=hand_g),
+            new_filter_fn=lambda: OneEuroFilter(min_cutoff=hand_mc, beta=hand_b, gamma=hand_g),
             t=t,
             grace=grace,
             static_carry=True,
@@ -306,8 +308,7 @@ class PoseSmoother:
 
     def hand_carry_flags(self):
         """Return a list of bools: whether each active hand track is carrying."""
-        return [misses > 0
-                for _, _, _, misses, _, _, _ in self.hand_tracks]
+        return [misses > 0 for _, _, _, misses, _, _, _ in self.hand_tracks]
 
     @staticmethod
     def compute_smooth_delta(raw_landmarks, smoothed_landmarks):

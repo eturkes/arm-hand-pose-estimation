@@ -124,7 +124,6 @@ select = [
 ]
 ignore = [
     "E501",   # line-too-long (formatter handles it)
-    "PD901",  # allow `df` as a variable name
     "SIM108", # ternary is not always clearer
 ]
 

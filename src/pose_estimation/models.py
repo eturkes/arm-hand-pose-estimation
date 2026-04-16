@@ -64,7 +64,9 @@ def download_and_compile_models(model_dir="model", device="NPU"):
     compiled = {}
     for name, ir_path in ir_files.items():
         compiled[name] = core.compile_model(
-            model=core.read_model(ir_path), device_name=device, config=config,
+            model=core.read_model(ir_path),
+            device_name=device,
+            config=config,
         )
 
     print(f"All models compiled for {device}.")

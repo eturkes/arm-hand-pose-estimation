@@ -65,15 +65,13 @@ class BoneLengthSmoother:
         to the proximal keypoint.
     """
 
-    def __init__(self, alpha=None, tolerance=None, segments=None,
-                 distal_weight=None):
+    def __init__(self, alpha=None, tolerance=None, segments=None, distal_weight=None):
         if alpha is None:
             alpha = float(os.environ.get("POSE_BENCH_BONE_EMA_ALPHA", "0.05"))
         if tolerance is None:
             tolerance = float(os.environ.get("POSE_BENCH_BONE_TOLERANCE", "0.4"))
         if distal_weight is None:
-            distal_weight = float(
-                os.environ.get("POSE_BENCH_BONE_DISTAL_WEIGHT", "0.8"))
+            distal_weight = float(os.environ.get("POSE_BENCH_BONE_DISTAL_WEIGHT", "0.8"))
         self.alpha = alpha
         self.tolerance = tolerance
         self.distal_weight = distal_weight
@@ -97,10 +95,7 @@ class BoneLengthSmoother:
             correction magnitude in pixels (sum of distal-keypoint
             displacements).
         """
-        lengths = np.array([
-            np.linalg.norm(landmarks[d] - landmarks[p])
-            for p, d in self.segments
-        ])
+        lengths = np.array([np.linalg.norm(landmarks[d] - landmarks[p]) for p, d in self.segments])
 
         if body_id not in self._averages:
             self._averages[body_id] = lengths.copy()
@@ -127,8 +122,8 @@ class BoneLengthSmoother:
                 landmarks[d] -= self.distal_weight * overshoot
                 landmarks[p] += (1 - self.distal_weight) * overshoot
                 total_correction += float(
-                    np.linalg.norm(landmarks[d] - old_d)
-                    + np.linalg.norm(landmarks[p] - old_p))
+                    np.linalg.norm(landmarks[d] - old_d) + np.linalg.norm(landmarks[p] - old_p)
+                )
 
         return landmarks, total_correction
 
@@ -223,10 +218,12 @@ def clamp_joint_angles(landmarks, limits=None):
         v1_hat = v1 / len_v1
         cos_t = np.cos(target_signed)
         sin_t = np.sin(target_signed)
-        new_dir = np.array([
-            v1_hat[0] * cos_t - v1_hat[1] * sin_t,
-            v1_hat[0] * sin_t + v1_hat[1] * cos_t,
-        ])
+        new_dir = np.array(
+            [
+                v1_hat[0] * cos_t - v1_hat[1] * sin_t,
+                v1_hat[0] * sin_t + v1_hat[1] * cos_t,
+            ]
+        )
 
         landmarks[dist, :2] = landmarks[joint, :2] + new_dir * len_v2
 

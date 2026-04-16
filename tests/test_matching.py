@@ -59,7 +59,7 @@ def test_no_hands_empty():
 def test_single_body_two_hands():
     """Single body, two hands near the wrists → both matched."""
     body = _make_body()
-    hand_left = _make_hand(60, 305)    # near left wrist (60, 300)
+    hand_left = _make_hand(60, 305)  # near left wrist (60, 300)
     hand_right = _make_hand(240, 305)  # near right wrist (240, 300)
 
     result = match_hands_to_arms([body], [hand_left, hand_right])
@@ -88,7 +88,7 @@ def test_optimal_not_greedy():
     regardless of processing order.
     """
     body = _make_body()
-    hand_a = _make_hand(60, 300)   # near left wrist (60, 300)
+    hand_a = _make_hand(60, 300)  # near left wrist (60, 300)
     hand_b = _make_hand(240, 300)  # near right wrist (240, 300)
 
     # Regardless of input order, optimal assignment should pair correctly
