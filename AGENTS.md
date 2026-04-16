@@ -171,15 +171,33 @@ Export column prefix is `arm_` for hands-arms, `body_` for body mode.
 
 - Managed by `uv` (`pyproject.toml` + `uv.lock`)
 - Python virtual environment in `.venv/`
+- `.python-version` pins the interpreter for `uv`
 - Host runs Linux with GNOME Wayland and Homebrew Python 3.14
 - The `.venv` must be created on the host, not inside a container
   (absolute symlinks to the Python binary are not portable)
 
 ## Package Installation
 
-- Python deps live in `pyproject.toml`; add new deps there and
-  run `uv sync` on the host (the assistant cannot do this in
-  the container because `.venv` symlinks are host-specific)
-
+- Python deps live in `pyproject.toml` under `[project.dependencies]`;
+  dev/test/lint/type-check deps live in `[dependency-groups]`
+- Add new deps there and run `uv sync` on the host (the assistant
+  cannot do this in the container because `.venv` symlinks are
+  host-specific).  Use `uv add <pkg>` / `uv add --group test <pkg>`
+  so `uv.lock` updates atomically.
 - `uv.lock` is committed for reproducible installs
+- Build backend is `hatchling`; wheels package `src/pose_estimation`
 - When installing R packages, use `renv` (not the global library)
+
+## Dev Tooling
+
+Configured in `pyproject.toml`; installed via `uv sync` (dev group):
+
+- `ruff` — lint + format (replaces black, isort, flake8, pyupgrade).
+  Run `uv run ruff check --fix` and `uv run ruff format`.
+  Config: `[tool.ruff]`; line length 100, target py310, rule set
+  includes pyupgrade, bugbear, simplify, pathlib, numpy, pandas, perf.
+- `ty` — Astral's type checker (alpha, pre-1.0).  Run `uv run ty check`.
+  Config: `[tool.ty.*]`.
+- `pytest` — test runner with `-ra --strict-config --strict-markers
+  --import-mode=importlib`.  Warnings are errors (filterwarnings).
+- `pytest-cov` — coverage.  Run `uv run pytest --cov=pose_estimation`.
