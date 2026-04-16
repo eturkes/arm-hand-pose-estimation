@@ -147,7 +147,7 @@ class PoseSmoother:
             diff = anchors_lm[:, None, :] - anchors_tr[None, :, :]
             cost = np.linalg.norm(diff, axis=2)
             row_ind, col_ind = linear_sum_assignment(cost)
-            for r, c in zip(row_ind, col_ind):
+            for r, c in zip(row_ind, col_ind, strict=False):
                 if cost[r, c] < self.match_threshold:
                     lm_to_track[r] = c
                     used.add(c)

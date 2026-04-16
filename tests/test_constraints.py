@@ -92,7 +92,7 @@ def test_ema_converges():
 
     true_lengths = np.array([np.linalg.norm(lm[d] - lm[p]) for p, d in BONE_SEGMENTS])
 
-    for i in range(25):
+    for _i in range(25):
         _, _ = smoother.update(0, lm.copy())
 
     avg = smoother._averages[0]

@@ -22,7 +22,7 @@ def _feed(sm, centers, t, n_kps=5):
 def test_new_track_suppressed():
     """A brand-new track (age=1) is not emitted when min_track_age > 1."""
     sm = KeypointSmoother(min_track_age=3)
-    out_kps, out_scores = _feed(sm, [(100, 100)], t=0.0)
+    out_kps, _out_scores = _feed(sm, [(100, 100)], t=0.0)
     assert out_kps is None, "new track should be suppressed"
     # Track should still exist internally
     assert len(sm.tracks) == 1

@@ -19,7 +19,7 @@ Requirements:
 
 import argparse
 import collections
-import os
+import pathlib
 import subprocess
 import sys
 import time
@@ -116,7 +116,8 @@ BONE_SEGMENTS_WB = [
     (10, 112),  # right wrist → right index-finger MCP
 ]
 
-BONE_SEGMENTS_WB_BODY = BONE_SEGMENTS_WB + [
+BONE_SEGMENTS_WB_BODY = [
+    *BONE_SEGMENTS_WB,
     (11, 13),  # left hip → left knee
     (13, 15),  # left knee → left ankle
     (12, 14),  # right hip → right knee
@@ -357,7 +358,7 @@ class KeypointSmoother:
         trk_c = np.array([tr["centroid"] for tr in self.tracks])
         cost = np.linalg.norm(det_centroids[:, None, :] - trk_c[None, :, :], axis=2)
         row_ind, col_ind = linear_sum_assignment(cost)
-        for r, c in zip(row_ind, col_ind):
+        for r, c in zip(row_ind, col_ind, strict=False):
             if cost[r, c] < self.match_thresh:
                 matched[int(r)] = int(c)
                 used_tracks.add(int(c))
@@ -436,12 +437,12 @@ def _patch_rtmlib_openvino():
         device="cpu",
     ):
         if backend == "openvino":
-            import os
+            from pathlib import Path
 
             from openvino import Core
             from rtmlib.tools.file import download_checkpoint
 
-            if not os.path.exists(onnx_model):
+            if not Path(onnx_model).exists():
                 onnx_model = download_checkpoint(onnx_model)
 
             core = Core()
@@ -531,10 +532,8 @@ def _patch_rtmlib_openvino():
 
 def collect_video_files(batch_dir):
     """Return sorted list of video file paths in *batch_dir*."""
-    files = []
-    for f in sorted(os.listdir(batch_dir)):
-        if os.path.splitext(f)[1].lower() in VIDEO_EXTS:
-            files.append(os.path.join(batch_dir, f))
+    batch_path = pathlib.Path(batch_dir)
+    files = sorted(str(p) for p in batch_path.iterdir() if p.suffix.lower() in VIDEO_EXTS)
     if not files:
         raise RuntimeError(f"No video files found in {batch_dir}")
     return files
@@ -598,7 +597,7 @@ def parse_args():
         choices=["performance", "balanced", "lightweight"],
         help="Model quality/speed tier (default: balanced)",
     )
-    model_names = list(MODEL_REGISTRY.keys()) + ["mediapipe"]
+    model_names = [*list(MODEL_REGISTRY.keys()), "mediapipe"]
     p.add_argument(
         "--model",
         default=DEFAULT_MODEL,
@@ -742,7 +741,7 @@ def process_source(
                         fh, fw = img_show.shape[:2]
                         screen = pygame.display.set_mode((fw, fh))
                         video_name = (
-                            os.path.basename(source_str) if not source_str.isdigit() else None
+                            pathlib.Path(source_str).name if not source_str.isdigit() else None
                         )
                         if video_name:
                             pygame.display.set_caption(f"{WINDOW_TITLE} — {video_name}")

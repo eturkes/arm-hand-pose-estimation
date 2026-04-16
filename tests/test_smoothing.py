@@ -24,7 +24,7 @@ def test_no_confidence_unchanged_behaviour():
         results_no_conf.append(f1(noisy, t))
         results_none.append(f2(noisy, t, confidence=None))
 
-    for a, b in zip(results_no_conf, results_none):
+    for a, b in zip(results_no_conf, results_none, strict=False):
         np.testing.assert_allclose(a, b, atol=1e-12)
 
 
@@ -168,10 +168,10 @@ def test_hand_path_unaffected():
     smoother = PoseSmoother()
     lm = [_make_landmarks(21)]
 
-    r1, n1 = smoother.smooth_hands(lm, 0.0)
+    r1, _n1 = smoother.smooth_hands(lm, 0.0)
     assert len(r1) == 1
 
-    r2, n2 = smoother.smooth_hands([lm[0] + 5.0], 0.1)
+    r2, _n2 = smoother.smooth_hands([lm[0] + 5.0], 0.1)
     assert len(r2) == 1
     # Should be smoothed, not identical to input
     assert not np.allclose(r2[0], lm[0] + 5.0)

@@ -139,10 +139,8 @@ def _smooth_detections(new_dets, prev_dets, match_threshold=0.15, alpha=None):
     cost = np.linalg.norm(diff, axis=2)
     row_ind, col_ind = linear_sum_assignment(cost)
 
-    matched = {}  # new index -> prev index
-    for r, c in zip(row_ind, col_ind):
-        if cost[r, c] < match_threshold:
-            matched[r] = c
+    # new index -> prev index
+    matched = {r: c for r, c in zip(row_ind, col_ind, strict=False) if cost[r, c] < match_threshold}
 
     smoothed = []
     for i, new_det in enumerate(new_dets):
@@ -209,8 +207,8 @@ def _synthesise_hand_detections(
         b = det["box"]
         palm_centres.append((b[:2] + b[2:]) / 2)
 
-    for body_lm, body_vis in zip(body_landmarks, body_visibilities):
-        for shoulder_idx, elbow_idx, wrist_idx in arm_chains:
+    for body_lm, body_vis in zip(body_landmarks, body_visibilities, strict=False):
+        for _shoulder_idx, elbow_idx, wrist_idx in arm_chains:
             wrist_px = body_lm[wrist_idx, :2]
             elbow_px = body_lm[elbow_idx, :2]
 
@@ -437,7 +435,7 @@ def detect_pose_landmarks(frame, detection, pose_lm_compiled, keypoint_indices=N
     """Run pose landmark model and extract the requested keypoints.
 
     *keypoint_indices* selects which of the 39 raw landmarks to return.
-    Defaults to the 12 arm keypoints (indices 11–22) for backward
+    Defaults to the 12 arm keypoints (indices 11-22) for backward
     compatibility.
 
     Returns (landmarks, visibility, pose_flag).
@@ -546,9 +544,6 @@ def match_hands_to_arms(
             wrist_positions.append(arm_lm[wrist_kp, :2])
             shoulder_mids.append(shoulder_mid)
 
-    n_wrists = len(rows)
-    n_hands = len(hand_landmarks)
-
     # Cost matrix: Euclidean distance between each wrist and hand wrist
     hand_wrists = np.array([h[0, :2] for h in hand_landmarks])
     wrist_arr = np.array(wrist_positions)
@@ -557,7 +552,7 @@ def match_hands_to_arms(
     row_ind, col_ind = linear_sum_assignment(cost)
 
     matches = []
-    for r, c in zip(row_ind, col_ind):
+    for r, c in zip(row_ind, col_ind, strict=False):
         if cost[r, c] >= threshold:
             continue
         arm_idx, wrist_kp = rows[r]

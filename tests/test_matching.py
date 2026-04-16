@@ -71,7 +71,7 @@ def test_single_body_two_hands():
     assert matched_hand_idxs == {0, 1}
 
     # Verify correct pairing: hand 0 (left) → wrist 4, hand 1 (right) → wrist 5
-    for arm_idx, wrist_kp, hand_idx in result:
+    for _arm_idx, wrist_kp, hand_idx in result:
         if wrist_kp == 4:
             assert hand_idx == 0
         elif wrist_kp == 5:
@@ -95,7 +95,7 @@ def test_optimal_not_greedy():
     for hands in [[hand_a, hand_b], [hand_b, hand_a]]:
         result = match_hands_to_arms([body], hands)
         assert len(result) == 2
-        for arm_idx, wrist_kp, hand_idx in result:
+        for _arm_idx, wrist_kp, hand_idx in result:
             hand_wrist = hands[hand_idx][0, :2]
             arm_wrist = body[wrist_kp, :2]
             assert np.linalg.norm(hand_wrist - arm_wrist) < 5

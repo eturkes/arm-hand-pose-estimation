@@ -27,11 +27,13 @@ def download_file(url, filepath):
     response.raise_for_status()
     total = int(response.headers.get("Content-length", 0))
 
-    with tqdm(total=total, unit="B", unit_scale=True, desc=filepath.name) as pbar:
-        with open(filepath, "wb") as f:
-            for chunk in response.iter_content(16384):
-                f.write(chunk)
-                pbar.update(len(chunk))
+    with (
+        tqdm(total=total, unit="B", unit_scale=True, desc=filepath.name) as pbar,
+        filepath.open("wb") as f,
+    ):
+        for chunk in response.iter_content(16384):
+            f.write(chunk)
+            pbar.update(len(chunk))
 
     return filepath
 

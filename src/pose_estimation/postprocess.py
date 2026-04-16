@@ -18,12 +18,12 @@ def _lazy_imports():
     """Import pandas and scipy at call time; raise a clear error if missing."""
     try:
         import pandas as pd
-    except ImportError:
-        raise ImportError("postprocess requires pandas. Install with: pip install pandas")
+    except ImportError as e:
+        raise ImportError("postprocess requires pandas. Install with: pip install pandas") from e
     try:
         from scipy.signal import savgol_filter
-    except ImportError:
-        raise ImportError("postprocess requires scipy. Install with: pip install scipy")
+    except ImportError as e:
+        raise ImportError("postprocess requires scipy. Install with: pip install scipy") from e
     return pd, savgol_filter
 
 
@@ -73,7 +73,7 @@ def _smooth_column(series, window, polyorder, savgol_filter):
     seg_id = (valid != valid.shift()).cumsum()
     result = interp.copy()
 
-    for sid, grp in interp.groupby(seg_id):
+    for _sid, grp in interp.groupby(seg_id):
         if grp.isna().all():
             continue
         n = len(grp)

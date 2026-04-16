@@ -75,10 +75,6 @@ def _apply_param_overrides(overrides):
     for key, value in overrides.items():
         if key not in TUNEABLE_PARAMS:
             raise ValueError(f"Unknown tuneable parameter: {key}")
-        module_name, attr, _ = TUNEABLE_PARAMS[key]
-        mod = {"smoothing": smoothing, "processing": processing, "constraints": constraints}[
-            module_name
-        ]
 
         # Patch the OneEuroFilter defaults via PoseSmoother methods
         if key == "body_min_cutoff":
@@ -161,7 +157,7 @@ def run_single(
 
     # Write param config for traceability
     config_path = run_dir / "params.json"
-    with open(config_path, "w") as f:
+    with config_path.open("w") as f:
         json.dump(overrides, f, indent=2)
 
     # For now, use subprocess to pose_estimation.main in headless mode.
@@ -231,7 +227,7 @@ def generate_grid(sweep_spec):
     keys = list(sweep_spec.keys())
     values = [sweep_spec[k] for k in keys]
     combos = list(itertools.product(*values))
-    return [dict(zip(keys, combo)) for combo in combos]
+    return [dict(zip(keys, combo, strict=False)) for combo in combos]
 
 
 # ---------------------------------------------------------------------------
@@ -284,10 +280,11 @@ def main():
             sweep_spec[param_name] = values
 
     if args.config:
+        config_path = pathlib.Path(args.config)
         try:
             import yaml
 
-            with open(args.config) as f:
+            with config_path.open() as f:
                 yaml_spec = yaml.safe_load(f)
             if isinstance(yaml_spec, dict):
                 for k, v in yaml_spec.items():
@@ -295,7 +292,7 @@ def main():
                         sweep_spec[k] = [float(x) for x in v] if isinstance(v, list) else [float(v)]
         except ImportError:
             # Fall back to JSON
-            with open(args.config) as f:
+            with config_path.open() as f:
                 json_spec = json.load(f)
             for k, v in json_spec.items():
                 if k in TUNEABLE_PARAMS:
@@ -336,7 +333,7 @@ def main():
         print(f"  Grid: {len(grid)} parameter combinations")
         print(f"{'=' * 60}")
 
-        for i, overrides in enumerate(grid):
+        for _i, overrides in enumerate(grid):
             run_num += 1
             # Build a human-readable label
             if overrides:
@@ -360,7 +357,7 @@ def main():
 
     # Write aggregate results
     results_path = out_base / "benchmark_results.json"
-    with open(results_path, "w") as f:
+    with results_path.open("w") as f:
         json.dump(all_results, f, indent=2)
     print(f"\n  Results: {results_path}")
 

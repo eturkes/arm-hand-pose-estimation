@@ -174,7 +174,9 @@ def frame_to_rows(
         for arm_idx, wrist_kp, hand_idx in matches:
             hand_map.setdefault(arm_idx, {})[wrist_kp] = hand_idx
 
-        for person_idx, (lm, vis) in enumerate(zip(body_landmarks, body_visibilities)):
+        for person_idx, (lm, vis) in enumerate(
+            zip(body_landmarks, body_visibilities, strict=False)
+        ):
             row = {
                 "video": video_name,
                 "frame_idx": frame_idx,
@@ -227,11 +229,14 @@ def frame_to_rows(
 
 
 def open_csv_writer(output_path, tracking=TRACKING_HANDS_ARMS):
-    """Open a CSV file for writing and return (file_handle, csv.DictWriter)."""
+    """Open a CSV file for writing and return (file_handle, csv.DictWriter).
+
+    Caller owns the file handle and must close it (typically via try/finally).
+    """
     output_path = pathlib.Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     header = make_csv_header(tracking)
-    fh = open(output_path, "w", newline="")
+    fh = output_path.open("w", newline="")
     writer = csv.DictWriter(fh, fieldnames=header)
     writer.writeheader()
     return fh, writer

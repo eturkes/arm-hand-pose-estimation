@@ -97,7 +97,7 @@ def test_no_tracks_no_crash():
     sm = KeypointSmoother(match_thresh=200, min_track_age=1)
     kps = np.array([[[50.0, 50.0], [60.0, 60.0]]])
     scores = np.ones((1, 2))
-    out_kps, out_scores = sm(kps, scores, t=0.0)
+    out_kps, _out_scores = sm(kps, scores, t=0.0)
     assert out_kps is not None
     assert out_kps.shape[0] == 1
 
@@ -108,7 +108,7 @@ def test_empty_detections():
     kps = np.array([[[50.0, 50.0]]])
     sm(kps, np.ones((1, 1)), t=0.0)
 
-    out_kps, out_scores = sm(None, None, t=0.033)
+    out_kps, _out_scores = sm(None, None, t=0.033)
     assert out_kps is not None
     assert len(sm.tracks) == 1
     assert sm.tracks[0]["misses"] == 1

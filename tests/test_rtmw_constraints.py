@@ -112,7 +112,7 @@ def test_rtmw_body_smoother_with_legs():
     direction = knee - hip
     perturbed[13] = hip + direction * 2.0
 
-    result, correction = smoother.update(0, perturbed)
+    _result, correction = smoother.update(0, perturbed)
     assert correction > 0
 
 

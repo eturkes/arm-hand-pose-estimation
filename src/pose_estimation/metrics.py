@@ -149,9 +149,9 @@ class MetricsCollector:
 
         stem = pathlib.Path(video_name).stem
 
-        # Main metrics CSV
+        # Main metrics CSV (persistent handle; closed in flush())
         self._metrics_path = self.output_dir / f"{stem}_metrics.csv"
-        self._metrics_fh = open(self._metrics_path, "w", newline="")
+        self._metrics_fh = self._metrics_path.open("w", newline="")
         self._metrics_w = csv.DictWriter(self._metrics_fh, fieldnames=METRICS_FIELDS)
         self._metrics_w.writeheader()
 
@@ -160,7 +160,7 @@ class MetricsCollector:
         self._detail_fh = None
         if detail:
             self._detail_path = self.output_dir / f"{stem}_kp_detail.csv"
-            self._detail_fh = open(self._detail_path, "w", newline="")
+            self._detail_fh = self._detail_path.open("w", newline="")
             self._detail_w = csv.DictWriter(self._detail_fh, fieldnames=KP_DETAIL_FIELDS)
             self._detail_w.writeheader()
 

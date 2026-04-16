@@ -27,9 +27,9 @@ def generate_anchors(input_size, strides):
         grid_size = input_size // stride
         for y in range(grid_size):
             for x in range(grid_size):
-                for _ in range(same_stride_count):
-                    for _ in range(2):
-                        anchors.append([(x + 0.5) / grid_size, (y + 0.5) / grid_size])
+                anchors.extend(
+                    [[(x + 0.5) / grid_size, (y + 0.5) / grid_size]] * (same_stride_count * 2)
+                )
         layer_id += same_stride_count
     return np.array(anchors, dtype=np.float32)
 
@@ -104,13 +104,6 @@ def decode_detections(
 
     indices = nms(boxes, filtered_scores, iou_threshold)
 
-    detections = []
-    for i in indices:
-        detections.append(
-            {
-                "box": boxes[i],
-                "score": filtered_scores[i],
-                "keypoints": keypoints[i],
-            }
-        )
-    return detections
+    return [
+        {"box": boxes[i], "score": filtered_scores[i], "keypoints": keypoints[i]} for i in indices
+    ]

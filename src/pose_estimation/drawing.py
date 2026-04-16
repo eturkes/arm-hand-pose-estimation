@@ -190,7 +190,7 @@ def draw_body_landmarks(img, body_landmarks, body_visibilities, visibility_thres
 
     img_limbs = np.copy(img)
 
-    for landmarks, visibility in zip(body_landmarks, body_visibilities):
+    for landmarks, visibility in zip(body_landmarks, body_visibilities, strict=False):
         points = landmarks[:, :2]
 
         for chain_indices, group in chains:

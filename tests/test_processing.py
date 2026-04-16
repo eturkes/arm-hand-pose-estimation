@@ -112,7 +112,6 @@ def test_synthesise_hand_from_arm():
     forearm_len = 100.0
     box = left_det["box"]
     box_px = box * np.array([frame_w, frame_h, frame_w, frame_h])
-    box_centre_x = (box_px[0] + box_px[2]) / 2
     box_centre_y = (box_px[1] + box_px[3]) / 2
     box_w = box_px[2] - box_px[0]
     box_h = box_px[3] - box_px[1]
@@ -181,7 +180,7 @@ def test_recrop_from_landmarks():
     assert abs(det_cx - expected_cx) < 0.01
     assert abs(det_cy - expected_cy) < 0.01
 
-    # Box size should be 2× palm length (box_half = palm_len)
+    # Box size should be 2x palm length (box_half = palm_len)
     palm_len = np.linalg.norm(mcp_px - wrist_px)
     expected_w_norm = (2 * palm_len) / frame_w
     actual_w = box[2] - box[0]

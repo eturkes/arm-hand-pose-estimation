@@ -241,7 +241,11 @@ def process_video(
                 # Filter transient hand tracks by age and cap at 2
                 hand_ages = smoother.hand_track_ages()
                 aged = sorted(
-                    ((lm, age) for lm, age in zip(hand_lm, hand_ages) if age >= min_hand_age),
+                    (
+                        (lm, age)
+                        for lm, age in zip(hand_lm, hand_ages, strict=False)
+                        if age >= min_hand_age
+                    ),
                     key=lambda x: x[1],
                     reverse=True,
                 )
@@ -250,7 +254,11 @@ def process_video(
                 # Hands-only: cap at 2 and filter by age
                 hand_ages = smoother.hand_track_ages()
                 aged = sorted(
-                    ((lm, age) for lm, age in zip(hand_lm, hand_ages) if age >= min_track_age),
+                    (
+                        (lm, age)
+                        for lm, age in zip(hand_lm, hand_ages, strict=False)
+                        if age >= min_track_age
+                    ),
                     key=lambda x: x[1],
                     reverse=True,
                 )
@@ -265,7 +273,7 @@ def process_video(
                 body_vis = [body_vis[i] for i in body_keep]
                 hand_lm = [
                     lm
-                    for lm, age in zip(hand_lm[:n_hands_active], hand_ages)
+                    for lm, age in zip(hand_lm[:n_hands_active], hand_ages, strict=False)
                     if age >= min_track_age
                 ]
 
@@ -549,7 +557,7 @@ def main():
                 csv_path = pathlib.Path(args.output_dir) / f"{vpath.stem}.csv"
                 fh, writer = open_csv_writer(csv_path, tracking=tracking)
                 diag_path = pathlib.Path(args.output_dir) / f"{vpath.stem}_diag.csv"
-                diag_fh = open(diag_path, "w", newline="")
+                diag_fh = diag_path.open("w", newline="")
                 diag_w = csv.DictWriter(diag_fh, fieldnames=DIAG_FIELDS)
                 diag_w.writeheader()
                 mc = MetricsCollector(args.output_dir, vpath.name, detail=args.metrics_detail)
@@ -603,7 +611,7 @@ def main():
                 csv_path = pathlib.Path(args.output_dir) / f"{vpath.stem}.csv"
                 fh, csv_writer = open_csv_writer(csv_path, tracking=tracking)
                 diag_path = pathlib.Path(args.output_dir) / f"{vpath.stem}_diag.csv"
-                diag_fh = open(diag_path, "w", newline="")
+                diag_fh = diag_path.open("w", newline="")
                 diag_w = csv.DictWriter(diag_fh, fieldnames=DIAG_FIELDS)
                 diag_w.writeheader()
                 mc = MetricsCollector(args.output_dir, vpath.name, detail=args.metrics_detail)

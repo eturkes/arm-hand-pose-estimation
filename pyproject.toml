@@ -125,6 +125,8 @@ select = [
 ignore = [
     "E501",   # line-too-long (formatter handles it)
     "SIM108", # ternary is not always clearer
+    "N803",   # argument naming — scientific convention (L/R side, M matrix)
+    "N806",   # variable naming — scientific convention (L/R side, M matrix)
 ]
 
 [tool.ruff.lint.per-file-ignores]

@@ -35,7 +35,8 @@ def test_make_filters_17_creates_single():
     """For non-133 kps (e.g. body-only 17), fall back to single filter."""
     sm = KeypointSmoother()
     filters = sm._make_filters(17)
-    assert "all" in filters and len(filters) == 1
+    assert "all" in filters
+    assert len(filters) == 1
 
 
 def test_region_smoothing_differs_from_uniform():
@@ -45,10 +46,8 @@ def test_region_smoothing_differs_from_uniform():
     sc = np.ones(133)
 
     # Build the same noisy sequence for both smoothers
-    frames = []
     rng = np.random.RandomState(6193)
-    for step in range(30):
-        frames.append(base + rng.randn(133, 2) * 5.0)
+    frames = [base + rng.randn(133, 2) * 5.0 for _ in range(30)]
 
     # Region smoother (default)
     sm_region = KeypointSmoother()
@@ -145,7 +144,6 @@ if __name__ == "__main__":
     test_region_params_cover_all_133()
     test_make_filters_133_creates_regions()
     test_make_filters_17_creates_single()
-    test_hands_smoothed_less_than_body()
     test_region_filters_independent()
     test_smoother_output_shape_133()
     test_smoother_output_shape_17()
