@@ -318,6 +318,16 @@ Context retained only when source, tests, technical docs, roadmap, and git do no
   shape test called an allowlist (P13), a budget figure carried unlabelled (P14). **Cost of the
   ruling is one amendment each; cost of trusting the text is a green gate over a false claim.** Budget
   a diff-blind grading pass per kernel unit and expect its findings to land in the contract.
+- **The primary tree must stay green, so a red TDD suite lives on its archive tag, never in `tests/`.**
+  `tests/test_r_timebase_truth.py::test_c8_08` is a committed meta-gate that runs the WHOLE suite in a
+  subprocess (`pytest -q --maxfail=1 -k "not test_c8_08"`, cwd = project root) and asserts rc=0, then
+  reconciles the pass count against a separate collection. One red file anywhere in `tests/` fails it
+  and takes the decisive gate down for the whole unit. Measured on M2.8.3's suite: present → **59
+  failed / 1643 passed** with `test_c8_08` failing in isolation too (so it is the meta-test, not
+  concurrency); absent → green at **1642 passed**. **Workflow: diff-blind suite stays on
+  `archive/m<m>u<u>-test[-<k>]`; the implementing unit restores it with `git show <tag>:tests/<file> >
+  tests/<file>`, drives it green, and commits it green.** The generic "put the red suite in the primary
+  tree" instruction does not hold here.
 - **A seam that is one immutable value is a unit boundary; find that shape before sizing.** M2.8.3
   overran a `2 est` by three windows because it was two units wearing one id — a schema half = pure
   function of the R definitions + contract, a compute half = pure function of the run, communicating

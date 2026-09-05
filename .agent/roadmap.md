@@ -483,13 +483,36 @@ child keys, the `estimand` literal, the collision `source` token and the `input_
 extend A10 with their exact names and tighten the suite from structural to exact **in the same
 commit**. The deferral was priced on that obligation travelling with it.
 
-**Red suite** = `tests/test_cohort.py` on branch `wt/test-m2u83-3` in worktree
-`.scratch/worktrees/test-m2u83-2`, predecessor tip tagged `archive/m2u83-test-2` = `aa4981e`.
-Measured at `ad007b7`: 47 failed, 1 passed. **The old "0 passed" validator is retired** — it encoded
-a pre-implementation baseline, and now that the schema half ships, a predicate confined to that
-surface passes legitimately (`test_p10_anisotropically_derived_angles_never_claim_bare_degrees` is
-the first). Live criterion: 0 skipped, 0 errors, every predicate touching unshipped compute surface
-fails, and every passing test is named with the shipped surface that justifies it.
+**Red suite COMPLETE, and it lives at tag `archive/m2u83-test-4` = `ca2cb41`, NOT in the primary
+tree** — `tests/test_cohort.py`, 2169 lines, all 18 predicates re-encoded against A01-A22 across
+three successors. **Measured red: 58 failed, 2 passed, 0 skipped, 0 errors, no collection failure**,
+reproduced identically in the primary tree before it was reverted. `ruff check` + `ruff format
+--check` + `ty check` all rc=0. M2.8.5's precondition is met.
+
+**M2.8.5 step 0: `git show archive/m2u83-test-4:tests/test_cohort.py > tests/test_cohort.py`, then
+implement until green, then commit it green.** It must NOT be committed red, and the reason is a
+committed gate: **`tests/test_r_timebase_truth.py::test_c8_08` runs the WHOLE suite in a subprocess
+(`pytest -q --maxfail=1 -k "not test_c8_08"`) and asserts rc=0**, so any red file in the primary tree
+fails it and takes the decisive gate down for the length of the unit. Measured both ways — with the
+red suite present the gate reads **59 failed / 1643 passed** and `test_c8_08` fails in isolation too,
+proving it is the meta-test rather than concurrency; with it absent the gate is green. This is why
+every previous unit's diff-blind suite stayed on its archive tag until it went green, and the
+generic advice to put the red suite in the primary tree does not hold in this repo.
+
+**The two passes are correct and must stay green** — `test_p09_feature_ranges_are_measurement_domains_not_corpus_extremes`
+and `test_p10_units_match_the_closed_measurement_vocabulary`, both confined to schema surface shipped
+at `4c006bd`. **The old "0 passed" validator is retired**: it encoded a pre-implementation baseline,
+and once the schema half shipped a predicate confined to that surface passes legitimately. Live
+criterion — 0 skipped, 0 errors, every predicate touching unshipped compute surface fails, every
+passing test named with the shipped surface that justifies it.
+
+Wave record: `test-m2u83-2` P01-P04 + the A01-A19 seed audit (tag `archive/m2u83-test-2` = `aa4981e`),
+`test-m2u83-3` P05-P13 (`archive/m2u83-test-3` = `2d1fba2`), `test-m2u83-4` P14-P18 (`archive/m2u83-test-4`
+= `ca2cb41`). Report preserved at `.scratch/agents/test-m2u83-suite.md`. **A stale literal survived
+into the last batch and was caught by MAIN's own sweep, not by the agents**: `tests/test_cohort.py:1938`
+asserted `"17" in lowered` for "the exclusion count" when the exclusion count is 3 — 17 was the
+pre-correction trunk/posture column count. Named in the finisher's brief and purged; an AST sweep now
+confirms no `75`, `900` or `17` constant survives (`q75` is a quantile key and stays).
 
 **Gate recipe — `env -u LD_LIBRARY_PATH PYTHONPATH="$PWD/src" uv run --no-sync pytest …`.** A bare
 `uv run pytest` dies at `ImportError … GLIBC_2.43 not found` before collecting one test, in the
