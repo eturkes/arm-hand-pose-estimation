@@ -51,7 +51,7 @@ Live long-horizon state only; completed trajectory belongs in git. Closed-unit d
 | M2.8.2 | Full corpus 2D run | Resumable run over 379 assets, 8.70 h measured (full corpus, 193 events / 379 assets / 337 090 frames); per-asset clinical features plus a manifest giving every asset an explicit disposition. |
 | M2.8.3 | Cohort aggregate publisher + bilingual descriptor | 12 `(task, side)` cohort rows, no subject rows; append-ready `columns.yaml` fragment with full `ja`/`en` labels. |
 
-**Unit status.** M2.1, M2.2 and **M2.3 DONE** — M2.3 across ten windows, closing on P29. **M2.4 DONE** and **M2.5 DONE** — see below. **M2.6 closed negative at F0 and ruled** — extrinsic recovery is measured unachievable on this corpus, and the verdict ships through F1a, see below. **M2.6b closed negative at G0** — the funded repair route is refused by measurement, see below. **M2.7.1 DONE** across four windows — the `calibration_qc/` publisher, both campaigns and its documentation ship. **M2.7.2 DONE** across two — the committed byte oracle and the refusal matrix. **M2.7.3 DONE** in one — the human-facing report and the checker pinning both prose copies of the claim set. **M2.7.4 DONE** in one — the 20-section prospective capture specification and its 13-predicate checker, closing M2.7. **M2.8.1 DONE** across three windows — the four corpus-run blockers, the disposition artifact, the diff-blind suite and the stratified pilot that refuted the 6.5 h run estimate. **M2.8.2 DONE** across two windows — the tracker-freeze fix, the resumable driver, the total disposition manifest and the whole-corpus run, 379/379 assets `ok`. **M2.8.4 DONE** across four windows against a 1-2 estimate — isotropic coordinates, the `--tracking body` corpus re-run at 193/193 and 7.828 h, 17/17 predicates pass, 15 amendments; the funded orientation fix was refuted before it was built. **M2.8.3 OPEN and the lowest OPEN unit**: 3 windows spent, 21 amendments, its counts now measured on the corrected corpus (89 published columns / 1068 feature rows / 12 cells), the suite re-encode in flight, no implementation — see below.
+**Unit status.** M2.1, M2.2 and **M2.3 DONE** — M2.3 across ten windows, closing on P29. **M2.4 DONE** and **M2.5 DONE** — see below. **M2.6 closed negative at F0 and ruled** — extrinsic recovery is measured unachievable on this corpus, and the verdict ships through F1a, see below. **M2.6b closed negative at G0** — the funded repair route is refused by measurement, see below. **M2.7.1 DONE** across four windows — the `calibration_qc/` publisher, both campaigns and its documentation ship. **M2.7.2 DONE** across two — the committed byte oracle and the refusal matrix. **M2.7.3 DONE** in one — the human-facing report and the checker pinning both prose copies of the claim set. **M2.7.4 DONE** in one — the 20-section prospective capture specification and its 13-predicate checker, closing M2.7. **M2.8.1 DONE** across three windows — the four corpus-run blockers, the disposition artifact, the diff-blind suite and the stratified pilot that refuted the 6.5 h run estimate. **M2.8.2 DONE** across two windows — the tracker-freeze fix, the resumable driver, the total disposition manifest and the whole-corpus run, 379/379 assets `ok`. **M2.8.4 DONE** across four windows against a 1-2 estimate — isotropic coordinates, the `--tracking body` corpus re-run at 193/193 and 7.828 h, 17/17 predicates pass, 15 amendments; the funded orientation fix was refuted before it was built. **M2.8.3 OPEN and the lowest OPEN unit**: 3 windows spent against a 2 estimate, 21 amendments, its counts measured on the corrected corpus (89 published columns / 1068 feature rows / 12 cells), the publisher's schema half shipped, the compute half and the suite re-encode both open — see below.
 
 ### M2.7 — publish the closed-negative 3D ruling — DONE, 4 units
 
@@ -381,7 +381,7 @@ rebuild — keep new JA text inside existing coverage and state the risk in the 
 | -- | ---- | ------------ | ------ |
 | M2.8.1 | kernel | Corpus-run preconditions + instrumented pilot. Close B1/B1b/B2/B2b/B3 (§2 above); stratified pilot spanning both codecs, all four device configs and all four rotations. | 1-2 est; **3 spent, DONE** |
 | M2.8.2 | data + kernel fix | Full corpus 2D run, resumable, 8.70 h measured (full corpus, 193 events / 379 assets / 337 090 frames); the post-fix pilot projected 7.07-7.61 h, so a 16-asset stratified sample under-predicted per-frame cost by 14%. **First question CLOSED in window 1: the 40× split was one tracker-freeze defect, not a cost profile** — so M2.8.1's 26-31 h sampled a broken pipeline and is retired with the plan's 6.5 h. Per-asset clinical features plus a run manifest giving every one of the 379 assets an explicit disposition, so no asset is silently absent from a denominator. | 1-2 est; **2 spent, DONE** |
-| M2.8.3 | kernel | Cohort aggregate publisher + append-ready bilingual descriptor. 12 `(task, side)` cells × the measured published column set, subject-weighted estimand, published view-dispersion column. | 2 est; **3 spent, OPEN** — 21 amendments, counts measured (89 published / 1068 rows / 12 cells), suite re-encode in flight, no implementation |
+| M2.8.3 | kernel | Cohort aggregate publisher + append-ready bilingual descriptor. 12 `(task, side)` cells × the measured published column set, subject-weighted estimand, published view-dispersion column. | 2 est; **3 spent, OPEN** — 21 amendments, counts measured (89 published / 1068 rows / 12 cells), schema half shipped (`cohort.py` `FEATURES`), compute half open. **Split at the `FEATURES` seam when re-sized** |
 | M2.8.4 | data + kernel fix | **Corrected corpus re-run (~8.7 h), carrying two repairs.** (a) `--tracking body`, populating the 17 trunk/posture columns → 92 published features; (b) **isotropic coordinates** — one scalar `max(frame_w, frame_h)` at `export.py`'s three normalisation sites, killing the 9.9° angle distortion and the 3.16× portrait/landscape contamination. **The planned orientation fix is REFUTED and must not be built** — see below. One run carries both. **Unblocks M2.8.3.** | 1-2 est; **4 spent, DONE** — 17/17 predicates pass, corpus 193/193 at 7.828 h, `output/corpus-2d` swapped |
 
 **M2.8.1 exists because M2.6 recorded why it must.** "Where a milestone's spine rests on an unmeasured
@@ -521,7 +521,50 @@ multiplier 2-4× for a unit whose spine is a long unattended run:** the run cost
 watching, and the three before it went to refuting the funded work and re-grounding the contract on
 measurement. PLANNING sizes the next such unit against 4.
 
-#### M2.8.3 — OPEN. 3 windows spent, no implementation; the contract now rests on measured counts
+#### M2.8.3 — OPEN. 3 windows spent, the schema half ships; the contract rests on measured counts
+
+**Window 3 — `harvest=` n/a (no wave harvested), `main=` 87% 237K/273K, `mate=` 40% 108K/273K.**
+Shipped: the corpus census, two contract rulings, and `src/pose_estimation/cohort.py` — the
+publisher's contract-owned half. Did NOT ship: the aggregation engine, publication, the CLI, the
+descriptor projection, docs, registration. **The unit stays OPEN and this is its third consecutive
+overrun**, so its `2 est` is wrong by at least 2x and PLANNING must size the successor against
+`4+ spent`, not against the estimate.
+
+**Sizing datum, for PLANNING: this unit is two units wearing one id.** Its halves have no shared
+state — the schema half is a pure function of the R definitions plus the contract, and the compute
+half is a pure function of the run. The seam is `FEATURES`: everything the schema half produces
+crosses to the compute half as one frozen tuple. A unit whose halves communicate through a single
+immutable value is a unit that should have been split at planning, and three windows is what the
+missed seam cost. Every window here re-paid the same entry cost — contract plus corpus plus state —
+before touching new work, which is the multiplier a split removes.
+
+**Window 3's substantive correction.** The roadmap predicted 92 published columns / 1104 feature
+rows. Measured: **89 published / 3 excluded over 92 source columns, 1068 rows.** `--tracking body`
+restored 14 of the 17 trunk/posture columns, not 17: a **second, mode-independent** guard at
+`analysis/clinical_features.R:1038` assigns `NA_real_` to the sagittal-lean three on the 2D branch,
+because sagittal lean is out of plane. **Datum: predicting a restored column set from one guard
+being lifted overcounts by exactly the columns a second guard suppresses — count the guards, not
+the columns.** A02's measured partition absorbed the correction with no predicate edit, which is
+the payoff for having ruled the partition measured rather than declared.
+
+Cross-check that did not move: frame/window rows stand at **331 152 / 21 483**, unchanged from the
+pre-fix tree. Tracking mode and coordinate scale change values, not row counts, so this is an
+independent check on the re-run rather than a restatement of it. Cells: 12/12 present, `n_subjects`
+15-16 (floor 15 holds), 193 events, 379 assets all manifest-`ok`, **135 multi-asset events** = P06's
+population bound. Lowest nonzero finite rates: `movement_efficiency` family 0.7569, `left_wrist_sal`
+0.8860 — **P08's empty-column path is unreachable on real input and must be exercised
+synthetically.** Census script: `.scratch/m2u83_census.py`, 5 s, aggregates only.
+
+**Remaining work, ordered — window 4 dispatches from this list, not from a re-read of the contract.**
+Contract §11 items 4-5. (1) aggregation engine, four-stage subject estimand D02/A03; (2)
+`view_dispersion` A06 over the 135 multi-asset events; (3) publication — staging plus swap, ownership
+A14, marker schema A13; (4) `validate_generation` P17/A16; (5) CLI `main` `--inventory --sessions
+--run --out` A17; (6) `descriptors.yaml` projection A08; (7) `cohort.json` census carrying
+`rows_zero_values` / `rows_without_multiview` / `rows_below_subject_floor` / `descriptor_collision`
+A04/A07/A10; (8) `scripts/check_cohort_determinism.py` A17; (9) `docs/technical/cohort.md` P18;
+(10) registration — four exhaustive doc indexes, `pyproject.toml` 10 → 11 commands, `.gitignore`
+`cohort` + `cohort.*/`. Then harvest the red suite, run the decisive gate, and measure the descriptor
+glyph delta against `../rehab`'s 10 subset WOFF2 faces.
 
 **Precondition (A12, user ruling): M2.8.4's corrected corpus run — MET.** `output/corpus-2d/` now
 holds the corrected 193/193 `--tracking body` isotropic corpus and the pre-fix tree is deleted, so

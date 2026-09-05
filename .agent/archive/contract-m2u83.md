@@ -583,6 +583,20 @@ extreme is one identifiable subject's own measurement, and a descriptor is schem
 not move when the data does. Assignment is a rule over source family × derivation suffix,
 like A09's, and never a transcribed 89-row table.
 
+**A22 — ruling on `test-m2u83-2` R01. A10's marker-field freeze deliberately stops short of four
+child domains, and a suite must not freeze them.** R01 correctly observes that A10 names the CSV,
+YAML, column-census, collision and generation fields but never names the `population` child keys,
+the `estimand` literal, the collision `source` token, or the `input_digests` child keys. That gap is
+real and it stays open **by ruling, not by oversight**: those four domains are outputs of an
+aggregation engine that does not exist yet, so any vocabulary written for them now would be a guess,
+and a test that pins a guessed vocabulary converts an accident into a frozen interface. The suite
+must therefore check those four domains **structurally** — key presence, value type, no unexpected
+keys — and must not assert their spellings. **Obligation, binding on whichever unit ships the
+aggregation engine: extend A10 with the exact names of all four domains at the moment the engine
+fixes them, and tighten the suite from structural to exact in the same commit.** An unfrozen domain
+that ships unfrozen is the defect this ruling is trading against, so the obligation is the price of
+the deferral and travels with it.
+
 ## 11. Verdict table
 
 **Unit UNBLOCKED and OPEN** — A12's precondition is met by M2.8.4's corrected corpus and its §8
@@ -614,8 +628,13 @@ the contract alone is what finds them.**
    seed `48f0c08`, marker `TEST-M2U83-2-DONE-1`, report at
    `.scratch/worktrees/test-m2u83-2/.scratch/agents/test-m2u83-2.md`. Its validator is the three
    static checks plus `pytest tests/test_cohort.py -q` reading 0 passed / 0 skipped / all failed.
-4. MAIN authors `cohort.FEATURES` — 89 entries, `(level, column, ja, en, unit, range)`, `unit` by
-   the A09+A20 rule and `range` by A21 — then implements `src/pose_estimation/cohort.py` + CLI +
+4. **CLOSED — `cohort.FEATURES` ships at `4c006bd`**: 89 entries, `(level, column, ja, en, unit,
+   range)`, composed from 20 family pairs x side x derivation rather than transcribed, `unit` by the
+   A09+A20 rule and `range` by A21. The A02 cross-check is MEASURED GREEN — `FEATURE_KEYS` equals
+   the measured published set, zero missing, zero extra. `ruff check` + `ruff format --check` +
+   `ty check` all rc=0. **Open: the compute half** — aggregation engine (D02/A03), `view_dispersion`
+   (A06), publication + marker (A13/A14), `validate_generation` (P17/A16), `cohort.json` census
+   (A04/A07/A10) — then CLI +
    `scripts/check_cohort_determinism.py` + `docs/technical/cohort.md` against the red suite, and
    registers in the four exhaustive indexes (P18), `pyproject.toml` (10 → 11 commands) and
    `.gitignore` (`cohort` + `cohort.*/`, the slash-free component shape its five siblings use).
