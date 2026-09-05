@@ -318,6 +318,21 @@ Context retained only when source, tests, technical docs, roadmap, and git do no
   shape test called an allowlist (P13), a budget figure carried unlabelled (P14). **Cost of the
   ruling is one amendment each; cost of trusting the text is a green gate over a false claim.** Budget
   a diff-blind grading pass per kernel unit and expect its findings to land in the contract.
+- **A seam that is one immutable value is a unit boundary; find that shape before sizing.** M2.8.3
+  overran a `2 est` by three windows because it was two units wearing one id — a schema half = pure
+  function of the R definitions + contract, a compute half = pure function of the run, communicating
+  through exactly one frozen tuple (`cohort.FEATURES`) and nothing else. Each window re-paid the same
+  entry cost (contract + corpus + state) before reaching new work; that multiplier is what the split
+  removes. Split ruled at window 3 → M2.8.3 DONE at 3 spent, M2.8.5 carries the heavier half. The
+  tell is available at PLANNING time with no code written: **name the single value the halves share
+  and you have found the boundary.**
+- **Count the guards, not the columns.** Predicting a restored column set from one guard being lifted
+  overcounts by exactly the columns a *second* guard suppresses. M2.8.4's `--tracking body` was
+  predicted to restore all 17 trunk/posture columns and restored 14: `analysis/clinical_features.R:1038`
+  independently assigns `NA_real_` to the sagittal-lean three on the 2D branch, since sagittal lean is
+  out of plane. 92 source columns → **89 published / 3 excluded, 1068 feature rows, not the predicted
+  92/1104.** A02's *measured* partition absorbed the correction with zero predicate edits — ruling a
+  partition measured rather than declared is what makes a wrong prediction cost nothing.
 - **A case that grades a stand-in grades nothing** (M2.8.2 A10). Two suite defects of one kind: a
   discovery regex over `[A-Z_]*DISPOSITION[A-Z_]*\s*=` could not match the repo's own annotated form
   `ASSET_DISPOSITIONS: tuple[str, ...] = (`, so it reported an absent constant that was present; and a

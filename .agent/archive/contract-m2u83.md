@@ -599,13 +599,19 @@ the deferral and travels with it.
 
 ## 11. Verdict table
 
-**Unit UNBLOCKED and OPEN** — A12's precondition is met by M2.8.4's corrected corpus and its §8
-provisional flag is discharged above. No implementation exists yet; this table records each wave's
-harvest so the resumed unit and MILESTONE-REVIEW dispatch from committed state.
+**This contract now spans TWO units.** A12's precondition is met by M2.8.4's corrected corpus and
+§8's provisional flag is discharged above. **M2.8.3 is DONE at `4c006bd`** — the published schema
+half, `cohort.FEATURES` plus the unit vocabulary, `CohortError` and `describe`. **M2.8.5 is OPEN and
+carries the compute half**: outstanding items 4-5 below are its scope, and it inherits every
+amendment here unchanged. The unit was split at the `FEATURES` seam by user ruling after three
+consecutive window overruns; the halves share no state beyond that one frozen tuple. This table
+records each wave's harvest so both units and MILESTONE-REVIEW dispatch from committed state.
 
 | role | branch tip | worktree | deliverable | outcome |
 | ---- | ---------- | -------- | ----------- | ------- |
 | `test-m2u83` | `4c5e9be` on `wt/test-m2u83` | `.scratch/worktrees/test-m2u83` | `tests/test_cohort.py`, 1471 lines, all 18 predicates pinned | **17 findings / 17 contract defects / 0 code defects** over 18 predicates. Report committed on the branch at `.scratch/agents/test-m2u83.md`; copy also at MAIN's `.scratch/agents/test-m2u83.md`. |
+| `test-m2u83-2` | `aa4981e`, tagged `archive/m2u83-test-2` | `.scratch/worktrees/test-m2u83-2` | Re-encode all 18 predicates against A01-A21 | **STOPPED at MAIN's reserve, 4/18.** P01-P04 re-encoded with named cases and an independent four-stage oracle at nine decimals, plus a complete A01-A19 seed audit mapping every mis-encoded amendment in the inherited suite. Register entry R01 accepted and ruled as **A22**. Ran its whole life uncommitted and flushed only on directive. |
+| `test-m2u83-3` | `wt/test-m2u83-3`, base `ad007b7` | same worktree, inherited | P05-P18 + the A05-A22 audit | In flight. Commit-per-batch brief, batch size 3. Validator retired the stale "0 passed" criterion. |
 
 **Wave verdict: the diff-blind role returned nothing but contract defects, because there was no code
 to defect.** 17 findings across 4 batches, each accepted, each landing as an amendment: A01-A07 on
