@@ -315,7 +315,7 @@ bytes) → **~85% 203K/240K** (window 2: dispatch, harvest, validator fix, gener
 wiring, gate). `mate=` 32% 77K/240K (`map-m2u72`, stopped) → **53% 127K/240K** (`prod-m2u72`).
 
 **Sizing datum.** Entry cost alone was **127K** before the first tool call — 53% of the 240K window
-in force then, and the attached set has since grown to 290 KB (`roadmap.md` + `memory.md` +
+in force then, and the attached set has since grown to 293 KB (`roadmap.md` + `memory.md` +
 `polish.md`), so entry cost stands at **~128K**. MAIN's window is the 273K
 `CLAUDE_CODE_AUTO_COMPACT_WINDOW` clamp rather than the model's own 1M, so that entry cost still
 takes ~47% and leaves **~145K usable** per WORK-UNIT session — **~95K against the 223K reserve
