@@ -286,15 +286,17 @@ Context retained only when source, tests, technical docs, roadmap, and git do no
   MAIN's LAST TURN and a teammate's high-water, so a MAIN number copied from it is a sample unless
   the whole transcript is scanned. High-water re-derives offline from
   `~/.claude/projects/<project>/<session>.jsonl`: max over assistant turns of
-  `input + cache_creation + cache_read + output`. MAIN's window is collapse-managed — the harness
-  sheds content silently, so a >50K single-turn drop is ordinary shedding and MAIN's high-water is
+  `input + cache_creation + cache_read + output`. The harness manages MAIN's window and sheds content
+  silently, so a >50K single-turn drop is ordinary shedding and MAIN's high-water is
   the plain max over the whole transcript. A teammate still auto-compacts, and there that same drop
   splits the window into two regimes — report its pre-compaction peak.
-- **Recorded gauges straddle two window sizes.** Every `harvest=`/`main=`/`mate=` figure in the
-  roadmap through M2.8.3's block reads `N% NK/240K`; the window is 1M from the next unit window on.
-  Size against the K figures across that seam and read an older percentage as 240K-relative — an
-  `84% 202K/240K` analog is a fifth of a 1M window, not a unit at its reserve.
-- **MAIN's window is collapse-managed, so a checkpoint claim outlives its evidence with no visible
+- **Recorded gauges straddle three window sizes, so size against the K figures and never a
+  percentage.** The roadmap reads `N% NK/240K` through M2.8.3's block, `N% NK/273K` for MAIN from
+  M2.8.4 on, and one `mate=` at `/1M`. **MAIN's window is the `CLAUDE_CODE_AUTO_COMPACT_WINDOW`
+  clamp — `min(model window, ACW)` = 273K — no matter how large the model's own window is**, so a
+  1M-context MAIN still runs 273K windows and the gauge convention carries `<window>` rather than any
+  literal. An `84% 202K/240K` analog is ~74% of a 273K window, not a unit at its reserve.
+- **The harness manages MAIN's window, so a checkpoint claim outlives its evidence with no visible
   boundary.** `session-roadmap.md`'s `compaction-crossing` re-derivation rule covers every claim
   whose supporting read happened earlier in the session: shedding leaves no marker where the source
   went. Re-derive from the file, the gate or the commit before acting on it.

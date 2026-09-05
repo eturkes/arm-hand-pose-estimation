@@ -315,11 +315,13 @@ bytes) → **~85% 203K/240K** (window 2: dispatch, harvest, validator fix, gener
 wiring, gate). `mate=` 32% 77K/240K (`map-m2u72`, stopped) → **53% 127K/240K** (`prod-m2u72`).
 
 **Sizing datum.** Entry cost alone was **127K** before the first tool call — 53% of the 240K window
-in force then, and the attached set still measures 287 KB (`roadmap.md` + `memory.md` +
-`polish.md`), so the cost stands. Against the 1M window it leaves **~820K usable** per WORK-UNIT
-session rather than ~110K, so the one-window aim binds on the unit's own work now instead of on
-entry cost. **M2.7.1's closed detail still belongs in `.agent/archive/` at the next
-MILESTONE-REVIEW.**
+in force then, and the attached set has since grown to 290 KB (`roadmap.md` + `memory.md` +
+`polish.md`), so entry cost stands at **~128K**. MAIN's window is the 273K
+`CLAUDE_CODE_AUTO_COMPACT_WINDOW` clamp rather than the model's own 1M, so that entry cost still
+takes ~47% and leaves **~145K usable** per WORK-UNIT session — **~95K against the 223K reserve
+target**. The one-window aim binds on entry cost as hard as on the unit's own work, and shrinking
+the attached set is the only lever on it. **M2.7.1's closed detail still belongs in
+`.agent/archive/` at the next MILESTONE-REVIEW.**
 
 #### M2.7.1 — DONE. The `calibration_qc/` publisher (F1a) ships
 
