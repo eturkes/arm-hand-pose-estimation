@@ -491,14 +491,21 @@ Every audio-bearing fixture in `tests/` is muxed by PyAV; three ordering rules d
 
 ## Cohort aggregation — what the 2D corpus output can and cannot carry
 
-- **`--tracking hands-arms` publishes 75 of 92 feature columns; the other 17 are NA on every row.**
-  Trunk lean (total/lateral/sagittal), trunk rotation, posture symmetry and
-  `compensatory_pattern_index` are guarded at `analysis/clinical_features.R:1000` by
-  `tracking == "body"`, which is the only mode carrying hip keypoints. Measured 0.00% finite over
-  331 152 frame and 21 483 window rows. **A run configuration is a claim about the output schema** —
-  the corpus ran 8.7 h before anyone asked which published columns it would fill. Populating them
-  needs a `--tracking body` re-run (roadmap M2.8.4); `body` = all 133 keypoints, a superset of
-  `hands-arms`, so nothing is lost by it.
+- **The corrected corpus publishes 89 of 92 feature columns; 3 are NA on every row.** Source set =
+  50 frame + 42 window, re-derivable hermetically from the goldens
+  `tests/goldens/r_clinical/2d_idx_clinical{,_windows}.csv` minus the 6 metadata names. The 3
+  zero-finite ones are `trunk_lean_sagittal_deg` and its `_mean`/`_sd` window aggregates:
+  `clinical_features.R:1038` assigns `NA_real_` on the 2D branch because sagittal lean is out of
+  plane. **Feature table = 12 cells × 89 = 1068 rows.** Census script `.scratch/m2u83_census.py`
+  (5 s); no port is scheduled because the cohort publisher re-derives the same partition at publish
+  time under contract A02, which is its durable encoding.
+- **Two guards suppress those columns, and predicting a restored set from one of them overcounts.**
+  Under `--tracking hands-arms` all **17** trunk/posture columns were 0.00% finite, guarded at
+  `clinical_features.R:1000` by `tracking == "body"` (the only mode carrying hip keypoints). The
+  M2.8.4 re-run restored **14**, not 17 — the sagittal three fall to the second, mode-independent
+  guard. **A run configuration is a claim about the output schema** (the corpus ran 8.7 h before
+  anyone asked which columns it would fill), and **a restored-set prediction is a claim about every
+  guard, not just the one being lifted.** Both were caught by measuring rather than by reading.
 - **Cohort statistics must name their estimand: the grain is worth up to 3×.** Window-pooled against
   subject-weighted (asset median → event median → subject median → cohort) moves the cohort median
   by −2.8% to **+297.8%** across the 12 `(task, side)` cells. One subject supplies up to 29% of a

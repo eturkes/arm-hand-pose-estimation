@@ -51,7 +51,7 @@ Live long-horizon state only; completed trajectory belongs in git. Closed-unit d
 | M2.8.2 | Full corpus 2D run | Resumable run over 379 assets, 8.70 h measured (full corpus, 193 events / 379 assets / 337 090 frames); per-asset clinical features plus a manifest giving every asset an explicit disposition. |
 | M2.8.3 | Cohort aggregate publisher + bilingual descriptor | 12 `(task, side)` cohort rows, no subject rows; append-ready `columns.yaml` fragment with full `ja`/`en` labels. |
 
-**Unit status.** M2.1, M2.2 and **M2.3 DONE** — M2.3 across ten windows, closing on P29. **M2.4 DONE** and **M2.5 DONE** — see below. **M2.6 closed negative at F0 and ruled** — extrinsic recovery is measured unachievable on this corpus, and the verdict ships through F1a, see below. **M2.6b closed negative at G0** — the funded repair route is refused by measurement, see below. **M2.7.1 DONE** across four windows — the `calibration_qc/` publisher, both campaigns and its documentation ship. **M2.7.2 DONE** across two — the committed byte oracle and the refusal matrix. **M2.7.3 DONE** in one — the human-facing report and the checker pinning both prose copies of the claim set. **M2.7.4 DONE** in one — the 20-section prospective capture specification and its 13-predicate checker, closing M2.7. **M2.8.1 DONE** across three windows — the four corpus-run blockers, the disposition artifact, the diff-blind suite and the stratified pilot that refuted the 6.5 h run estimate. **M2.8.2 DONE** across two windows — the tracker-freeze fix, the resumable driver, the total disposition manifest and the whole-corpus run, 379/379 assets `ok`. **M2.8.4 DONE** across four windows against a 1-2 estimate — isotropic coordinates, the `--tracking body` corpus re-run at 193/193 and 7.828 h, 17/17 predicates pass, 15 amendments; the funded orientation fix was refuted before it was built. **M2.8.3 OPEN and now the lowest OPEN unit**, its precondition met by that corpus: 2 windows spent, contract + A01-A12 frozen and the red suite in flight, no implementation — see below.
+**Unit status.** M2.1, M2.2 and **M2.3 DONE** — M2.3 across ten windows, closing on P29. **M2.4 DONE** and **M2.5 DONE** — see below. **M2.6 closed negative at F0 and ruled** — extrinsic recovery is measured unachievable on this corpus, and the verdict ships through F1a, see below. **M2.6b closed negative at G0** — the funded repair route is refused by measurement, see below. **M2.7.1 DONE** across four windows — the `calibration_qc/` publisher, both campaigns and its documentation ship. **M2.7.2 DONE** across two — the committed byte oracle and the refusal matrix. **M2.7.3 DONE** in one — the human-facing report and the checker pinning both prose copies of the claim set. **M2.7.4 DONE** in one — the 20-section prospective capture specification and its 13-predicate checker, closing M2.7. **M2.8.1 DONE** across three windows — the four corpus-run blockers, the disposition artifact, the diff-blind suite and the stratified pilot that refuted the 6.5 h run estimate. **M2.8.2 DONE** across two windows — the tracker-freeze fix, the resumable driver, the total disposition manifest and the whole-corpus run, 379/379 assets `ok`. **M2.8.4 DONE** across four windows against a 1-2 estimate — isotropic coordinates, the `--tracking body` corpus re-run at 193/193 and 7.828 h, 17/17 predicates pass, 15 amendments; the funded orientation fix was refuted before it was built. **M2.8.3 OPEN and the lowest OPEN unit**: 3 windows spent, 21 amendments, its counts now measured on the corrected corpus (89 published columns / 1068 feature rows / 12 cells), the suite re-encode in flight, no implementation — see below.
 
 ### M2.7 — publish the closed-negative 3D ruling — DONE, 4 units
 
@@ -381,7 +381,7 @@ rebuild — keep new JA text inside existing coverage and state the risk in the 
 | -- | ---- | ------------ | ------ |
 | M2.8.1 | kernel | Corpus-run preconditions + instrumented pilot. Close B1/B1b/B2/B2b/B3 (§2 above); stratified pilot spanning both codecs, all four device configs and all four rotations. | 1-2 est; **3 spent, DONE** |
 | M2.8.2 | data + kernel fix | Full corpus 2D run, resumable, 8.70 h measured (full corpus, 193 events / 379 assets / 337 090 frames); the post-fix pilot projected 7.07-7.61 h, so a 16-asset stratified sample under-predicted per-frame cost by 14%. **First question CLOSED in window 1: the 40× split was one tracker-freeze defect, not a cost profile** — so M2.8.1's 26-31 h sampled a broken pipeline and is retired with the plan's 6.5 h. Per-asset clinical features plus a run manifest giving every one of the 379 assets an explicit disposition, so no asset is silently absent from a denominator. | 1-2 est; **2 spent, DONE** |
-| M2.8.3 | kernel | Cohort aggregate publisher + append-ready bilingual descriptor. 12 `(task, side)` cells × the measured published column set, subject-weighted estimand, published view-dispersion column. | 2 est; **2 spent, OPEN** — precondition met by M2.8.4's corrected corpus; contract + 12 amendments frozen, red suite in flight, no implementation |
+| M2.8.3 | kernel | Cohort aggregate publisher + append-ready bilingual descriptor. 12 `(task, side)` cells × the measured published column set, subject-weighted estimand, published view-dispersion column. | 2 est; **3 spent, OPEN** — 21 amendments, counts measured (89 published / 1068 rows / 12 cells), suite re-encode in flight, no implementation |
 | M2.8.4 | data + kernel fix | **Corrected corpus re-run (~8.7 h), carrying two repairs.** (a) `--tracking body`, populating the 17 trunk/posture columns → 92 published features; (b) **isotropic coordinates** — one scalar `max(frame_w, frame_h)` at `export.py`'s three normalisation sites, killing the 9.9° angle distortion and the 3.16× portrait/landscape contamination. **The planned orientation fix is REFUTED and must not be built** — see below. One run carries both. **Unblocks M2.8.3.** | 1-2 est; **4 spent, DONE** — 17/17 predicates pass, corpus 193/193 at 7.828 h, `output/corpus-2d` swapped |
 
 **M2.8.1 exists because M2.6 recorded why it must.** "Where a milestone's spine rests on an unmeasured
@@ -521,7 +521,7 @@ multiplier 2-4× for a unit whose spine is a long unattended run:** the run cost
 watching, and the three before it went to refuting the funded work and re-grounding the contract on
 measurement. PLANNING sizes the next such unit against 4.
 
-#### M2.8.3 — OPEN. Precondition met by M2.8.4's corrected corpus. 2 windows spent, no implementation
+#### M2.8.3 — OPEN. 3 windows spent, no implementation; the contract now rests on measured counts
 
 **Precondition (A12, user ruling): M2.8.4's corrected corpus run — MET.** `output/corpus-2d/` now
 holds the corrected 193/193 `--tracking body` isotropic corpus and the pre-fix tree is deleted, so
@@ -556,11 +556,38 @@ silent on whether the surviving rows mean what their column names say. Both defe
 green 379/379 manifest through an 8.7 h run.
 
 **Contract at `.agent/archive/contract-m2u83.md`** — 10 design decisions D01-D10, 18 predicates
-P01-P18, a 13-case negative-control seed, **12 amendments A01-A12**. Base `fc8ff62`. Tier `kernel`.
-**§8's measured facts are provisional**: the corrected run restores the 17 trunk/posture columns,
-so the published set becomes 92 columns and 12 × 92 = 1104 feature rows. A02's measured-partition
-ruling absorbs that with no contract edit, which is why no predicate may assert 75, 900 or 17 as a
-literal.
+P01-P18, a 13-case negative-control seed, **21 amendments A01-A21**. Base `fc8ff62`. Tier `kernel`.
+
+**Window 3 discharged §8's provisional flag by measuring the corrected corpus, and the measurement
+moved every headline number the plan carried.** 92 source columns = 50 frame + 42 window →
+**89 published / 3 excluded**, so the feature table is **12 × 89 = 1068 rows**, not the 1104 this
+section predicted and not the 900 the contract froze. The 3 zero-finite columns are
+`trunk_lean_sagittal_deg` and its `_mean`/`_sd` aggregates — `clinical_features.R:1038` assigns
+`NA_real_` on the 2D branch because sagittal lean is out of plane — so `--tracking body` restored
+14 of the 17, never all 17. **Predicting a restored column set from the guard that suppressed it
+overcounts by exactly the columns a second guard suppresses**; A02's measured partition is what
+made the correction cost nothing. Cells: all 12 present, `n_subjects` 15-16 with floor 15, 193
+events, 379 assets, **135 multi-asset events** bounding P06's population. Frame and window row
+counts are unmoved at 331 152 / 21 483, which is a cross-check on the re-run rather than a
+restatement of it, since neither depends on tracking mode or coordinate scale.
+
+**The measurement exposed a contract gap no predicate could have caught, ruled as A20.** A09's
+unit vocabulary is a rule over source family × derivation suffix, and it was ruled while all 17
+trunk/posture columns were excluded — so it assigns a token to 75 of the 89 columns now published
+and is silent on the other 14. Extended with **no eighth token**, which is what keeps P10 a
+membership test: window aggregates of a `*_deg` frame column take their source's
+`deg_image_plane_uncalibrated`; `posture_symmetry` and its `_mean`/`_sd` take
+`ratio_shoulder_width`, since it divides by the same shoulder width `reach_norm` does and the
+token names the denominator rather than the sign; `compensatory_pattern_index` takes
+`index_signed`, being a Pearson correlation on `[-1, 1]`. **A21** then fixes what `range` means at
+all — the measurement's admissible domain read from the R definitions, never a corpus min/max,
+because D05 already ruled that an extreme at n=15-16 is one identifiable subject and a descriptor
+is schema that must not move when the data does.
+
+**A12's orientation defect is corrected in place rather than left standing**, since a frozen
+contract's refuted premise reaches the next reader as fact: OpenCV does apply the display matrix,
+the `cv2.rotate` repair A12 scheduled was never built, and it would have double-rotated 38 assets.
+A12's consequence — block on a corrected re-run — held and is discharged.
 
 **MAIN measured first and asked second, and all three measurements changed the unit's shape.** The
 window bought no implementation; its product is a contract that rests on numbers rather than on the
@@ -619,11 +646,18 @@ because every question this window answered was script-derivable and the record 
 MAIN's hands. The wave is one diff-blind `test-m2u83`, dispatched at the contract commit — the one
 delegation this project has funded that MAIN structurally cannot replace. `main=` 88% 211K/240K.
 
-**Wave.** `test-m2u83` runs diff-blind at base `3497dd5` on branch `wt/test-m2u83`, worktree
-`.scratch/worktrees/test-m2u83`, marker `TEST-M2U83-DONE-1`, report **inside the worktree** at
-`.scratch/worktrees/test-m2u83/.scratch/agents/test-m2u83.md` (MAIN's own copy keeps the 18-row
-`unknown` seed forever — poll the worktree copy, and copy it back before teardown). It grades the
-contract's 18 predicates and ships `tests/test_cohort.py` red.
+**Wave.** `test-m2u83`'s 1471-line suite is retained as tag `archive/m2u83-test` (`4c5e9be`); the
+branch is gone, so dispatch from the tag. Its successor **`test-m2u83-2`** runs diff-blind at base
+`a1ba30a` on `wt/test-m2u83-2`, worktree `.scratch/worktrees/test-m2u83-2`, seed `48f0c08`, marker
+`TEST-M2U83-2-DONE-1`, report **inside the worktree** at
+`.scratch/worktrees/test-m2u83-2/.scratch/agents/test-m2u83-2.md` — poll the worktree copy, and
+copy it back before teardown. It re-encodes every predicate against A01-A21 and purges every 75 /
+900 / 17 literal. **Its seed is the predecessor's own suite rather than an empty skeleton**, which
+is the cheapest form of deliverable-first checkpointing available when a saturated agent dies
+mid-edit: the successor starts from 18 encoded rows and spends its window auditing rather than
+rebuilding. Validator = the three static checks plus `pytest tests/test_cohort.py -q` reading
+0 passed / 0 skipped / all failed, which is what proves a red suite is red *for its predicate*
+rather than for a collection error or a skip.
 
 **Window 2 — the prediction held exactly. The wave closed at 17 findings over 18 predicates, 17
 contract defects, 0 code defects**, against 11/11/0 for the same role on M2.8.2. Across two units

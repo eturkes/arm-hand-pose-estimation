@@ -186,10 +186,36 @@ its own new cases.
 
 ## 8. Measured facts this contract rests on
 
-Every number re-derives from `output/corpus-2d/` and the registry. **A12 makes every fact in
-this section provisional**: the corpus is being re-run with the orientation fix and
-`--tracking body`, which restores the 17 trunk/posture columns. Re-derive before citing; no
-predicate may assert 75, 900 or 17 as a literal.
+Every number re-derives from `output/corpus-2d/` and the registry. **A12's provisional flag is
+now discharged by measurement over the corrected corpus** (`.scratch/m2u83_census.py`, 5 s;
+the publisher re-derives the same partition at publish time under A02, which is its durable
+encoding). No predicate may assert 75, 900, 17, 89, 1068 or 3 as a literal.
+
+- **Partition, corpus-wide: 92 source columns = 50 frame + 42 window → 89 published /
+  3 excluded.** The 3 zero-finite columns are `trunk_lean_sagittal_deg` and its
+  `trunk_lean_sagittal_mean` / `trunk_lean_sagittal_sd` window aggregates, which
+  `clinical_features.R:1038` assigns `NA_real_` on the 2D branch because sagittal lean is
+  out of plane. `--tracking body` restored the other 14 of the 17. **Feature table = 12 × 89
+  = 1068 rows.**
+- **Cells, all 12, `n_subjects` 15-16, floor 15.** `(task, side)` → subjects / events /
+  assets: `cap-l` 16/18/35, `cap-r` 15/15/31, `coin-l` 15/15/25, `coin-r` 16/16/26,
+  `glass-l` 15/15/23, `glass-r` 15/15/22, `key-l` 16/16/28, `key-r` 16/16/24, `nut-l`
+  16/16/36, `nut-r` 16/19/38, `peg-l` 16/16/46, `peg-r` 16/16/45. 193 events, 379 assets,
+  **135 multi-asset events** — the P06 population's upper bound.
+- **Rows unchanged by the re-run: 331 152 frame + 21 483 window**, windows per asset
+  12 / 37 / 548 (min / median / max). Row counts depend on neither tracking mode nor
+  coordinate scale, which is what makes them a cross-check on the re-run rather than a
+  restatement of it.
+- **Lowest nonzero finite rates** are the `movement_efficiency` family at 0.7569 and
+  `left_wrist_sal` at 0.8860, so P08's empty path stays unreachable on real input and is
+  exercised synthetically (A07/A18).
+
+**Correction to A12, which the M2.8.4 record refutes.** A12's orientation defect is **false**
+and the `cv2.rotate` repair it scheduled was never built: OpenCV *does* apply the container
+display matrix, and adding a rotation would have double-rotated 38 assets. The real defect
+under the same symptom was `export.py`'s per-axis normalisation, fixed by A09's own
+anisotropy finding (one scalar `max(frame_w, frame_h)`). A12's *consequence* — M2.8.3 blocks
+on a corrected re-run — held and is now discharged.
 
 - **Cells.** 12 `(task, side)` over `cap coin glass key nut peg` × `l r`; 15-16 subjects
   each; 193 events; 379 assets; manifest 379/379 `ok`. `cap-l` 18 events and `nut-r` 19
@@ -528,10 +554,40 @@ grasp apertures, so 4 decimals would publish two significant figures on a contin
 `calibration_qc` renders QC ratios of order 1, where 4 is sufficient; this publisher does not.
 Helper keeps the name `_cell`, takes `qualify`'s precision.
 
+**A20 — MAIN finding. A09's unit rule assigns no token to the columns the corrected corpus
+restored, and the vocabulary does not need to grow to cover them.**
+A09 was ruled while all 17 trunk/posture columns were excluded, so its source-family ×
+derivation-suffix rule silently ranges over 75 of the 89 columns now published. Extension, in
+A09's own form and with no eighth token, which is what keeps P10 a membership test:
+
+- **Window aggregates of a `*_deg` frame column** — `trunk_lean_mean`, `trunk_lean_sd`,
+  `trunk_lean_range`, `trunk_lean_lateral_mean/sd`, `trunk_rotation_mean/sd` — take their
+  frame source's token, `deg_image_plane_uncalibrated`. A mean, an sd and a range of degrees
+  are each in degrees, and all three inherit the same uncalibrated image-plane qualification.
+- **`posture_symmetry` and its `_mean`/`_sd`** → `ratio_shoulder_width`. It is
+  `(lsh_y - rsh_y) / shoulder_width` (`clinical_features.R:813-816`) — the same denominator
+  as `reach_norm`, which already owns that token. The token names the denominator, not the
+  sign, so a signed quantity is correctly labelled by it.
+- **`compensatory_pattern_index`** → `index_signed`. It is the Pearson correlation of
+  `trunk_lean_deg` against per-frame max reach (`clinical_features.R:1496-1500`), so its
+  domain is `[-1, 1]` — the same shape the `*_dominance_index` family carries.
+
+**A21 — `range` is the measurement's admissible domain, never an observed corpus extreme.**
+A08 copies `range` from `FEATURES` into the fragment and P09 checks presence alone, so the
+field's meaning was never fixed. Ruled: `range` states what the measurement can take by
+construction, read from `clinical_features.R`'s own definitions (symmetry ratios `[0, 1]` at
+`:322`, SAL non-positive at `:366`, normalized jerk positive at `:402`, movement efficiency
+`>= 1.0` at `:430`, unsigned angles at `:753`, signed angles at `:773`, wrapped signed angles
+at `:795`). It is **not** a corpus min/max: D05 refused `min`/`max` because at n=15-16 an
+extreme is one identifiable subject's own measurement, and a descriptor is schema — it must
+not move when the data does. Assignment is a rule over source family × derivation suffix,
+like A09's, and never a transcribed 89-row table.
+
 ## 11. Verdict table
 
-**Unit BLOCKED, not DONE** (A12). No implementation exists; this table records the wave's harvest so
-the resumed unit and MILESTONE-REVIEW dispatch from committed state.
+**Unit UNBLOCKED and OPEN** — A12's precondition is met by M2.8.4's corrected corpus and its §8
+provisional flag is discharged above. No implementation exists yet; this table records each wave's
+harvest so the resumed unit and MILESTONE-REVIEW dispatch from committed state.
 
 | role | branch tip | worktree | deliverable | outcome |
 | ---- | ---------- | -------- | ----------- | ------- |
@@ -547,11 +603,21 @@ contradiction and the decimal count. Compare M2.8.2's same role: 11 findings / 1
 contract, not the implementation, is where this project's defects live, and a diff-blind reader of
 the contract alone is what finds them.**
 
-**Outstanding before M2.8.3 resumes**, in order:
-1. M2.8.4 lands the corrected corpus (orientation fix + `--tracking body`).
-2. Re-encode the suite against the corrected corpus: A08-A19 unencoded, and every literal 75 / 900 /
-   17 replaced by a measured cardinality. The successor inherits `wt/test-m2u83`.
-3. MAIN implements `src/pose_estimation/cohort.py` + CLI + `docs/technical/cohort.md` against the
-   suite, then registers in the four exhaustive indexes (P18).
-4. Author the bilingual descriptors and measure the glyph delta against `../rehab`'s 10 subset WOFF2
-   faces.
+**Outstanding**, in order. 1 and 2 are closed.
+
+1. ~~M2.8.4 lands the corrected corpus.~~ **CLOSED** at `c748e13` — 193/193 events, isotropic
+   coordinates, `--tracking body`.
+2. ~~Discharge §8's provisional counts.~~ **CLOSED** this window — 89 / 3 / 1068 / 12 cells
+   measured corpus-wide, A20 and A21 ruled on the gaps that measurement exposed.
+3. **In flight**: `test-m2u83-2` re-encodes the suite against A01-A21 and purges every 75 / 900 /
+   17 literal. Worktree `.scratch/worktrees/test-m2u83-2`, branch `wt/test-m2u83-2`, base `a1ba30a`,
+   seed `48f0c08`, marker `TEST-M2U83-2-DONE-1`, report at
+   `.scratch/worktrees/test-m2u83-2/.scratch/agents/test-m2u83-2.md`. Its validator is the three
+   static checks plus `pytest tests/test_cohort.py -q` reading 0 passed / 0 skipped / all failed.
+4. MAIN authors `cohort.FEATURES` — 89 entries, `(level, column, ja, en, unit, range)`, `unit` by
+   the A09+A20 rule and `range` by A21 — then implements `src/pose_estimation/cohort.py` + CLI +
+   `scripts/check_cohort_determinism.py` + `docs/technical/cohort.md` against the red suite, and
+   registers in the four exhaustive indexes (P18), `pyproject.toml` (10 → 11 commands) and
+   `.gitignore` (`cohort` + `cohort.*/`, the slash-free component shape its five siblings use).
+5. Measure the descriptor glyph delta against `../rehab`'s 10 subset WOFF2 faces and state it in the
+   delivery note.
