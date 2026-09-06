@@ -9,7 +9,14 @@ evidence reopens one. This ledger covers **M2.7.3 onward** plus the two mileston
 unit could run: cross-unit integration and the `audit-m2` claim replay.
 
 **Completion counter.** `rows adjudicated / rows enumerated`, per track below. The milestone reaches
-REVIEWED when every track reads `enumerated` and no row reads `open`.
+REVIEWED when every track reads `enumerated`, no row reads `open`, **and every ACCEPT-FIX row has
+closed on its own acceptance check under MAIN's rerun** — adjudicated is not fixed.
+
+**Wave 1 state: 193 rows enumerated, 55 fail, 55 + 2 MAIN rows adjudicated, 0 open.**
+**43 ACCEPT-FIX (open work) · 9 ACCEPT-LIMIT · 2 POLISH · 3 REJECT.** The 2 POLISH rows are filed in
+`.agent/polish.md`; the ACCEPT-LIMIT and REJECT rows are closed here. The next MILESTONE-REVIEW
+session takes the 43 ACCEPT-FIX rows in dependency order — the isotropy token cluster first, since it
+is the only row where shipped clinical bytes carry a false claim.
 
 ## Tracks
 
@@ -20,12 +27,20 @@ REVIEWED when every track reads `enumerated` and no row reads `open`.
 | T3 | `rev-m2u85` | M2.8.3, M2.8.5 | 42 | 15 | harvested |
 | T4 | `audit-m2` | M2.7.3-M2.8.5 | 50 | 12 | harvested |
 | T5 | `rev-m2-cross` | cross-unit + M2.7.3, M2.7.4 | 39 | 11 | harvested |
+| T6 | MAIN | rows MAIN measured itself | 2 | 2 | adjudicated |
 Wave 1 base `384c15f`. Worktrees `.scratch/worktrees/<name>`, branches `wt/<name>`, reports
 `.scratch/worktrees/<name>/.scratch/agents/<name>.md`, archived at close to
 `.agent/archive/review-m2-<name>.md` so a later session adjudicates from committed state.
 
-Report shape graded by `.scratch/check_review_report.py` — 9 predicates over the two-tier shape;
-seed grades `FAIL P03` (12 rows unknown) and a filled report grades `PASS`, both measured at seed.
+**Decisive gate at wave close, run alone from committed state: `1702 passed in 1467.46s`, rc=0.**
+The concurrent run during the wave read 1701 passed / 1 failed on `test_c8_08`'s 900 s subprocess
+timeout — five worktree gates plus MAIN's on 8 cores. Run the decisive gate alone.
+
+Report shape graded by **`scripts/check_review_report.py`** — 9 predicates over the two-tier shape,
+ported out of `.scratch/` at wave close so the grading claim reruns from committed state. Graded both
+ways twice: at seed (12 `unknown` rows → `FAIL P03`; filled → `PASS`) and after the port (T3's
+archived report → `PASS`, 42 rows / 15 fail, rc=0; one verdict flipped to `unknown` → `FAIL P03`,
+rc=1). Every future MILESTONE-REVIEW wave seeds its report skeletons against it.
 
 
 MAIN's ruling on a row binds for the milestone; new evidence is what reopens it. A fix earns one
@@ -103,14 +118,14 @@ harvest; `open` fail rows await MAIN's ruling.
 | --- | ------------------ | ------ | ---------------- |
 | R14 | 8/9 fire: deleting one of 13 local-decision labels leaves P05 green. | **ACCEPT-FIX** | deleting any one local-decision label fails P05 |
 | R15 | UNREPRODUCIBLE: the cited review ledger is absent from committed state. | **ACCEPT-LIMIT** | the roadmap cites no `.scratch/` report as evidence for a durable claim; cited reports are archived or the citation drops |
-| R23 | Six components reproduce, but the only retained run gives 540 windows, not 572. | **CHECK** | MAIN re-derives which population the cited window count names before ruling |
+| R23 | Six components reproduce, but the only retained run gives 540 windows, not 572. | **ACCEPT-LIMIT** | MAIN re-derived it: 572 is the M2.8.1 PRE-fix pilot population and 540 the post-fix one, both recorded (`roadmap.md:801,944`); the pre-fix tree is deleted, so the figure is historical |
 | R24 | UNREPRODUCIBLE: pre-fix logs/report/tree are absent; current retained output is post-fix. | **ACCEPT-LIMIT** | the record labels the pre-fix measurement historical and unreproducible, never re-derivable |
 | R28 | Partition/CFR/540 replay; historical wall and latency range do not because its report/logs are absent. | **ACCEPT-LIMIT** | as R24 |
 | R31 | UNREPRODUCIBLE: pre-fix run tree/report is deleted; current marker carries only the 7.828 h NPU run. | **ACCEPT-LIMIT** | as R24 |
 | R37 | Marker retains 219/0 collisions, but not the external descriptor bytes, digest, composition or prefix census. | **ACCEPT-FIX** | the census records the external descriptor digest, so `descriptor_collision` is re-checkable |
 | R40 | UNREPRODUCIBLE: checker rc=1 because its pre-fix input tree was deleted; JSON only records the values. | **ACCEPT-LIMIT** | as R24, and closed by T2 R23's source binding |
 | R41 | Run is isotropic, but cohort code/docs still publish `deg_image_plane_uncalibrated` and claim anisotropy. | **ACCEPT-FIX** | see T2 R24 |
-| R44 | All census values and ~180 KB reproduce, but elapsed was 30.59 s, not 14.4 s. | **CHECK** | MAIN re-measures the publisher wall under quiescence |
+| R44 | All census values and ~180 KB reproduce, but elapsed was 30.59 s, not 14.4 s. | **REJECT** | MAIN re-measured under quiescence: **13.26 s** against the recorded 14.4 s, so the claim reproduces; 30.59 s was five reviewers sharing 8 cores |
 | R47 | Stale-green barrier fires: recorded source digest differs from current source, so checker exits 1 before sweeps. | **ACCEPT-FIX** | see T3 R35 — one regeneration closes both |
 | R50 | Label census reproduces 75; the 14-missing-font claim has no consumer font bytes or digest in this repo. | **ACCEPT-LIMIT** | the glyph claim states its measurement is against the consumer repo, outside this boundary |
 
@@ -133,6 +148,13 @@ harvest; `open` fail rows await MAIN's ruling.
 | R33 | LOW: shipped code comments retain contract/ruling provenance (`A02`, `A09`, `P17`) instead of standalone constraints | **REJECT** | an amendment id beside a stated constraint is a pointer to binding law, not provenance narrative; the Authoring rule prunes origin stories, and `# A02: the partition is measured, never declared` is the constraint |
 | R34 | LOW: `steq.py` found 24 flags across four human surfaces, including 22 passive constructions in the two docs units | **POLISH** | LOW — 22 passive constructions on two human-facing documents; register row carrying the `steq.py` command |
 | R35 | MEDIUM: duplicated publisher trust-root machinery drifted in exactly the four ways exposed by R14-R17 | **ACCEPT-LIMIT** | publisher extraction stays DECLINED by the standing ruling; the measured four-way drift is recorded on that polish row as new evidence |
+
+### T6 MAIN — rows MAIN measured itself
+
+| row | severity + finding | ruling | acceptance check |
+| --- | ------------------ | ------ | ---------------- |
+| X01 | MEDIUM — `pyproject.toml` declares 11 console scripts and `.venv/bin` carried 10: `pose-estimation-cohort` was absent because the environment was never re-synced after M2.8.5 added the entry point, so every operator-facing invocation in `docs/technical/cohort.md` failed in the shipped environment. Module invocation worked throughout. | **ACCEPT-FIX — CLOSED this session** | `uv sync --frozen` reinstalled the project alone (no third-party churn, `--dry-run` verified first); `.venv/bin` now carries **11/11**, and `env -u LD_LIBRARY_PATH PYTHONPATH="$PWD/src" .venv/bin/pose-estimation-cohort --help` runs rc=0. A **bare** invocation still dies at `ImportError … GLIBC_2.43 not found` — the inherited-`PYTHONPATH` host-OpenVINO leak memory already records, which hits every entry point in this container and is not this row |
+| X02 | Decisive gate under five concurrent reviewers read 1701 passed / 1 failed — `test_c8_08` `subprocess.TimeoutExpired` at 900 s, the contention failure memory already records. Collection 1702 confirms the recorded count. | **REJECT — confirmed by rerun** | gate rerun **alone**: **1702 passed in 1467.46 s (24:27), rc=0**, `test_c8_08` included. Contention, not a defect |
 
 ## Register carry-out
 
