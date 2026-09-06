@@ -1,15 +1,15 @@
 {
   "accepted_tampers": [],
   "drifted": [],
-  "elapsed_s": 1.2,
+  "elapsed_s": 2.0,
   "n_sweeps": 6,
   "n_tamper_classes": 15,
   "published_digests": {
-    "cohort.json": "dbf756229cad62fc50698982e4feb2bf054cd0c9c6e860ebd6823f8f1c338569",
+    "cohort.json": "7a8a7e340533bee301607c66807fcb46f9261410793f2da4a8014654b5d51bee",
     "cohort_cells.csv": "4950d6166a2b61afb842857ab8fcfc81892765db578fef98cc6d22a32d4e4c8f",
     "cohort_features.csv": "e31f317db57bc4b898a0d6df51026891bff9ef6113f9d19b1b8f1d6c9c589aee",
-    "descriptors.yaml": "7f793b442d51b1d9c31fe04b5fbf9b9e61f4b9488a2ef5fea76bccff09f3fb02"
+    "descriptors.yaml": "4a6118349e1b0753b58ab86b9763fa1499eaff93b65ca46a97c3858648d78431"
   },
-  "source_digest": "b38e6269b90f50963963a2f0dae0a1622fe5ff95b24a0b4ddc4bdb231d4fa421",
+  "source_digest": "e4eab4a5fcb1fe5d9e3e074deeffbec31b185044f60b2337321ccd107e8c2749",
   "verdict": "PASS"
 }

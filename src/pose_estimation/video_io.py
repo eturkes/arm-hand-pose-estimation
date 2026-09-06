@@ -130,7 +130,12 @@ def open_capture(source, display=None):
     # 4.10/4.11/4.12, and 38 corpus assets declare a non-zero display matrix.
     # A default that moved between versions decides whether a tenth of the
     # corpus reaches the pose model upright, so the decode path names it.
-    cap.set(cv2.CAP_PROP_ORIENTATION_AUTO, 1)
+    # A refused request is not a benign default: it hands back a capture that decodes 38
+    # corpus assets sideways, so the refusal has to end the open rather than be discarded.
+    if not cap.set(cv2.CAP_PROP_ORIENTATION_AUTO, 1):
+        print(f"WARNING: OpenCV refused auto-orientation for {label} (backend limitation?).")
+        cap.release()
+        return None
     return cap
 
 

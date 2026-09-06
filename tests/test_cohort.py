@@ -42,7 +42,7 @@ _METADATA = {
     "window_end_sec",
 }
 _UNIT_CONSTANTS = {
-    "UNIT_DEG": "deg_image_plane_uncalibrated",
+    "UNIT_DEG": "deg_image_plane",
     "UNIT_FRAME_NORMALIZED": "frame_normalized",
     "UNIT_FRAME_NORMALIZED_PER_S": "frame_normalized_per_s",
     "UNIT_RATIO_SHOULDER_WIDTH": "ratio_shoulder_width",
@@ -1900,9 +1900,14 @@ def test_p14_debris_is_not_swept_before_a_successful_swap(tmp_path: pathlib.Path
     )
 
 
-def test_p14_successful_swap_sweeps_staging_and_retiring_debris(
+def test_p14_successful_swap_preserves_every_sibling_it_does_not_own(
     input_factory: _InputFactory, tmp_path: pathlib.Path
 ) -> None:
+    """A30: a prefix-named sibling is somebody else's directory until a marker says otherwise.
+
+    The retired sweep read the name alone, so a foreign tree and a complete generation
+    published under a staging-shaped `--out` were both deleted by an unrelated run.
+    """
     cohort = _cohort("P14")
     cohort_inputs = input_factory(cohort)
     out = tmp_path / "cohort"
@@ -1912,11 +1917,18 @@ def test_p14_successful_swap_sweeps_staging_and_retiring_debris(
     ]
     for path in debris:
         path.mkdir()
-        (path / "sentinel").write_text("remove\n", encoding="utf-8")
+        (path / "sentinel").write_text("keep\n", encoding="utf-8")
+    before = {path: _tree_state(path) for path in debris}
     _publish(cohort, cohort_inputs, out)
-    assert not any(path.exists() for path in debris), (
-        "P14: successful swap left stale staging or retiring debris"
+    assert all(_tree_state(path) == before[path] for path in debris), (
+        "P14/A30: a successful swap deleted a sibling this generator does not own"
     )
+    assert not [
+        entry
+        for entry in out.parent.iterdir()
+        if entry.name.startswith((f"{out.name}.staging.", f"{out.name}.retiring."))
+        and entry not in debris
+    ], "P14: the run left its own staging or retiring path behind"
 
 
 def test_p15_tree_bytes_are_environment_and_output_name_independent(
@@ -2094,7 +2106,7 @@ def test_p18_technical_document_states_all_four_claim_boundaries() -> None:
         "structurally_absent",
         "sagittal",
         "out of plane",
-        "9.9",
+        "one scalar",
         "anatomical angle",
     ):
         assert phrase in lowered, f"P18/A17: cohort.md omits {phrase!r}"

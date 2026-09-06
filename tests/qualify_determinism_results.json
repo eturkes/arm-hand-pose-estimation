@@ -33,7 +33,7 @@
     "src/pose_estimation/multicam.py": "af34617d9b4796b39c36fb7a464866ab6db2ab2d5d9942ce2dfd85225684fcbc",
     "src/pose_estimation/qualify.py": "d81f15acacb91bd678e801dcd809d47782cd624e3c5acec65d7d7e36d1140938",
     "src/pose_estimation/sessions.py": "c3627cfaa2882b6476bf1cd848042e4722565f5c12fc3e18453a77858df6355a",
-    "src/pose_estimation/video_io.py": "d419cedbf9426a75e1160d97a013f8a3bac97b1522f197322b55179d761a6cb1",
+    "src/pose_estimation/video_io.py": "3a7f2e95a80eaa1a6b1d096437fa35e894d77b8ffd8eccc3f536710b449717ea",
     "tests/test_measure.py": "9e7a077dc191664af8cd2ea40c78258194da1afb6dd2bfee1dc9cb11233c17a4",
     "tests/test_qualify.py": "fe8b29845cd1e8685f87d1487d10441d9c0447028163a7c0d2be5756c63f936b",
     "tests/test_sessions.py": "570ed80320204100c7ed4e790fd9a126048945815dee47185546f00850c1f021"

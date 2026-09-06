@@ -32,11 +32,22 @@ sys.path.insert(0, str(TESTS))
 from pose_estimation import cohort  # noqa: E402
 from test_cohort import _build_inputs, _published_bytes  # noqa: E402
 
-# The suite is this campaign's fixture source, so a suite edit must invalidate a recorded
-# PASS rather than let it certify bytes it never produced.
+# Every source that shapes a published byte or the acceptance itself, so an edit anywhere
+# under the campaign invalidates a recorded PASS rather than letting it certify bytes it
+# never produced. The publisher reads four sibling modules and the fixture builds its
+# corpus from two committed goldens, so a digest over `cohort.py` alone would certify a
+# tree it did not see; the campaign script is in the tuple because it defines the sweeps.
 SOURCES = (
+    pathlib.Path(__file__).resolve(),
     ROOT / "src" / "pose_estimation" / "cohort.py",
+    ROOT / "src" / "pose_estimation" / "corpus_run.py",
+    ROOT / "src" / "pose_estimation" / "inventory.py",
+    ROOT / "src" / "pose_estimation" / "qualify.py",
+    ROOT / "src" / "pose_estimation" / "sessions.py",
     TESTS / "test_cohort.py",
+    TESTS / "test_sessions.py",
+    TESTS / "goldens" / "r_clinical" / "2d_idx_clinical.csv",
+    TESTS / "goldens" / "r_clinical" / "2d_idx_clinical_windows.csv",
 )
 
 

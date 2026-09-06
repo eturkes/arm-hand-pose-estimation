@@ -528,6 +528,20 @@ The isotropic figure is seven orders of magnitude inside its bound — the resid
 arithmetic, which is what "the map is a similarity" predicts exactly. The anisotropic 8.36 deg is an
 independent sample's echo of the 9.9 deg corpus median in §3, and it is the reason the unit exists.
 
+**A16 — MILESTONE-REVIEW ruling. A refused orientation request ends the open; `open_capture` returns
+`None` and does not raise.** §2 proves OpenCV applies the display matrix and that `open_capture` sets
+`CAP_PROP_ORIENTATION_AUTO = 1` so the behaviour rests on an assertion rather than a default that
+moved across 4.10/4.11/4.12 — but the `set` return was discarded, so a backend that refused handed
+back a usable capture decoding 38 corpus assets sideways. The fix warns, releases and returns `None`.
+**Ruled against the ledger's own wording**: `.agent/review-m2.md` T2 R21 says "raises", the reviewer's
+red asserts `None`, and the red is right — the docstring's contract is "the open capture or `None`
+after printing a context-aware reason", every caller branches on `None`, and raising would convert a
+per-asset skip into a run abort. `probe_container` is deliberately left alone: it releases in
+`finally` and publishes `orientation_auto` as a cell, so a refusal is already visible there.
+**Measured before shipping**, because a wrong answer here refuses every video: `set` returns `True`
+on **382/382** real corpus assets, 0 unopenable, and `open_capture` still returns a capture that
+reads a frame. Re-measure this probe whenever OpenCV moves.
+
 ## 11. Verdict table
 
 Gate at the implementation commit: `ruff check` rc=0, `ruff format --check` rc=0, `ty check` "All

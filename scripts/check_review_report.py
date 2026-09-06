@@ -42,7 +42,9 @@ def main(path: Path) -> int:
     check(bool(rows), "P02", f"{len(rows)} verdict rows parsed")
     check(not dupes, "P02b", f"row ids unique ({sorted(set(dupes))} duplicated)")
 
-    verdicts = {rid: next((c for c in cells if c.lower() in VERDICTS), "") for rid, cells in rows.items()}
+    verdicts = {
+        rid: next((c for c in cells if c.lower() in VERDICTS), "") for rid, cells in rows.items()
+    }
     unshaped = sorted(r for r, v in verdicts.items() if not v)
     check(not unshaped, "P02c", f"every row carries a verdict cell ({unshaped} do not)")
     unknown = sorted(r for r, v in verdicts.items() if v.lower() == "unknown")
@@ -54,7 +56,11 @@ def main(path: Path) -> int:
         if verdicts.get(rid, "").lower() == "pass"
         and not any(len(c) > 12 and c.lower() not in VERDICTS for c in cells)
     )
-    check(not empty_finding, "P04", f"every `pass` row states what was checked ({empty_finding} do not)")
+    check(
+        not empty_finding,
+        "P04",
+        f"every `pass` row states what was checked ({empty_finding} do not)",
+    )
 
     failed = sorted(r for r, v in verdicts.items() if v.lower() == "fail")
     missing_detail, thin_detail = [], []
@@ -72,7 +78,11 @@ def main(path: Path) -> int:
         ]
         if not all(needed):
             thin_detail.append(f"{rid}{''.join('.' if n else 'X' for n in needed)}")
-    check(not missing_detail, "P05", f"every `fail` row has a `### <id>` detail section ({missing_detail} do not)")
+    check(
+        not missing_detail,
+        "P05",
+        f"every `fail` row has a `### <id>` detail section ({missing_detail} do not)",
+    )
     check(
         not thin_detail,
         "P06",
@@ -82,9 +92,15 @@ def main(path: Path) -> int:
     reg = text.split("## Register", 1)[1] if "## Register" in text else ""
     reg_items = [ln for ln in reg.splitlines() if ln.strip().startswith(("- ", "* "))]
     bad_reg = [ln[:40] for ln in reg_items if "acceptance" not in ln.lower()]
-    check(not bad_reg, "P07", f"{len(reg_items)} register entries each carry an acceptance check ({len(bad_reg)} do not)")
+    check(
+        not bad_reg,
+        "P07",
+        f"{len(reg_items)} register entries each carry an acceptance check ({len(bad_reg)} do not)",
+    )
 
-    print(f"\n{'PASS' if not fails else 'FAIL'} — {len(rows)} rows, {len(unknown)} unknown, {len(failed)} fail; open predicates: {fails}")
+    print(
+        f"\n{'PASS' if not fails else 'FAIL'} — {len(rows)} rows, {len(unknown)} unknown, {len(failed)} fail; open predicates: {fails}"
+    )
     return 1 if fails else 0
 
 

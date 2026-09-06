@@ -63,9 +63,10 @@ Read every published number under these four boundaries.
 
 **The angles are not anatomical angles.**
 Each value is an image-plane angle from uncalibrated 2D keypoints.
-The pipeline normalizes x and y by different image dimensions, so the normalization is anisotropic.
-The measured median error against the true image-plane angle is **9.9** degrees.
-The unit token `deg_image_plane_uncalibrated` states this in the data itself.
+The pipeline normalizes x and y by one scalar, the larger frame dimension.
+That scalar is a similarity map, so the published value is the true image-plane angle.
+No step corrects lens distortion, and no step recovers the anatomical angle.
+The unit token `deg_image_plane` states this in the data itself.
 
 **Projection geometry limits every value.**
 One camera measures a 3D movement through a 2D projection.

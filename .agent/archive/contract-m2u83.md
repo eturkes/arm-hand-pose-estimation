@@ -140,7 +140,9 @@ Each is testable, and each names the artifact it decides.
   normalized to `[0, 1]` **by frame dimensions** (`export.py:250`), so the anisotropy
   question is decided at implementation and its answer binds the vocabulary: any `*_deg`
   column computed from anisotropically normalized coordinates is **not** a true anatomical
-  angle and may not carry unit `deg` unqualified. The determination is recorded in §10.
+  angle and may not carry unit `deg` unqualified. The determination is recorded in §10 —
+  **A09, then A25**, which supersedes its token after M2.8.4 made the map isotropic
+  (one scalar `max(frame_w, frame_h)`, `export.coord_scale`). Read A25 before A09.
 - **P11 redaction** — no published byte carries a subject ordinal, `capture_id`, event id,
   camera name, source path, media suffix or filename. Value admissibility is membership in
   a published label set (task token, side token, level token, feature id, reason code,
@@ -398,6 +400,9 @@ Three defects in one predicate, all real.
 
 **A09 — F8 ACCEPTED. The P10 anisotropy determination, measured rather than deferred.**
 The deferred question is now decided against the R source and the corpus.
+**Token superseded by A25** — M2.8.4 made the normalisation isotropic, so the shipped token is
+`deg_image_plane`. Everything below describes the pre-M2.8.4 corpus; the 7-token count, the
+assignment rule and the "no unqualified `deg`" ruling all stand.
 
 - `z` is **identically 0.0** on every landmark column corpus-wide, so `angle_at_vertex`
   (`clinical_features.R:343`) is a plain 2D image-plane angle.
@@ -480,6 +485,9 @@ it already carried, so one 8.7 h run repairs both. Every §8 fact derived from
 return, so the published set becomes 92 columns and 12 × 92 = 1104 feature rows. A02's
 measured-partition ruling is what lets that happen with no contract edit, and it is why no
 predicate may assert 75, 900 or 17 as a literal.
+**Discharged and the prediction was wrong: measured 89 published / 3 excluded, 1068 rows** (§8,
+window 3). `--tracking body` restored 14 of the 17 — the three sagittal columns are `NA` on the 2D
+branch — and A02 absorbed the miss with zero predicate edits, which is the ruling's whole point.
 
 **A13 — F11 ACCEPTED. The marker's own schema and canonical form are frozen.**
 P13 required the census digest to cover "the provenance block minus its own self-referential key"
@@ -544,7 +552,8 @@ at different grains, and naming the grain dissolves it:**
 - The synthetic P08 fixture therefore makes a column finite in ≥1 cell and empty in another, never
   globally empty.
 - **P02 cardinality derives from `len(FEATURES) × cells`**, never a literal. A02 permits the
-  published set to move, and it will: the corrected corpus takes it to 92 × 12 = 1104.
+  published set to move, and it did — the corrected corpus measured **89 × 12 = 1068**, not the
+  92 × 12 = 1104 predicted here (§8).
 
 **A19 — F17 ACCEPTED. Fixed decimals are 9, not 4.**
 A03 froze `_cell()` at "fixed decimals" without a count, and the siblings disagree —
@@ -629,6 +638,62 @@ the canonical rendering of the **whole** marker payload with `generation.tree_di
 is the sibling publishers' own "census minus its own self-referential key" rule, it strictly covers
 what A13 names, and it satisfies P17. Canonical rendering is `inventory.render_json` — sorted keys,
 two-space indent, one terminal newline, default `ensure_ascii=True`.
+
+### Amendments from MILESTONE-REVIEW (M2 wave 2)
+
+Six rulings applied while closing `.agent/review-m2.md`'s ACCEPT-FIX rows. Each names the ledger row
+it discharges; the row carries the executable acceptance check.
+
+**A25 — the angle token is `deg_image_plane`; A09's `deg_image_plane_uncalibrated` is superseded.**
+A09 chose the `_uncalibrated` suffix because the `[0,1]` map divided x by width and y by height, so
+a published angle was not the image-plane angle it named. M2.8.4 replaced that with one scalar
+`max(frame_w, frame_h)` — a similarity, which preserves angles exactly — and the token did not
+follow the code. The vocabulary stays **seven tokens** and P10 stays a membership test; only the
+spelling moves, and A20's inheritance rule carries it unchanged to the `*_deg` window aggregates.
+The qualification survives the rename: `deg_image_plane` is still not an anatomical angle and still
+carries no lens correction, which is what the token has to keep saying. Ledger T2 R24 = T3 R05 =
+T3 R39 = T4 R41. **Closed by republishing `cohort/` on the real corpus** — 12 cells, 1068 feature
+rows, 89 published / 3 excluded, reconciling exactly with §8, and `descriptors.yaml` carrying 19
+`deg_image_plane` and 0 `deg_image_plane_uncalibrated`.
+
+**A26 — `tree_digest` covers set MEMBERSHIP, not only the members' bytes.** A24 extended the digest
+to the marker body and still left the set open: every published file hashed, nothing saying which
+names the set contains, so an arbitrary fifth file sat inside a published generation with
+`validate_generation` reading green. Ruled: the digest also folds the **sorted entry-name set** of
+the tree, marker excluded — excluded because the marker carries the digest, and because staging and
+published names must fold identically or no swap could validate. Content coverage and membership
+coverage are separate properties; check both on every publisher. Ledger T3 R25.
+
+**A27 — a duplicate source header is refused, not silently doubled.** `_read_table` and
+`_read_artifact` accepted a CSV whose header repeats a feature column, which publishes duplicate
+census entries while every set-valued check stays green — the counts disagree and no set comparison
+can see it. Ruled: `_assert_unique_header` on both readers. Ledger T3 R07.
+
+**A28 — event identity comes from the validated sessions placement, never from the run manifest.**
+`_contributors` grouped by the manifest's own `event_id`/`camera_name`, which no validation covers,
+so a forged or drifted manifest field re-partitions the cohort. Ruled: read both from the validated
+`sessions/placements.csv` and refuse a manifest that disagrees. The manifest names the asset; the
+sessions tree names where it sat. Ledger T3 R06 + R10.
+
+**A29 — the concurrent-mutation guard covers all three inputs, recursively and without following
+links.** Only two sessions digests were re-checked around aggregation, so a concurrent edit to the
+inventory or to a clinical file published successfully under a green read-only claim. Ruled: a
+`_snapshot(root)` — recursive, non-following, recording link target / directory / file digest per
+entry — taken over the inventory and the run before aggregation and re-checked after, beside the two
+existing sessions digests. Ledger T3 R32.
+
+**A30 — staging owns its name by construction, so there is no orphan sweep.** The publisher staged
+into `f"{out.name}.staging.{os.getpid()}"`, removed that path before publishing, and recursively
+deleted every prefix-matching sibling after the swap. A pid is neither unique nor private, so the
+pre-run remove destroys the only complete staged generation under pid reuse and the post-swap sweep
+destroys any foreign directory sharing the prefix. Ruled: `staging` and `retiring` come from
+`tempfile.mkdtemp(prefix=…, dir=out.parent)` (with `out.parent.mkdir(parents=True, exist_ok=True)`
+first), cleanup touches only this invocation's own paths, and **`_sweep_orphans` is deleted** rather
+than taught to read an ownership marker — the acceptance check asked for the marker, and making the
+name unguessable is strictly stronger, since it removes the delete instead of qualifying it. The
+shipped `test_p14_successful_swap_sweeps_staging_and_retiring_debris` asserted foreign recursive
+deletion **as success** and was rewritten as
+`test_p14_successful_swap_preserves_every_sibling_it_does_not_own`. Ledger T3 R29 + R30 + R31 + R42.
 
 ## 11. Verdict table
 

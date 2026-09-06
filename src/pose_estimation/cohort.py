@@ -20,6 +20,7 @@ import shutil
 import stat
 import statistics
 import sys
+import tempfile
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -37,11 +38,11 @@ class CohortError(Exception):
     """Every publisher and consumer refusal (A16). P17 asserts this class, not a supertype."""
 
 
-# A09 + A20. Seven tokens, closed: P10 is a membership test, so growing the vocabulary
-# weakens it. No token spells a bare `deg` — anisotropic normalisation was measured at a
-# median 9.9 deg against the true image-plane angle, so a published angle is not the angle
-# it names.
-UNIT_DEG = "deg_image_plane_uncalibrated"
+# A09 + A20 + A25. Seven tokens, closed: P10 is a membership test, so growing the
+# vocabulary weakens it. No token spells a bare `deg`: `export.COORD_NORMALIZATION` is a
+# similarity map, so the published value IS the true image-plane angle, and it is still
+# neither anatomical nor lens-distortion corrected.
+UNIT_DEG = "deg_image_plane"
 UNIT_FRAME_NORMALIZED = "frame_normalized"
 UNIT_FRAME_NORMALIZED_PER_S = "frame_normalized_per_s"
 UNIT_RATIO_SHOULDER_WIDTH = "ratio_shoulder_width"
@@ -434,10 +435,22 @@ def _quantile(values: list[float], fraction: float) -> float:
     return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
 
 
+def _assert_unique_header(name: str, header: tuple[str, ...]) -> None:
+    """A repeated column makes `DictReader` keep the last cell and the census count twice.
+
+    So the same source column reaches the feature table once and the published census
+    twice, and every set-valued check stays green while the counts disagree (A27).
+    """
+    duplicates = sorted({column for column in header if header.count(column) > 1})
+    if duplicates:
+        raise CohortError(f"{name} repeats the columns {duplicates}.")
+
+
 def _read_table(path: pathlib.Path, required: tuple[str, ...]) -> list[dict[str, str]]:
     with path.open(newline="", encoding="utf-8") as stream:
         reader = csv.DictReader(stream)
         header = tuple(reader.fieldnames or ())
+        _assert_unique_header(path.name, header)
         missing = [column for column in required if column not in header]
         if missing:
             raise CohortError(f"{path.name} is missing the columns {missing}.")
@@ -452,6 +465,7 @@ def _read_artifact(
         with path.open(newline="", encoding="utf-8") as stream:
             reader = csv.DictReader(stream)
             header = tuple(reader.fieldnames or ())
+            _assert_unique_header(path.name, header)
             columns = [name for name in header if name not in METADATA_COLUMNS]
             values: dict[str, list[float]] = {name: [] for name in columns}
             rows = 0
@@ -662,6 +676,20 @@ def _descriptor_rows() -> list[dict[str, object]]:
     ]
 
 
+# YAML 1.1 breaks a line on NEL, LS and PS as well as LF, so a label carrying one of them
+# survives JSON and comes back out of the loader as a space. JSON's own `\uXXXX` escape is
+# what keeps the round trip total, and PyYAML reads it back as the codepoint.
+_YAML_LINE_BREAKS = (0x85, 0x2028, 0x2029)
+
+
+def _json_scalar(value: object) -> str:
+    """Render one scalar as JSON, escaping the codepoints YAML would read as breaks."""
+    text = json.dumps(value, ensure_ascii=False)
+    for codepoint in _YAML_LINE_BREAKS:
+        text = text.replace(chr(codepoint), f"\\u{codepoint:04x}")
+    return text
+
+
 def render_descriptors(rows: list[dict[str, object]]) -> str:
     """Render the fragment without a YAML emitter, so the bytes are ours to fix.
 
@@ -673,7 +701,7 @@ def render_descriptors(rows: list[dict[str, object]]) -> str:
     for row in rows:
         prefix = "-"
         for key in ("raw", "ja", "en", "group", "role", "dtype", "unit", "range"):
-            lines.append(f"{prefix} {key}: {json.dumps(row[key], ensure_ascii=False)}")
+            lines.append(f"{prefix} {key}: {_json_scalar(row[key])}")
             prefix = " "
     return "\n".join(lines) + "\n"
 
@@ -749,7 +777,12 @@ def tree_digest(out_dir: str | os.PathLike[str], marker: Mapping[str, Any]) -> s
         if key != "tree_digest"
     }
     body["generation"] = generation
-    lines = [
+    # The entry set joins the digest, or a fifth file sits inside the published generation
+    # with nothing covering it and `validate_generation` still reads green (A26). The
+    # marker is excluded so staging — which has no marker yet — digests to the same value.
+    entries = sorted(entry.name for entry in out.iterdir() if entry.name != COHORT_FILENAME)
+    lines = ["\t".join(["entries", *entries]) + "\n"]
+    lines += [
         f"{name}\t{_digest_bytes((out / name).read_bytes())}\n" for name in PUBLISHED_FILENAMES
     ]
     lines.append(render_marker(body).decode("utf-8"))
@@ -828,11 +861,28 @@ def _assert_owned(out: pathlib.Path) -> None:
         )
 
 
-def _sweep_orphans(out: pathlib.Path) -> None:
-    """Clear this generator's own staging and retiring debris beside a published set."""
-    for sibling in out.parent.iterdir():
-        if sibling.name.startswith((f"{out.name}.staging.", f"{out.name}.retiring.")):
-            _remove(sibling)
+def _snapshot(root: pathlib.Path) -> dict[str, str]:
+    """Recursive, non-following inventory of one input tree: path -> kind and content.
+
+    Non-following is load-bearing — `videos`, `inventory` and `renv/library` are symlinks
+    in a worktree, so following them digests a tree this publisher never read. `rglob` is
+    what supplies it: pathlib never descends a symlinked directory, where `glob.glob`'s
+    `**` does. Both see dotfiles. A semantic validator canonicalizes its input and
+    therefore cannot witness bytes, which is why the read-only claim over all three inputs
+    rests on this instead (A29).
+    """
+    entries: dict[str, str] = {}
+    for path in sorted(root.rglob("*")):
+        key = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            entries[key] = f"link:{os.readlink(path)}"  # noqa: PTH115
+        elif path.is_dir():
+            entries[key] = "dir"
+        elif path.is_file():
+            entries[key] = f"file:{_digest_bytes(path.read_bytes())}"
+        else:
+            entries[key] = "other"
+    return entries
 
 
 def _contributors(
@@ -853,19 +903,33 @@ def _contributors(
         corpus_run.validate_manifest(rows, sorted(placements))
     except corpus_run.ManifestError as error:
         raise CohortError(f"The run manifest is not a total partition: {error}") from error
+    except OSError as error:
+        raise CohortError(f"The run manifest is not readable: {error}") from error
     contributors = []
     for row in rows:
         if row["disposition"] != corpus_run.DISPOSITION_OK:
             continue
         asset = assets[row["asset_id"]]
+        # The manifest is the run's own output and carries no digest of its own, while the
+        # placement ledger is inside a validated generation. So the event grouping keys —
+        # which decide the estimand's middle stage — are read from the ledger, and the
+        # manifest has to agree with it rather than name the grouping (A28).
+        placement = placements[row["asset_id"]]
+        declared = (row["event_id"], row["camera_name"])
+        placed = (placement["event_id"], placement["camera_name"])
+        if declared != placed:
+            raise CohortError(
+                f"The run manifest places {row['asset_id']} at {declared}, "
+                f"but the session tree places it at {placed}."
+            )
         contributors.append(
             _Contributor(
                 asset_id=row["asset_id"],
                 task=asset["task"],
                 side=asset["side"],
                 subject=asset["subject_ordinal"],
-                event_id=row["event_id"],
-                camera_name=row["camera_name"],
+                event_id=placement["event_id"],
+                camera_name=placement["camera_name"],
             )
         )
     if not contributors:
@@ -924,20 +988,30 @@ def run(
     for source, name in ((registry, "inventory"), (tree, "sessions"), (run_root, "run")):
         _assert_disjoint(out, source, name)
 
-    inventory.validate_generation(registry)
-    sessions.validate_generation(tree, inventory_dir=registry)
-    sessions_tree = sessions.tree_digest(tree)
-    sessions_generation = sessions.generation_digest(tree)
-    contributors = _contributors(registry, tree, run_root)
-    # An upstream tree that moves while it is being read makes every published count a
-    # statement about a corpus that no longer exists.
-    if (sessions_tree, sessions_generation) != (
-        sessions.tree_digest(tree),
-        sessions.generation_digest(tree),
-    ):
-        raise CohortError("The sessions tree changed while the cohort was being read.")
+    # Every upstream refusal reaches the caller as this module's own class (A16): a
+    # consumer that has to name three foreign exception types to call one function cannot
+    # tell a corrupt input from a missing one.
+    try:
+        inventory.validate_generation(registry)
+        sessions.validate_generation(tree, inventory_dir=registry)
+        sessions_tree = sessions.tree_digest(tree)
+        sessions_generation = sessions.generation_digest(tree)
+    except CohortError:
+        raise
+    except Exception as error:
+        raise CohortError(f"The upstream generations are not readable: {error}") from error
 
+    # An upstream tree that moves while it is being read makes every published count a
+    # statement about a corpus that no longer exists. The snapshot covers all three inputs
+    # and subsumes a digest re-comparison, which sees only the files its own contract names
+    # (A26 is the same gap one publisher up).
+    inputs = (("inventory", registry), ("sessions", tree), ("run", run_root))
+    before = {name: _snapshot(path) for name, path in inputs}
+    contributors = _contributors(registry, tree, run_root)
     aggregate = _aggregate(contributors, run_root)
+    for name, path in inputs:
+        if _snapshot(path) != before[name]:
+            raise CohortError(f"The {name} tree changed while the cohort was being read.")
     input_digests = {
         "inventory": _digest_bytes((registry / inventory.CENSUS_FILENAME).read_bytes()),
         "run_manifest": _digest_bytes((run_root / corpus_run.MANIFEST_FILENAME).read_bytes()),
@@ -946,24 +1020,30 @@ def run(
     }
 
     _assert_owned(out)
-    staging = out.with_name(f"{out.name}.staging.{os.getpid()}")
-    retiring = out.with_name(f"{out.name}.retiring.{os.getpid()}")
-    _remove(staging)
-    _remove(retiring)
+    # A pid-keyed sibling name is not this run's to delete: pid reuse and a foreign tool
+    # both spell it, and the old pre-run clear destroyed whatever wore the name before the
+    # swap could succeed. `mkdtemp` names a path nothing else holds, so cleanup touches
+    # only what this invocation created and no orphan sweep is needed (A30).
+    out.parent.mkdir(parents=True, exist_ok=True)
+    staging = pathlib.Path(tempfile.mkdtemp(prefix=f"{out.name}.staging.", dir=out.parent))
+    retiring = pathlib.Path(tempfile.mkdtemp(prefix=f"{out.name}.retiring.", dir=out.parent))
+    published = False
     try:
+        _remove(staging)
         _publish(staging, aggregate, input_digests)
         try:
             if out.exists():
                 out.rename(retiring)
             staging.rename(out)
+            published = True
         except OSError:
             if retiring.exists() and not out.exists():
                 retiring.rename(out)
             raise
-        _sweep_orphans(out)
-        _remove(retiring)
     finally:
-        _remove(staging)
+        if not published:
+            _remove(staging)
+        _remove(retiring)
     return out
 
 
