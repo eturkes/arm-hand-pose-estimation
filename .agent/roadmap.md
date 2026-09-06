@@ -6,7 +6,7 @@ Live long-horizon state only; completed trajectory belongs in git. Closed-unit d
 
 ## M2 — three-camera corpus: inventory, qualification, 3D ruling
 
-**Status: IN-PROGRESS** — M2.1-M2.5 DONE; M2.6 and M2.6b both closed negative and ruled. **M2.7 and M2.8 are PLANNED into 8 units** — M2.7 DONE (M2.7.1-M2.7.4); M2.8.1 DONE; **M2.8.2 DONE across two windows** (tracker-freeze defect fixed, then the driver, the 379-row manifest and the full corpus run at 8.70 h measured); **M2.8.4 DONE across four windows** (isotropic coordinates plus the `--tracking body` corpus re-run, 193/193 at 7.828 h, the funded orientation fix refuted before it was built); **M2.8.3 DONE across three**, then split at its `FEATURES` seam by user ruling. **Lowest OPEN unit = M2.8.5**, the cohort compute + publication half, working over the corpus at `output/corpus-2d`. M2.7 publishes the negative through a new `calibration_qc/` publisher (F1a); **M2.8 publishes cohort aggregates only, by user ruling** — no per-subject rows, no patient identifier, no join column, no join to `../rehab`, and it stops at this repo's boundary. The 3D line is closed; it reopens only on prospective calibrated capture. The old clearance precondition is met: full decode clearance covers the whole `videos/3-cam/` tree, for MAIN and teammates. Chat and reports carry redacted aggregates only — never imagery, filenames, or subject identifiers.
+**Status: IN-PROGRESS** — M2.1-M2.5 DONE; M2.6 and M2.6b both closed negative and ruled. **M2.7 and M2.8 are PLANNED into 8 units** — M2.7 DONE (M2.7.1-M2.7.4); M2.8.1 DONE; **M2.8.2 DONE across two windows** (tracker-freeze defect fixed, then the driver, the 379-row manifest and the full corpus run at 8.70 h measured); **M2.8.4 DONE across four windows** (isotropic coordinates plus the `--tracking body` corpus re-run, 193/193 at 7.828 h, the funded orientation fix refuted before it was built); **M2.8.3 DONE across three**, then split at its `FEATURES` seam by user ruling; **M2.8.5 DONE in two** — the cohort publisher ships and publishes over `output/corpus-2d`. **Every unit is DONE, so M2 is IMPLEMENTED and the next session runs MILESTONE-REVIEW.** M2.7 publishes the negative through a new `calibration_qc/` publisher (F1a); **M2.8 publishes cohort aggregates only, by user ruling** — no per-subject rows, no patient identifier, no join column, no join to `../rehab`, and it stops at this repo's boundary. The 3D line is closed; it reopens only on prospective calibrated capture. The old clearance precondition is met: full decode clearance covers the whole `videos/3-cam/` tree, for MAIN and teammates. Chat and reports carry redacted aggregates only — never imagery, filenames, or subject identifiers.
 
 **Review carry-over — M2's MILESTONE-REVIEW must not re-review M2.1-M2.7.2.** Those units closed under the earlier regime, which ran `rev`/`rev2` inside WORK-UNIT: their check sets are fully adjudicated and recorded per unit below (`rev-m2u4-3` 73 rows + `rev2-m2u4-2` 33, M2.5's 38/33/14/55, M2.7.1's 45, and the `.agent/archive/rulings-m2u*.md` tables). Those rulings bind, and only new evidence reopens one. Seed `.agent/review-m2.md` from the units reviewed under neither regime plus the two milestone-scoped lenses that no unit could run — cross-unit integration and the `audit-m2` claim replay. Units from M2.7.3 on carry no in-unit judgment review and need their full check sets.
 
@@ -52,7 +52,7 @@ Live long-horizon state only; completed trajectory belongs in git. Closed-unit d
 | M2.8.3 | Cohort published schema + bilingual labels | `cohort.FEATURES` — the 89 published features, each with `ja`/`en` labels, a vocabulary unit and an admissible range, composed by rule from 20 families. |
 | M2.8.5 | Cohort aggregate compute + publication | 12 `(task, side)` cohort rows, no subject rows, over M2.8.3's schema; the append-ready `columns.yaml` fragment, the CLI and the published tree. |
 
-**Unit status.** M2.1, M2.2 and **M2.3 DONE** — M2.3 across ten windows, closing on P29. **M2.4 DONE** and **M2.5 DONE** — see below. **M2.6 closed negative at F0 and ruled** — extrinsic recovery is measured unachievable on this corpus, and the verdict ships through F1a, see below. **M2.6b closed negative at G0** — the funded repair route is refused by measurement, see below. **M2.7.1 DONE** across four windows — the `calibration_qc/` publisher, both campaigns and its documentation ship. **M2.7.2 DONE** across two — the committed byte oracle and the refusal matrix. **M2.7.3 DONE** in one — the human-facing report and the checker pinning both prose copies of the claim set. **M2.7.4 DONE** in one — the 20-section prospective capture specification and its 13-predicate checker, closing M2.7. **M2.8.1 DONE** across three windows — the four corpus-run blockers, the disposition artifact, the diff-blind suite and the stratified pilot that refuted the 6.5 h run estimate. **M2.8.2 DONE** across two windows — the tracker-freeze fix, the resumable driver, the total disposition manifest and the whole-corpus run, 379/379 assets `ok`. **M2.8.4 DONE** across four windows against a 1-2 estimate — isotropic coordinates, the `--tracking body` corpus re-run at 193/193 and 7.828 h, 17/17 predicates pass, 15 amendments; the funded orientation fix was refuted before it was built. **M2.8.3 DONE at `4c006bd`** across 3 windows against a 2 estimate — 22 amendments, counts measured on the corrected corpus (89 published columns / 1068 feature rows / 12 cells), `cohort.FEATURES` composed by rule with the A02 cross-check green. **It was split at the `FEATURES` seam by user ruling**: three consecutive overruns were structural, not estimative, and its compute half is now **M2.8.5, the lowest OPEN unit** — see below.
+**Unit status.** M2.1, M2.2 and **M2.3 DONE** — M2.3 across ten windows, closing on P29. **M2.4 DONE** and **M2.5 DONE** — see below. **M2.6 closed negative at F0 and ruled** — extrinsic recovery is measured unachievable on this corpus, and the verdict ships through F1a, see below. **M2.6b closed negative at G0** — the funded repair route is refused by measurement, see below. **M2.7.1 DONE** across four windows — the `calibration_qc/` publisher, both campaigns and its documentation ship. **M2.7.2 DONE** across two — the committed byte oracle and the refusal matrix. **M2.7.3 DONE** in one — the human-facing report and the checker pinning both prose copies of the claim set. **M2.7.4 DONE** in one — the 20-section prospective capture specification and its 13-predicate checker, closing M2.7. **M2.8.1 DONE** across three windows — the four corpus-run blockers, the disposition artifact, the diff-blind suite and the stratified pilot that refuted the 6.5 h run estimate. **M2.8.2 DONE** across two windows — the tracker-freeze fix, the resumable driver, the total disposition manifest and the whole-corpus run, 379/379 assets `ok`. **M2.8.4 DONE** across four windows against a 1-2 estimate — isotropic coordinates, the `--tracking body` corpus re-run at 193/193 and 7.828 h, 17/17 predicates pass, 15 amendments; the funded orientation fix was refuted before it was built. **M2.8.3 DONE at `4c006bd`** across 3 windows against a 2 estimate — 22 amendments, counts measured on the corrected corpus (89 published columns / 1068 feature rows / 12 cells), `cohort.FEATURES` composed by rule with the A02 cross-check green. **It was split at the `FEATURES` seam by user ruling**: three consecutive overruns were structural, not estimative, and its compute half shipped as **M2.8.5, DONE in two windows against a 2-3 estimate** — the aggregation engine, publication, `validate_generation`, the census, the descriptor projection, the CLI, the determinism campaign, the technical document and every registration, 60/60 red suite green and the full gate at 1702 passed. **All units DONE ⇒ M2 is IMPLEMENTED.**
 
 ### M2.7 — publish the closed-negative 3D ruling — DONE, 4 units
 
@@ -384,7 +384,7 @@ rebuild — keep new JA text inside existing coverage and state the risk in the 
 | M2.8.2 | data + kernel fix | Full corpus 2D run, resumable, 8.70 h measured (full corpus, 193 events / 379 assets / 337 090 frames); the post-fix pilot projected 7.07-7.61 h, so a 16-asset stratified sample under-predicted per-frame cost by 14%. **First question CLOSED in window 1: the 40× split was one tracker-freeze defect, not a cost profile** — so M2.8.1's 26-31 h sampled a broken pipeline and is retired with the plan's 6.5 h. Per-asset clinical features plus a run manifest giving every one of the 379 assets an explicit disposition, so no asset is silently absent from a denominator. | 1-2 est; **2 spent, DONE** |
 | M2.8.3 | kernel | **Published schema half.** `cohort.FEATURES` = 89 features × (`level`, `column`, `ja`, `en`, `unit`, `range`), composed from 20 family pairs × side × derivation; the closed 7-token unit vocabulary; `CohortError`; `describe`. | 2 est; **3 spent, DONE at `4c006bd`** — 22 amendments, counts measured (89 published / 1068 rows / 12 cells), A02 cross-check green, static gate rc=0 |
 | M2.8.4 | data + kernel fix | **Corrected corpus re-run (~8.7 h), carrying two repairs.** (a) `--tracking body`, populating the 17 trunk/posture columns → 92 published features; (b) **isotropic coordinates** — one scalar `max(frame_w, frame_h)` at `export.py`'s three normalisation sites, killing the 9.9° angle distortion and the 3.16× portrait/landscape contamination. **The planned orientation fix is REFUTED and must not be built** — see below. One run carries both. **Unblocks M2.8.3.** | 1-2 est; **4 spent, DONE** — 17/17 predicates pass, corpus 193/193 at 7.828 h, `output/corpus-2d` swapped |
-| M2.8.5 | kernel | **Compute + publication half, split out of M2.8.3.** Four-stage subject estimand (D02/A03) over the 12 cells × 89 features; `view_dispersion` (A06) over the 135 multi-asset events; staged publication + swap with the A13/A14 marker; `validate_generation` (P17/A16); `cohort.json` census carrying `rows_zero_values` / `rows_without_multiview` / `rows_below_subject_floor` / `descriptor_collision` (A04/A07/A10); `descriptors.yaml` projection (A08); CLI `main --inventory --sessions --run --out` (A17); `scripts/check_cohort_determinism.py` (A17); `docs/technical/cohort.md` (P18); registration in four doc indexes + `pyproject.toml` 10 → 11 + `.gitignore`. | **2-3 est, OPEN** — inherits M2.8.3's contract, its 22 amendments and its red suite; sized against M2.8.3's measured 3 windows for the lighter half, so the heavier half gets no less |
+| M2.8.5 | kernel | **Compute + publication half, split out of M2.8.3.** Four-stage subject estimand (D02/A03) over the 12 cells × 89 features; `view_dispersion` (A06) over the 135 multi-asset events; staged publication + swap with the A13/A14 marker; `validate_generation` (P17/A16); `cohort.json` census carrying `rows_zero_values` / `rows_without_multiview` / `rows_below_subject_floor` / `descriptor_collision` (A04/A07/A10); `descriptors.yaml` projection (A08); CLI `main --inventory --sessions --run --out` (A17); `scripts/check_cohort_determinism.py` (A17); `docs/technical/cohort.md` (P18); registration in four doc indexes + `pyproject.toml` 10 → 11 + `.gitignore`. | **2-3 est, DONE in 2** — inherits M2.8.3's contract, its 24 amendments and its red suite; window 1 bought the design, window 2 shipped every dispatch item |
 
 **M2.8.1 exists because M2.6 recorded why it must.** "Where a milestone's spine rests on an unmeasured
 empirical assumption, the feasibility probe is its own unit with its own budget." M2.8's spine assumes
@@ -459,130 +459,74 @@ all MAIN scripts, and the PTS question had already cost `map-m2` most of a windo
 it in two reads. **On a planning window, delegate the reading and the external research; keep every
 script-derivable census in MAIN's hands.**
 
-#### M2.8.5 — OPEN, the lowest OPEN unit. M2.8.3's compute half, split out at the `FEATURES` seam
+#### M2.8.5 — DONE, 2 windows against a `2-3 est`. The cohort publisher ships
 
-**Inherits everything M2.8.3 built and rules nothing again.** Contract =
-`.agent/archive/contract-m2u83.md`, all 22 amendments live, §11 items 4-5. Schema =
-`cohort.FEATURES` at `4c006bd`, frozen: 89 features, units by A09+A20, ranges by A21, A02
-cross-check green. Corpus = `output/corpus-2d`, 193/193, measured 89 published / 3 excluded over
-92 source columns, 1068 feature rows, 12 cells, `n_subjects` 15-16, 135 multi-asset events.
+**Window 1 bought the design and shipped no code; window 2 shipped every one of the ten dispatch
+items.** That split is the unit's sizing datum: **on a unit whose specification is a 2169-line
+diff-blind suite, the suite read is the window's dominant cost and must be budgeted as its own
+window.** Window 1's entry cost — attached state, the contract with 22 amendments, the suite,
+`cohort.py` and the sibling's publication machinery — consumed the whole window and produced one
+artifact: a complete implementation design plus the A23 ruling, carried forward in the compaction
+summary. Window 2 implemented from that summary rather than from a re-read and closed in one pass.
+**PLANNING should treat a large diff-blind suite as a read-window plus an implementation window, not
+as one unit of work.**
 
-**Dispatch list, ordered — a window starts from this list, never from a re-read of the contract.**
-(1) aggregation engine, four-stage subject estimand D02/A03; (2) `view_dispersion` A06 over the 135
-multi-asset events; (3) publication — staging plus swap, ownership A14, marker schema A13; (4)
-`validate_generation` P17/A16; (5) CLI `main --inventory --sessions --run --out` A17; (6)
-`descriptors.yaml` projection A08; (7) `cohort.json` census carrying `rows_zero_values` /
-`rows_without_multiview` / `rows_below_subject_floor` / `descriptor_collision` A04/A07/A10; (8)
-`scripts/check_cohort_determinism.py` A17; (9) `docs/technical/cohort.md` P18; (10) registration —
-four exhaustive doc indexes, `pyproject.toml` 10 → 11 commands, `.gitignore` `cohort` + `cohort.*/`.
-Then run the decisive gate and measure the descriptor glyph delta against `../rehab`'s 10 subset
-WOFF2 faces.
+**Shipped.** `src/pose_estimation/cohort.py` gains the compute + publication half beside the schema
+half: the four-stage estimand (D02/A03), `view_dispersion` (A06), staged publication with ownership,
+swap and orphan sweeping (A13/A14/A24), `validate_generation` (P17/A16), the `cohort.json` census
+(A04/A07/A10/A22), the `descriptors.yaml` projection rendered without a YAML emitter for byte
+control (A08/A15), and the CLI (A17). Plus `scripts/check_cohort_determinism.py`,
+`docs/technical/cohort.md`, and registration in four doc indexes, `pyproject.toml` (10 → 11
+commands) and `.gitignore`.
 
-**Standing obligation carried by A22**: the moment the aggregation engine fixes the `population`
-child keys, the `estimand` literal, the collision `source` token and the `input_digests` child keys,
-extend A10 with their exact names and tighten the suite from structural to exact **in the same
-commit**. The deferral was priced on that obligation travelling with it.
+**Measured on the real corpus** — `pose-estimation-cohort --inventory inventory --sessions sessions
+--run output/corpus-2d --out cohort`, **14.4 s**, 180 KB published. Every number reconciles with the
+census M2.8.3 measured independently: **12 cells, 1068 feature rows, 89 published / 3 excluded
+columns, 379 assets, 193 events, 16 subjects, 331 152 frame rows, 21 483 window rows**, `n_subjects`
+15-16 per cell, `descriptor_collision` = `{checked: true, n_external: 219, n_collisions: 0}`.
+Independent check on `view_dispersion`: per-feature multi-view event totals run **130-135 against
+the 135 multi-asset events**, so A06's population bound is reached exactly and the shortfall is only
+where one camera carries no finite value for that feature. `rows_zero_values`,
+`rows_without_multiview` and `rows_below_subject_floor` are all **0** on real input — those three
+census paths are reachable synthetically alone, as M2.8.3 predicted for P08.
 
-**Red suite COMPLETE, and it lives at tag `archive/m2u83-test-4` = `ca2cb41`, NOT in the primary
-tree** — `tests/test_cohort.py`, 2169 lines, all 18 predicates re-encoded against A01-A22 across
-three successors. **Measured red: 58 failed, 2 passed, 0 skipped, 0 errors, no collection failure**,
-reproduced identically in the primary tree before it was reverted. `ruff check` + `ruff format
---check` + `ty check` all rc=0. M2.8.5's precondition is met.
+**Gates.** Red suite **60/60 green**; full decisive gate **1702 passed** with `ruff check` +
+`ruff format --check` + `ty check` all rc=0. `scripts/check_cohort_determinism.py` reads **PASS — 6
+publication sweeps, 15 consumer-boundary tamper classes, 1.2 s**; it is the published tree's byte
+oracle, because `cohort/` is gitignored and gets no committed golden. Sweeps: republish over self,
+different output name, moved cwd, moved pid, rebuilt corpus. Its `source_digest` covers both
+`cohort.py` and `tests/test_cohort.py`, so a suite edit invalidates a recorded PASS rather than
+letting it certify bytes it never produced.
 
-**M2.8.5 step 0: `git show archive/m2u83-test-4:tests/test_cohort.py > tests/test_cohort.py`, then
-implement until green, then commit it green.** It must NOT be committed red, and the reason is a
-committed gate: **`tests/test_r_timebase_truth.py::test_c8_08` runs the WHOLE suite in a subprocess
-(`pytest -q --maxfail=1 -k "not test_c8_08"`) and asserts rc=0**, so any red file in the primary tree
-fails it and takes the decisive gate down for the length of the unit. Measured both ways — with the
-red suite present the gate reads **59 failed / 1643 passed** and `test_c8_08` fails in isolation too,
-proving it is the meta-test rather than concurrency; with it absent the gate is green. This is why
-every previous unit's diff-blind suite stayed on its archive tag until it went green, and the
-generic advice to put the red suite in the primary tree does not hold in this repo.
+**Three rulings, all recorded in the contract.** **A22 DISCHARGED** — the engine fixed the four
+deferred domains and the suite now pins them exactly (`_POPULATION_KEYS`, `_ESTIMAND`,
+`_COLLISION_SOURCE`, `_INPUT_DIGEST_KEYS`), in this same commit as the obligation required.
+**A23** — A10's five-subject floor and P08's oracle contradicted each other on three cells; the
+floor won and the test's expectation now carries the floor. **A24** — A13's digest rule left the
+census uncovered while P17 edits it, so `tree_digest` covers the three files plus the whole marker
+body minus its own self-referential key.
 
-**The two passes are correct and must stay green** — `test_p09_feature_ranges_are_measurement_domains_not_corpus_extremes`
-and `test_p10_units_match_the_closed_measurement_vocabulary`, both confined to schema surface shipped
-at `4c006bd`. **The old "0 passed" validator is retired**: it encoded a pre-implementation baseline,
-and once the schema half shipped a predicate confined to that surface passes legitimately. Live
-criterion — 0 skipped, 0 errors, every predicate touching unshipped compute surface fails, every
-passing test named with the shipped surface that justifies it.
+**Glyph delta MEASURED, item 5 closed.** The 89 `ja` labels use 75 non-ASCII characters; all four
+`ibm-plex-sans-jp-*.woff2` faces in `../rehab` are identically subset and each misses the same
+**14** — `チペ偏勢姿尖幹扇把斜旋称肘隔`. The six Latin faces carry no CJK. The published bytes are
+correct; the consumer's font subset is short. The fix is in `../rehab`, outside this repo's
+boundary, so it ships as a `.agent/polish.md` entry with the glyph list and its acceptance check.
 
-Wave record: `test-m2u83-2` P01-P04 + the A01-A19 seed audit (tag `archive/m2u83-test-2` = `aa4981e`),
-`test-m2u83-3` P05-P13 (`archive/m2u83-test-3` = `2d1fba2`), `test-m2u83-4` P14-P18 (`archive/m2u83-test-4`
-= `ca2cb41`). Report preserved at `.scratch/agents/test-m2u83-suite.md`. **A stale literal survived
-into the last batch and was caught by MAIN's own sweep, not by the agents**: `tests/test_cohort.py:1938`
-asserted `"17" in lowered` for "the exclusion count" when the exclusion count is 3 — 17 was the
-pre-correction trunk/posture column count. Named in the finisher's brief and purged; an AST sweep now
-confirms no `75`, `900` or `17` constant survives (`q75` is a quantile key and stays).
+**Window 2 gauges — `harvest=` n/a (MAIN-only unit, no wave), `main=` 53% 144K/273K, `mate=` n/a.**
+Window 1: `main=` ~90% at compaction, 0 dispatch items shipped. The contrast is the datum: the same
+unit cost a full window to read and half a window to build.
 
 **Gate recipe — `env -u LD_LIBRARY_PATH PYTHONPATH="$PWD/src" uv run --no-sync pytest …`.** A bare
-`uv run pytest` dies at `ImportError … GLIBC_2.43 not found` before collecting one test, in the
-primary tree as well as any worktree, because `conftest.py` imports `pose_estimation` → `openvino`
-and the inherited `PYTHONPATH` selects the host build. This cost two runs to rediscover in window 3
-despite being recorded at `memory.md:39-43`; read it before running, not after.
+`uv run pytest` dies at `ImportError … GLIBC_2.43 not found` before collecting one test. The full
+gate takes ~17 min, so run it in the background and work while it runs.
 
-#### M2.8.4 — DONE, 4 windows against a 1-2 estimate. Two repairs shipped in one corpus run
-
-**Contract at `.agent/archive/contract-m2u84.md`** — 8 design decisions D01-D08, **17 predicates
-P01-P17** (P17 added by A01), a negative-control seed, **15 amendments A01-A15**. Base `3d323c7`.
-Tier `data` + `kernel` fix. **Verdict table §11: 17/17 pass.**
-
-**What shipped.** `export.py` gains `COORD_NORMALIZATION = "image-isotropic-maxdim"` and a public
-`coord_scale(frame_h, frame_w) = float(max(frame_w, frame_h))`; both normalisation sites divide
-x/y/z by it. `run.py` passes the **decoded** frame's shape instead of the container banner property.
-`multicam.py` inverts the same scalar — **A01, MAIN-found and covered by no predicate**: export and
-fusion round-trip through each other, so the old pair was self-consistent and a one-sided fix would
-have broken the round-trip. `video_io.open_capture` sets `CAP_PROP_ORIENTATION_AUTO` explicitly.
-
-**The corrected corpus.** `--tracking body`, NPU, detached: **193/193 events, 379/379 assets `ok`,
-0 failures, 337 090 frames, 12.251 fps, 7.828 h** (prior run 8.70 h at 10.99 fps). All 11 driver
-verdicts true; the report publishes `tracking = body` and
-`coord_normalization = image-isotropic-maxdim`. The pre-fix tree was deleted and this one took
-`output/corpus-2d` (D06, user-ruled), and the driver's `--tracking` default flipped to `body` so a
-bare rerun reproduces the shipped tree. `scripts/check_isotropy_angle_fidelity.py` now refuses any
-tree declaring the isotropic token — its input no longer exists and
-`tests/isotropy_angle_fidelity_results.json` is the durable artifact.
-
-**M2.8.3's §8 provisional numbers resolve to 92 present / 89 populated.** A03's census, reproduced
-corpus-wide at close over 12 events (17 200 frame + 1 115 window rows): **17 trunk/posture columns
-present, 14 finite-capable, 3 structurally NA** — `trunk_lean_sagittal_deg` and its `_mean`/`_sd`
-window aggregates, which `clinical_features.R:1038` assigns `NA_real_` on the 2D branch as
-out-of-plane. A02's measured-partition ruling absorbs this with no contract edit, which is exactly
-why no predicate was allowed to assert 75, 900 or 17 as a literal.
-
-**Datum: a defect inferred from a derived artifact needs one measurement of the mechanism before it
-is funded.** The unit was funded to fix a decode-orientation defect. Three measurements at `3d323c7`
-refuted it, and the planned `cv2.rotate` would have **double-rotated 38 assets** — see the M2.8.3
-section, which recorded the original evidence. The real defect under the same symptom was
-`export.py`'s per-axis normalisation.
-
-**Datum: the pilot found a report-killing defect no full run can expose (A15).** `corpus_run_2d`
-emitted `throughput.sample = "partial"` while the redaction allowlist held only `"corpus"`, so
-**every partial and resumed invocation aborted before writing its report** and every full run
-passed. Fixed by `THROUGHPUT_{PROVENANCE,FULL,PARTIAL}` → `THROUGHPUT_LABELS` read by both the
-emitter and the allowlist, with the allowlist hoisted out of `main()` into
-`redaction_allowlist(args, placed_assets, codes)`; `pilot._assert_redacted` now names the **JSON
-path**, never the string, because the string may itself be a subject token.
-
-**Datum: the standing gate prefix is a silent performance switch.**
-`env -u LD_LIBRARY_PATH … uv run --no-sync` makes `openvino.Core().available_devices` read `['CPU']`
-— everything compiles and the output is correct, only the wall clock moves. Measured on the same two
-events: **1015.5 s / 927.4 s under the gate prefix vs 638.5 s / 497.2 s under the run recipe**,
-1.6-1.9×. Recipe split recorded in `.agent/memory.md` at `7b49ca7`.
-
-**Datum: a diff-blind wave against a frozen contract indicts the contract, not the code.**
-`test-m2u84` graded 16/16 rows: **5 pass, 11 contract defects, 0 code defects.** P11's 17-column
-target was unsatisfiable, P10's golden census was wrong by 2×, P02's negative control could not fire,
-P16's "toward 1.0" was vacuous. Every one landed as an amendment before implementation started.
-`git merge --squash wt/test-m2u84` would have **reverted** those amendments — the branch sits at the
-base while `main` moved forward — so only the suite file was taken by path.
-
-**Gauges.** `harvest=` 52% 125K/240K-equivalent at implementation start; `main=` **4 windows**
-(window 1 refutation to `3d323c7`; windows 2-3 the wave, amendments and implementation, both closing
-at 100%; window 4 the run watch and close, **34% 92K/273K**); `mate=` **17% 172K/1M** (`test-m2u84`,
-16/16 flushed, tip `4a85f2c`, tagged `archive/m2u84-test`). **Estimate 1-2 windows, actual 4 →
-multiplier 2-4× for a unit whose spine is a long unattended run:** the run cost one window of
-watching, and the three before it went to refuting the funded work and re-grounding the contract on
-measurement. PLANNING sizes the next such unit against 4.
+**Suite provenance.** The red suite lived at tag `archive/m2u83-test-4` = `ca2cb41` (2169 lines,
+18 predicates, measured 58 failed / 2 passed) and was restored into the primary tree at window 2's
+start. It must never be committed red: **`tests/test_r_timebase_truth.py::test_c8_08` runs the whole
+suite in a subprocess and asserts rc=0**, so a red file anywhere in `tests/` takes the decisive gate
+down. Wave record: `test-m2u83-2` P01-P04 (`archive/m2u83-test-2` = `aa4981e`), `test-m2u83-3`
+P05-P13 (`archive/m2u83-test-3` = `2d1fba2`), `test-m2u83-4` P14-P18 (`archive/m2u83-test-4` =
+`ca2cb41`). Report preserved at `.scratch/agents/test-m2u83-suite.md`.
 
 #### M2.8.3 — DONE at `4c006bd`, 3 windows against a 2 estimate; split at the `FEATURES` seam
 

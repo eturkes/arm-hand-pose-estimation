@@ -9,7 +9,25 @@ between the two is a refusal rather than a silent reconciliation.
 
 from __future__ import annotations
 
+import argparse
+import csv
+import hashlib
+import json
+import math
+import os
+import pathlib
+import shutil
+import stat
+import statistics
+import sys
+from collections import defaultdict
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any
+
+import yaml
+
+from . import corpus_run, inventory, qualify, sessions
 
 GENERATOR = "pose-estimation-cohort"
 GENERATOR_VERSION = "v1"
@@ -294,3 +312,713 @@ FEATURES: tuple[Feature, ...] = tuple(
 FEATURE_KEYS: frozenset[tuple[str, str]] = frozenset(
     (feature.level, feature.column) for feature in FEATURES
 )
+
+
+CELLS_FILENAME = "cohort_cells.csv"
+FEATURES_FILENAME = "cohort_features.csv"
+DESCRIPTORS_FILENAME = "descriptors.yaml"
+COHORT_FILENAME = "cohort.json"
+PUBLISHED_FILENAMES: tuple[str, ...] = (CELLS_FILENAME, FEATURES_FILENAME, DESCRIPTORS_FILENAME)
+
+CELL_COLUMNS: tuple[str, ...] = (
+    "task",
+    "side",
+    "n_subjects",
+    "n_events",
+    "n_assets",
+    "n_frame_rows",
+    "n_window_rows",
+)
+FEATURE_COLUMNS: tuple[str, ...] = (
+    "task",
+    "side",
+    "level",
+    "feature",
+    "n_subjects",
+    "n_events",
+    "n_assets",
+    "n_values",
+    "median",
+    "q25",
+    "q75",
+    "mean",
+    "sd",
+    "view_dispersion",
+    "n_events_multiview",
+)
+COUNT_FIELDS: tuple[str, ...] = (
+    "n_subjects",
+    "n_events",
+    "n_assets",
+    "n_values",
+    "n_events_multiview",
+)
+DISTRIBUTION_FIELDS: tuple[str, ...] = ("median", "q25", "q75", "mean", "sd", "view_dispersion")
+MARKER_KEYS: tuple[str, ...] = (
+    "population",
+    "columns",
+    "estimand",
+    "rows_zero_values",
+    "rows_without_multiview",
+    "rows_below_subject_floor",
+    "descriptor_collision",
+    "generation",
+)
+GENERATION_KEYS: tuple[str, ...] = (
+    "generator",
+    "generator_version",
+    "tree_digest",
+    "input_digests",
+)
+
+# D05 refused min/max at n=15-16 because an extreme is one identifiable subject; a median
+# over fewer than five is strictly worse, so below the floor the counts publish and every
+# distribution cell stays empty (A10).
+SUBJECT_FLOOR = 5
+DECIMALS = 9
+ESTIMAND = "asset median -> event median -> subject median -> cohort statistic over subjects"
+EXTERNAL_DESCRIPTOR_SOURCE = "../rehab/schema/columns.yaml"
+
+# Producer keys, never features (`analysis/utils.R` treats every other numeric column as one).
+METADATA_COLUMNS = frozenset(
+    {
+        "video",
+        "frame_idx",
+        "timestamp_sec",
+        "person_idx",
+        "window_start_sec",
+        "window_end_sec",
+    }
+)
+LEVEL_SUFFIXES: dict[str, str] = {"frame": "_clinical.csv", "window": "_clinical_windows.csv"}
+
+
+@dataclass(frozen=True)
+class _Contributor:
+    """One manifest-`ok` canonical asset, resolved to its cell and its artifacts."""
+
+    asset_id: str
+    task: str
+    side: str
+    subject: str
+    event_id: str
+    camera_name: str
+
+
+def _cell(value: float | int | None) -> str:
+    """Serialize one published cell. A19 rules 9 decimals; a count renders as a count."""
+    if value is None:
+        return ""
+    if isinstance(value, int):
+        return str(value)
+    return f"{value:.{DECIMALS}f}"
+
+
+def _finite(text: str) -> float | None:
+    """`NA`, `NaN` and both infinities are absences, not values (P08)."""
+    try:
+        value = float(text)
+    except ValueError:
+        return None
+    return value if math.isfinite(value) else None
+
+
+def _quantile(values: list[float], fraction: float) -> float:
+    """Linear interpolation at position `(n-1)q` — numpy `linear`, R type 7 (A03)."""
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * fraction
+    lower = math.floor(position)
+    upper = math.ceil(position)
+    if lower == upper:
+        return ordered[lower]
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
+
+
+def _read_table(path: pathlib.Path, required: tuple[str, ...]) -> list[dict[str, str]]:
+    with path.open(newline="", encoding="utf-8") as stream:
+        reader = csv.DictReader(stream)
+        header = tuple(reader.fieldnames or ())
+        missing = [column for column in required if column not in header]
+        if missing:
+            raise CohortError(f"{path.name} is missing the columns {missing}.")
+        return list(reader)
+
+
+def _read_artifact(
+    path: pathlib.Path, level: str
+) -> tuple[tuple[str, ...], int, dict[str, list[float]]]:
+    """Return one artifact's header, row count and finite values per feature column."""
+    try:
+        with path.open(newline="", encoding="utf-8") as stream:
+            reader = csv.DictReader(stream)
+            header = tuple(reader.fieldnames or ())
+            columns = [name for name in header if name not in METADATA_COLUMNS]
+            values: dict[str, list[float]] = {name: [] for name in columns}
+            rows = 0
+            for row in reader:
+                rows += 1
+                for name in columns:
+                    finite = _finite(row[name] or "")
+                    if finite is not None:
+                        values[name].append(finite)
+    except OSError as error:
+        raise CohortError(f"The run tree does not carry a readable {level} artifact.") from error
+    return header, rows, values
+
+
+@dataclass(frozen=True)
+class _Aggregate:
+    cells: list[dict[str, str]]
+    features: list[dict[str, str]]
+    published: list[tuple[str, str]]
+    excluded: list[tuple[str, str]]
+    population: dict[str, int]
+    rows_zero_values: int
+    rows_without_multiview: int
+    rows_below_subject_floor: int
+
+
+def _aggregate(contributors: list[_Contributor], run_root: pathlib.Path) -> _Aggregate:
+    """Four-stage subject estimand over the `(task, side)` product (D02, A01, A03, A06)."""
+    cells = [(task, side) for task in inventory.TASKS for side in inventory.SIDES]
+    headers: dict[str, tuple[str, ...]] = {}
+    row_counts: dict[tuple[str, str], dict[str, int]] = {
+        cell: {"frame": 0, "window": 0} for cell in cells
+    }
+    members: dict[tuple[str, str], dict[str, set[str]]] = {
+        cell: {"subjects": set(), "events": set(), "assets": set()} for cell in cells
+    }
+    # (level, column) -> cell -> event -> [asset medians]; and the finite leaf census.
+    medians: dict[tuple[str, str], dict[tuple[str, str], dict[str, list[float]]]] = defaultdict(
+        lambda: defaultdict(lambda: defaultdict(list))
+    )
+    subjects_of_event: dict[str, str] = {}
+    leaves: dict[tuple[str, str], dict[tuple[str, str], int]] = defaultdict(
+        lambda: defaultdict(int)
+    )
+    for contributor in contributors:
+        cell = contributor.task, contributor.side
+        if cell not in row_counts:
+            raise CohortError(f"Asset cell {cell} is outside the registry task-side product.")
+        members[cell]["subjects"].add(contributor.subject)
+        members[cell]["events"].add(contributor.event_id)
+        members[cell]["assets"].add(contributor.asset_id)
+        subjects_of_event[contributor.event_id] = contributor.subject
+        for level, suffix in LEVEL_SUFFIXES.items():
+            path = run_root / contributor.event_id / f"{contributor.camera_name}{suffix}"
+            header, rows, values = _read_artifact(path, level)
+            previous = headers.setdefault(level, header)
+            if header != previous:
+                raise CohortError(
+                    f"The run tree publishes two different {level} headers, so the source "
+                    "column census is not a function of the run."
+                )
+            row_counts[cell][level] += rows
+            for column, finite in values.items():
+                if not finite:
+                    continue
+                key = (level, column)
+                medians[key][cell][contributor.event_id].append(statistics.median(finite))
+                leaves[key][cell] += len(finite)
+    if set(headers) != set(LEVEL_SUFFIXES):
+        raise CohortError("The run tree carries no artifact for every published level.")
+
+    source_columns = sorted(
+        (level, column)
+        for level, header in headers.items()
+        for column in header
+        if column not in METADATA_COLUMNS
+    )
+    published = sorted(key for key in source_columns if medians.get(key))
+    excluded = sorted(key for key in source_columns if not medians.get(key))
+    _assert_feature_table_matches(frozenset(published))
+
+    cell_rows = [
+        {
+            "task": task,
+            "side": side,
+            "n_subjects": str(len(members[cell]["subjects"])),
+            "n_events": str(len(members[cell]["events"])),
+            "n_assets": str(len(members[cell]["assets"])),
+            "n_frame_rows": str(row_counts[cell]["frame"]),
+            "n_window_rows": str(row_counts[cell]["window"]),
+        }
+        for cell in cells
+        for task, side in (cell,)
+    ]
+
+    feature_rows: list[dict[str, str]] = []
+    zero_values = without_multiview = below_floor = 0
+    for feature in FEATURES:
+        key = (feature.level, feature.column)
+        by_cell = medians.get(key, {})
+        for task, side in cells:
+            events = by_cell.get((task, side), {})
+            by_subject: dict[str, list[float]] = defaultdict(list)
+            dispersions: list[float] = []
+            n_assets = 0
+            for event_id, asset_values in events.items():
+                n_assets += len(asset_values)
+                by_subject[subjects_of_event[event_id]].append(statistics.median(asset_values))
+                if len(asset_values) < 2:
+                    continue
+                mean = statistics.fmean(asset_values)
+                # A06: a zero-mean event has no scale to disperse against, so it leaves
+                # both the statistic and the population it would otherwise inflate.
+                if mean != 0:
+                    dispersions.append(statistics.pstdev(asset_values) / abs(mean))
+            subject_values = [statistics.median(values) for values in by_subject.values()]
+            n_subjects = len(subject_values)
+            n_values = leaves.get(key, {}).get((task, side), 0)
+            row = {
+                "task": task,
+                "side": side,
+                "level": feature.level,
+                "feature": feature.column,
+                "n_subjects": str(n_subjects),
+                "n_events": str(len(events)),
+                "n_assets": str(n_assets),
+                "n_values": str(n_values),
+                "n_events_multiview": str(len(dispersions)),
+            }
+            statistics_publishable = n_subjects >= SUBJECT_FLOOR
+            row.update(
+                {
+                    "median": _cell(statistics.median(subject_values))
+                    if statistics_publishable
+                    else "",
+                    "q25": _cell(_quantile(subject_values, 0.25)) if statistics_publishable else "",
+                    "q75": _cell(_quantile(subject_values, 0.75)) if statistics_publishable else "",
+                    "mean": _cell(statistics.fmean(subject_values))
+                    if statistics_publishable
+                    else "",
+                    "sd": _cell(statistics.stdev(subject_values))
+                    if statistics_publishable and n_subjects >= 2
+                    else "",
+                    "view_dispersion": _cell(statistics.median(dispersions))
+                    if statistics_publishable and dispersions
+                    else "",
+                }
+            )
+            zero_values += n_values == 0
+            without_multiview += not dispersions
+            below_floor += not statistics_publishable
+            feature_rows.append(row)
+
+    population = {
+        "assets": sum(len(members[cell]["assets"]) for cell in cells),
+        "cells": len(cell_rows),
+        "events": sum(len(members[cell]["events"]) for cell in cells),
+        "feature_rows": len(feature_rows),
+        "features": len(FEATURES),
+        "frame_rows": sum(row_counts[cell]["frame"] for cell in cells),
+        "subjects": len({contributor.subject for contributor in contributors}),
+        "window_rows": sum(row_counts[cell]["window"] for cell in cells),
+    }
+    return _Aggregate(
+        cells=cell_rows,
+        features=feature_rows,
+        published=published,
+        excluded=excluded,
+        population=population,
+        rows_zero_values=zero_values,
+        rows_without_multiview=without_multiview,
+        rows_below_subject_floor=below_floor,
+    )
+
+
+def _assert_feature_table_matches(published: frozenset[tuple[str, str]]) -> None:
+    """A02's cross-check: the contract-owned table and the measured partition, by name."""
+    missing = sorted(published - FEATURE_KEYS)
+    extra = sorted(FEATURE_KEYS - published)
+    if missing:
+        level, column = missing[0]
+        raise CohortError(
+            f"The run publishes finite values for {level} column {column!r}, which "
+            "cohort.FEATURES does not carry."
+        )
+    if extra:
+        level, column = extra[0]
+        raise CohortError(
+            f"cohort.FEATURES carries {level} column {column!r}, for which the run publishes "
+            "no finite value anywhere."
+        )
+
+
+def _descriptor_rows() -> list[dict[str, object]]:
+    """A08's named projection of `FEATURES`, in canonical `(level, column)` order (A15)."""
+    return [
+        {
+            "raw": feature.raw,
+            "ja": feature.ja,
+            "en": feature.en,
+            "group": "pose",
+            "role": "feature",
+            "dtype": "numeric",
+            "unit": feature.unit,
+            "range": list(feature.range),
+        }
+        for feature in sorted(FEATURES, key=lambda item: (item.level, item.column))
+    ]
+
+
+def render_descriptors(rows: list[dict[str, object]]) -> str:
+    """Render the fragment without a YAML emitter, so the bytes are ours to fix.
+
+    Every scalar goes out as JSON, which is a YAML subset — that keeps the Japanese
+    labels literal and keeps an emitter's line-width and quoting defaults out of a
+    byte-pinned artifact.
+    """
+    lines = ["columns:"]
+    for row in rows:
+        prefix = "-"
+        for key in ("raw", "ja", "en", "group", "role", "dtype", "unit", "range"):
+            lines.append(f"{prefix} {key}: {json.dumps(row[key], ensure_ascii=False)}")
+            prefix = " "
+    return "\n".join(lines) + "\n"
+
+
+def _external_raws() -> frozenset[str] | None:
+    """`../rehab`'s raw names, families expanded. `None` when the sibling does not resolve."""
+    path = pathlib.Path(__file__).resolve().parents[2].parent / "rehab" / "schema" / "columns.yaml"
+    if not path.is_file():
+        return None
+    document = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if not isinstance(document, dict):
+        return None
+    raws = [str(row["raw"]) for row in document.get("columns") or []]
+    for family in document.get("families") or []:
+        raws.extend(
+            str(family["template_raw"]).format(side=side, level=level)
+            for side in family["sides"]
+            for level in family["levels"]
+        )
+    return frozenset(raws)
+
+
+def descriptor_collision(rows: list[dict[str, object]]) -> dict[str, object]:
+    """A08's two collision layers. The external outcome publishes; it never silently skips."""
+    raws = [str(row["raw"]) for row in rows]
+    if len(raws) != len(set(raws)):
+        raise CohortError("The descriptor fragment carries a duplicate raw name.")
+    for raw in raws:
+        if not raw.startswith(("pose_frame_", "pose_window_")):
+            raise CohortError(f"Descriptor raw {raw!r} does not carry the namespacing prefix.")
+    external = _external_raws()
+    if external is None:
+        return {
+            "checked": False,
+            "source": EXTERNAL_DESCRIPTOR_SOURCE,
+            "n_external": 0,
+            "n_collisions": 0,
+        }
+    collisions = sorted(set(raws) & external)
+    if collisions:
+        raise CohortError(
+            f"Descriptor raw {collisions[0]!r} collides with an existing consumer descriptor."
+        )
+    return {
+        "checked": True,
+        "source": EXTERNAL_DESCRIPTOR_SOURCE,
+        "n_external": len(external),
+        "n_collisions": 0,
+    }
+
+
+def render_marker(payload: Mapping[str, Any]) -> bytes:
+    """A13's canonical rendering: the registry's own census bytes, so digests agree."""
+    return inventory.render_json(dict(payload)).encode("utf-8")
+
+
+def _digest_bytes(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
+
+
+def tree_digest(out_dir: str | os.PathLike[str], marker: Mapping[str, Any]) -> str:
+    """Digest the set over its three files plus the marker minus this self-referential key.
+
+    The marker is the one entry no digest inside the set can cover, so excluding its whole
+    body would leave the census and the provenance uncovered — which is exactly the claim
+    surface a consumer trusts most (A13).
+    """
+    out = pathlib.Path(out_dir)
+    body = dict(marker)
+    generation = {
+        key: value
+        for key, value in dict(body.get("generation") or {}).items()
+        if key != "tree_digest"
+    }
+    body["generation"] = generation
+    lines = [
+        f"{name}\t{_digest_bytes((out / name).read_bytes())}\n" for name in PUBLISHED_FILENAMES
+    ]
+    lines.append(render_marker(body).decode("utf-8"))
+    return _digest_bytes("".join(lines).encode("utf-8"))
+
+
+def _remove(path: pathlib.Path) -> None:
+    """Remove one path of any kind. A dangling symlink is still ours to clear."""
+    if path.is_symlink() or path.is_file():
+        path.unlink(missing_ok=True)
+    elif path.is_dir():
+        shutil.rmtree(path, ignore_errors=True)
+
+
+def _is_within(candidate: pathlib.Path, ancestor: pathlib.Path) -> bool:
+    resolved = os.path.realpath(candidate)
+    root = os.path.realpath(ancestor)
+    return resolved == root or resolved.startswith(root + os.sep)
+
+
+def _assert_disjoint(out: pathlib.Path, source: pathlib.Path, name: str) -> None:
+    """Refuse either containment direction before a single byte moves.
+
+    The swap retires whatever sits at `out`, so an input underneath it is deleted by a
+    successful run, and an output underneath an input is swept as debris by the next one.
+    """
+    if _is_within(out, source):
+        raise CohortError(f"The output directory sits inside the {name} directory.")
+    if _is_within(source, out):
+        raise CohortError(f"The {name} directory sits inside the output directory.")
+
+
+def _read_marker(path: pathlib.Path) -> dict[str, Any]:
+    """Read one marker as a regular file. A symlink is refused, never followed."""
+    try:
+        mode = path.lstat().st_mode
+    except OSError as error:
+        raise CohortError(f"{path.name} is not present.") from error
+    if not stat.S_ISREG(mode):
+        raise CohortError(f"{path.name} is not a regular file.")
+    try:
+        payload = json.loads(
+            path.read_text(encoding="utf-8"), object_pairs_hook=qualify._reject_duplicate_keys
+        )
+    except (OSError, ValueError) as error:
+        raise CohortError(f"{path.name} is not readable canonical JSON.") from error
+    if not isinstance(payload, dict):
+        raise CohortError(f"{path.name} is not a JSON object.")
+    return payload
+
+
+def _is_ours(marker: Mapping[str, Any]) -> bool:
+    """A14: ownership is the conjunction, so a foreign tool's `v1` is still foreign."""
+    generation = marker.get("generation")
+    if not isinstance(generation, dict):
+        return False
+    return (
+        generation.get("generator") == GENERATOR
+        and generation.get("generator_version") == GENERATOR_VERSION
+    )
+
+
+def _assert_owned(out: pathlib.Path) -> None:
+    """Refuse to retire a directory this generator did not publish.
+
+    Judged before the orphan sweep: a refusal must leave the caller's tree exactly as it
+    found it, and sweeping first would delete siblings on the way to saying no.
+    """
+    if not out.exists():
+        return
+    if not out.is_dir():
+        raise CohortError("The output path exists and is not a directory.")
+    if any(out.iterdir()) and not _is_ours(_read_marker(out / COHORT_FILENAME)):
+        raise CohortError(
+            "The output directory is not empty and carries no marker from this generator."
+        )
+
+
+def _sweep_orphans(out: pathlib.Path) -> None:
+    """Clear this generator's own staging and retiring debris beside a published set."""
+    for sibling in out.parent.iterdir():
+        if sibling.name.startswith((f"{out.name}.staging.", f"{out.name}.retiring.")):
+            _remove(sibling)
+
+
+def _contributors(
+    inventory_dir: pathlib.Path, sessions_dir: pathlib.Path, run_dir: pathlib.Path
+) -> list[_Contributor]:
+    """Join registry, placements and manifest into the run's `ok` canonical asset set."""
+    assets = {
+        row["asset_id"]: row
+        for row in _read_table(inventory_dir / inventory.ASSETS_FILENAME, ("asset_id",))
+    }
+    placements = {
+        row["asset_id"]: row
+        for row in _read_table(sessions_dir / sessions.PLACEMENTS_FILENAME, ("asset_id",))
+        if row["placement"] == sessions.PLACED
+    }
+    try:
+        rows = corpus_run.read_manifest(run_dir / corpus_run.MANIFEST_FILENAME)
+        corpus_run.validate_manifest(rows, sorted(placements))
+    except corpus_run.ManifestError as error:
+        raise CohortError(f"The run manifest is not a total partition: {error}") from error
+    contributors = []
+    for row in rows:
+        if row["disposition"] != corpus_run.DISPOSITION_OK:
+            continue
+        asset = assets[row["asset_id"]]
+        contributors.append(
+            _Contributor(
+                asset_id=row["asset_id"],
+                task=asset["task"],
+                side=asset["side"],
+                subject=asset["subject_ordinal"],
+                event_id=row["event_id"],
+                camera_name=row["camera_name"],
+            )
+        )
+    if not contributors:
+        raise CohortError("The run manifest carries no successful asset.")
+    return contributors
+
+
+def _write(directory: pathlib.Path, name: str, text: str) -> None:
+    (directory / name).write_text(text, encoding="utf-8", newline="")
+
+
+def _publish(staging: pathlib.Path, aggregate: _Aggregate, input_digests: dict[str, str]) -> None:
+    """Write the four files, digesting the set last because the digest covers the marker."""
+    staging.mkdir(parents=True)
+    _write(staging, CELLS_FILENAME, inventory.render_csv(CELL_COLUMNS, aggregate.cells))
+    _write(staging, FEATURES_FILENAME, inventory.render_csv(FEATURE_COLUMNS, aggregate.features))
+    rows = _descriptor_rows()
+    _write(staging, DESCRIPTORS_FILENAME, render_descriptors(rows))
+    marker: dict[str, Any] = {
+        "population": aggregate.population,
+        "columns": {
+            "published": [
+                {"level": level, "column": column} for level, column in aggregate.published
+            ],
+            "excluded": [
+                {"level": level, "column": column, "reason": "structurally_absent"}
+                for level, column in aggregate.excluded
+            ],
+        },
+        "estimand": ESTIMAND,
+        "rows_zero_values": aggregate.rows_zero_values,
+        "rows_without_multiview": aggregate.rows_without_multiview,
+        "rows_below_subject_floor": aggregate.rows_below_subject_floor,
+        "descriptor_collision": descriptor_collision(rows),
+        "generation": {
+            "generator": GENERATOR,
+            "generator_version": GENERATOR_VERSION,
+            "input_digests": input_digests,
+        },
+    }
+    marker["generation"]["tree_digest"] = tree_digest(staging, marker)
+    (staging / COHORT_FILENAME).write_bytes(render_marker(marker))
+
+
+def run(
+    inventory_dir: str | os.PathLike[str],
+    sessions_dir: str | os.PathLike[str],
+    run_dir: str | os.PathLike[str],
+    out_dir: str | os.PathLike[str],
+) -> pathlib.Path:
+    """Publish the cohort set. Every refusal raises `CohortError` and publishes nothing."""
+    registry = pathlib.Path(inventory_dir)
+    tree = pathlib.Path(sessions_dir)
+    run_root = pathlib.Path(run_dir)
+    out = pathlib.Path(out_dir)
+    for source, name in ((registry, "inventory"), (tree, "sessions"), (run_root, "run")):
+        _assert_disjoint(out, source, name)
+
+    inventory.validate_generation(registry)
+    sessions.validate_generation(tree, inventory_dir=registry)
+    sessions_tree = sessions.tree_digest(tree)
+    sessions_generation = sessions.generation_digest(tree)
+    contributors = _contributors(registry, tree, run_root)
+    # An upstream tree that moves while it is being read makes every published count a
+    # statement about a corpus that no longer exists.
+    if (sessions_tree, sessions_generation) != (
+        sessions.tree_digest(tree),
+        sessions.generation_digest(tree),
+    ):
+        raise CohortError("The sessions tree changed while the cohort was being read.")
+
+    aggregate = _aggregate(contributors, run_root)
+    input_digests = {
+        "inventory": _digest_bytes((registry / inventory.CENSUS_FILENAME).read_bytes()),
+        "run_manifest": _digest_bytes((run_root / corpus_run.MANIFEST_FILENAME).read_bytes()),
+        "sessions_generation": sessions_generation,
+        "sessions_tree": sessions_tree,
+    }
+
+    _assert_owned(out)
+    staging = out.with_name(f"{out.name}.staging.{os.getpid()}")
+    retiring = out.with_name(f"{out.name}.retiring.{os.getpid()}")
+    _remove(staging)
+    _remove(retiring)
+    try:
+        _publish(staging, aggregate, input_digests)
+        try:
+            if out.exists():
+                out.rename(retiring)
+            staging.rename(out)
+        except OSError:
+            if retiring.exists() and not out.exists():
+                retiring.rename(out)
+            raise
+        _sweep_orphans(out)
+        _remove(retiring)
+    finally:
+        _remove(staging)
+    return out
+
+
+def validate_generation(out_dir: str | os.PathLike[str]) -> dict[str, Any]:
+    """Return the marker of a published set, or raise when it is not this set's own.
+
+    Recomputing the digest is what makes an edit to any published byte — census included —
+    a refusal at the consumer rather than a silent read of a mixed generation.
+    """
+    out = pathlib.Path(out_dir)
+    marker = _read_marker(out / COHORT_FILENAME)
+    if tuple(sorted(marker)) != tuple(sorted(MARKER_KEYS)):
+        raise CohortError("The cohort marker does not carry the frozen key set.")
+    generation = marker["generation"]
+    if not isinstance(generation, dict) or tuple(sorted(generation)) != tuple(
+        sorted(GENERATION_KEYS)
+    ):
+        raise CohortError("The cohort generation block does not carry the frozen key set.")
+    if not _is_ours(marker):
+        raise CohortError("The cohort set was published by another generator.")
+    for name in PUBLISHED_FILENAMES:
+        path = out / name
+        try:
+            if not stat.S_ISREG(path.lstat().st_mode):
+                raise CohortError(f"{name} is not a regular file.")
+        except OSError as error:
+            raise CohortError(f"The published set is missing {name}.") from error
+    try:
+        recomputed = tree_digest(out, marker)
+    except OSError as error:
+        raise CohortError("The published set is not readable.") from error
+    if recomputed != generation["tree_digest"]:
+        raise CohortError("The cohort tree digest does not match the published bytes.")
+    return marker
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        prog=GENERATOR, description="Publish the cohort aggregate for the 2D corpus run."
+    )
+    parser.add_argument("--inventory", required=True, help="Asset registry directory.")
+    parser.add_argument("--sessions", required=True, help="Session tree directory.")
+    parser.add_argument("--run", required=True, help="Corpus run directory.")
+    parser.add_argument("--out", required=True, help="Output directory to publish.")
+    arguments = parser.parse_args(argv)
+    out = run(arguments.inventory, arguments.sessions, arguments.run, arguments.out)
+    marker = validate_generation(out)
+    print(
+        f"cohort: {marker['population']['cells']} cells, "
+        f"{marker['population']['feature_rows']} feature rows, "
+        f"{len(marker['columns']['published'])} published columns, "
+        f"{len(marker['columns']['excluded'])} excluded"
+    )
+    return 0
+
+
+if __name__ == "__main__":  # pragma: no cover - console-script parity
+    sys.exit(main())

@@ -597,6 +597,39 @@ fixes them, and tighten the suite from structural to exact in the same commit.**
 that ships unfrozen is the defect this ruling is trading against, so the obligation is the price of
 the deferral and travels with it.
 
+**A22 DISCHARGED at M2.8.5.** The engine fixed all four domains and the suite now pins them exactly.
+`population` = `{assets, cells, events, feature_rows, features, frame_rows, subjects, window_rows}`,
+every value a non-negative int. `estimand` = `"asset median -> event median -> subject median ->
+cohort statistic over subjects"`. `descriptor_collision.source` = the fixed relative literal
+`"../rehab/schema/columns.yaml"` — never an absolute path, which would leak `$HOME` into published
+bytes and break P15's determinism sweep. `input_digests` = `{inventory, run_manifest,
+sessions_generation, sessions_tree}`, each lowercase SHA-256. A10 is extended with these names;
+`tests/test_cohort.py` carries them as `_POPULATION_KEYS`, `_ESTIMAND`, `_COLLISION_SOURCE`,
+`_INPUT_DIGEST_KEYS` and asserts set equality, not presence.
+
+**A23 — A10's subject floor and P08's oracle contradict each other; the floor wins and the oracle is
+the defect.** `test_p08_nonfinite_tokens_are_filtered_from_values_and_statistics` rewrites the first
+four artifacts of one window feature to `NA`/`NaN`/`Inf`/`-Inf`, and its `_independent_stats` oracle
+models no subject floor. Traced exactly: `_rewrite_feature` walks `sorted(run.glob("*/*_clinical_
+windows.csv"))`, indices 0 and 1 are both cameras of event `s01-cap-l_run-01`, index 2 is
+`s01-cap-r`, index 3 is `s01-coin-l`. Subject 1 therefore loses every finite value in cells `cap-l`,
+`cap-r` and `coin-l`, each falls to `n_subjects = 4`, and A10's floor suppresses all six
+distribution fields while the oracle still computes them. **Ruled: do not weaken the predicate.**
+The test applies the same floor to its expectation — below five subjects it expects `""` for each
+`_DISTRIBUTION_FIELDS` entry, otherwise it compares against the oracle unchanged. All five counts
+still compare for all 12 cells, and the 9 unaffected cells still compare in full. Verified
+unaffected one by one: both `test_p04_*`, both `test_p05_*`, the other three `test_p06_*`,
+`test_p08_cell_empty_feature_*` and both `test_p11_*`.
+
+**A24 — the tree digest covers the marker body, not only the three files.** A13 names "the three
+files' bytes plus canonical `generation` minus `tree_digest`", which leaves the census, the estimand
+and the column partition uncovered — and `test_p17_both_census_edit_directions_raise_exactly_cohort_
+error` edits `population`. Ruled: `tree_digest` = SHA-256 over the three published files' bytes plus
+the canonical rendering of the **whole** marker payload with `generation.tree_digest` removed. This
+is the sibling publishers' own "census minus its own self-referential key" rule, it strictly covers
+what A13 names, and it satisfies P17. Canonical rendering is `inventory.render_json` — sorted keys,
+two-space indent, one terminal newline, default `ensure_ascii=True`.
+
 ## 11. Verdict table
 
 **This contract now spans TWO units.** A12's precondition is met by M2.8.4's corrected corpus and
@@ -634,15 +667,16 @@ the contract alone is what finds them.**
    seed `48f0c08`, marker `TEST-M2U83-2-DONE-1`, report at
    `.scratch/worktrees/test-m2u83-2/.scratch/agents/test-m2u83-2.md`. Its validator is the three
    static checks plus `pytest tests/test_cohort.py -q` reading 0 passed / 0 skipped / all failed.
-4. **CLOSED — `cohort.FEATURES` ships at `4c006bd`**: 89 entries, `(level, column, ja, en, unit,
-   range)`, composed from 20 family pairs x side x derivation rather than transcribed, `unit` by the
-   A09+A20 rule and `range` by A21. The A02 cross-check is MEASURED GREEN — `FEATURE_KEYS` equals
-   the measured published set, zero missing, zero extra. `ruff check` + `ruff format --check` +
-   `ty check` all rc=0. **Open: the compute half** — aggregation engine (D02/A03), `view_dispersion`
-   (A06), publication + marker (A13/A14), `validate_generation` (P17/A16), `cohort.json` census
-   (A04/A07/A10) — then CLI +
-   `scripts/check_cohort_determinism.py` + `docs/technical/cohort.md` against the red suite, and
-   registers in the four exhaustive indexes (P18), `pyproject.toml` (10 → 11 commands) and
-   `.gitignore` (`cohort` + `cohort.*/`, the slash-free component shape its five siblings use).
-5. Measure the descriptor glyph delta against `../rehab`'s 10 subset WOFF2 faces and state it in the
-   delivery note.
+4. **CLOSED — the whole publisher ships.** `cohort.FEATURES` shipped at `4c006bd` (89 entries,
+   composed from 20 family pairs x side x derivation, `unit` by A09+A20, `range` by A21, A02
+   cross-check green). M2.8.5 shipped the compute half: the four-stage estimand (D02/A03),
+   `view_dispersion` (A06), staged publication + swap + ownership (A13/A14/A24),
+   `validate_generation` (P17/A16), the `cohort.json` census (A04/A07/A10/A22),
+   `descriptors.yaml` (A08/A15), the CLI (A17), `scripts/check_cohort_determinism.py`,
+   `docs/technical/cohort.md` and every registration (P18). 60/60 red suite green; full gate
+   1702 passed with `ruff check` + `ruff format --check` + `ty check` all rc=0.
+5. **CLOSED — glyph delta MEASURED.** The 89 `ja` labels use **75 non-ASCII characters**. The four
+   Japanese faces (`ibm-plex-sans-jp-{400,500,600,700}.woff2`) are identically subset and each is
+   missing the same **14**: `チペ偏勢姿尖幹扇把斜旋称肘隔`. The six Latin faces carry no CJK and are
+   not candidates. This is a `../rehab` re-subset, outside this repo's boundary, so it ships as a
+   polish register entry with the glyph list and its acceptance check rather than as an edit there.

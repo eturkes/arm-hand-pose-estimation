@@ -1,6 +1,6 @@
 # Command-line entry points
 
-Ten console scripts (see `pyproject.toml:[project.scripts]`):
+Eleven console scripts (see `pyproject.toml:[project.scripts]`):
 
 | Script | Module | Purpose |
 |--------|--------|---------|
@@ -14,6 +14,7 @@ Ten console scripts (see `pyproject.toml:[project.scripts]`):
 | `pose-estimation-qualify` | `pose_estimation.qualify` | Capture-qualification evidence publisher. |
 | `pose-estimation-calibration-qc` | `pose_estimation.calibration_qc` | Corpus-level calibration ruling and evidence publisher. |
 | `pose-estimation-validate` | `pose_estimation.validation` | End-to-end pipeline validation report. |
+| `pose-estimation-cohort` | `pose_estimation.cohort` | Publishes the `(task, side)` cohort aggregate from a corpus run. |
 
 ## `main.py` — MediaPipe path
 

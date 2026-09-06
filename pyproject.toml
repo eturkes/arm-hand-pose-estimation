@@ -56,6 +56,7 @@ pose-estimation-sessions = "pose_estimation.sessions:main"
 pose-estimation-qualify = "pose_estimation.qualify:main"
 pose-estimation-calibration-qc = "pose_estimation.calibration_qc:main"
 pose-estimation-validate = "pose_estimation.validation:main"
+pose-estimation-cohort = "pose_estimation.cohort:main"
 
 [build-system]
 requires = ["hatchling>=1.27"]

@@ -41,6 +41,9 @@ Context retained only when source, tests, technical docs, roadmap, and git do no
   `PYTHONPATH` selects the primary tree for the non-pytest half, and unsetting `LD_LIBRARY_PATH` keeps
   the host OpenVINO build out of the loader path. Without them `conftest.py` dies at
   `ImportError … GLIBC_2.43 not found` before collecting one test.
+  **The full suite takes ~17 min (1702 tests).** Always run it with `run_in_background: true`,
+  redirect to a log file, and do other work while it runs: a background command piped through
+  `tail` buffers everything until exit, so redirect and read the log instead.
 - **`scripts/check_qualify_determinism.py` refuses to overwrite a result measured against different
   source digests** — that refusal is the stale-green barrier, so an intentional source change needs
   an explicit `rm -f tests/qualify_determinism_results.json` first. Any schema rename must also reach
