@@ -25,13 +25,11 @@ import csv
 import dataclasses
 import hashlib
 import itertools
-import json
 import math
 import os
 import pathlib
 import re
 import shutil
-import stat
 import statistics
 import struct
 import sys
@@ -1578,10 +1576,8 @@ def census_digest(census: dict[str, Any]) -> str:
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    names = [name for name, _ in pairs]
-    if len(set(names)) != len(names):
-        raise ValueError("qualification.json carries a duplicate key.")
-    return dict(pairs)
+    """The package's one duplicate-key hook, named here because two siblings import it."""
+    return inventory.reject_duplicate_keys(pairs, QUALIFICATION_FILENAME)
 
 
 def _is_own_generation(generation: Any) -> bool:
@@ -1610,10 +1606,7 @@ def _read_marker(out: pathlib.Path) -> dict[str, Any]:
     text that is not a single unambiguous JSON document; both callers render
     those as one refusal.
     """
-    path = out / QUALIFICATION_FILENAME
-    if not stat.S_ISREG(path.lstat().st_mode):
-        raise OSError(f"{QUALIFICATION_FILENAME} is not a regular file.")
-    return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys)
+    return inventory.read_marker(out / QUALIFICATION_FILENAME)
 
 
 def _build(

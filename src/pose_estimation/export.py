@@ -153,10 +153,13 @@ def coord_scale(frame_h, frame_w):
     y-over-x ratio 3.16x apart between landscape and portrait assets.  One
     scalar restores angles and distance ratios.
 
-    ``max`` rather than height or ``sqrt(w*h)`` for two reasons: every
-    coordinate stays inside [0, 1], so the schema's range contract is
-    unbroken; and it is invariant under a 90 degree transpose, so an asset
-    that changes orientation mid-clip keeps one coordinate scale.
+    ``max`` rather than height or ``sqrt(w*h)`` for two reasons: an in-frame
+    coordinate stays inside [0, 1], so the schema's range contract is unbroken
+    for every landmark the frame actually contains; and it is invariant under a
+    90 degree transpose, so an asset that changes orientation mid-clip keeps one
+    coordinate scale.  A detector may place a finite landmark outside the frame,
+    and such a point normalises outside [0, 1] — it is exported unchanged, never
+    clipped, because clipping would move geometry rather than record it.
     """
     return float(max(frame_w, frame_h))
 
@@ -272,10 +275,11 @@ def frame_to_rows(
 ):
     """Convert one frame's landmark data into CSV rows (one per person).
 
-    Coordinates are normalised to [0, 1] by dividing by ``coord_scale``, one
-    scalar per frame, so image-plane angles and distance ratios survive the
-    normalisation.  Missing hand data is filled with empty strings (written as
-    blank in CSV).
+    Coordinates are normalised by dividing by ``coord_scale``, one scalar per
+    frame, so image-plane angles and distance ratios survive the normalisation.
+    An in-frame landmark lands inside [0, 1]; a finite off-frame prediction is
+    preserved outside it rather than clipped.  Missing hand data is filled with
+    empty strings (written as blank in CSV).
 
     *tracking* determines the column layout:
     - ``"hands"``: hand columns only, no body columns.

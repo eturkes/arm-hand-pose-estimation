@@ -1,7 +1,9 @@
 """Adversarial regression tests for the M2.1 inventory review."""
 
+import json
 import os
 import pathlib
+import runpy
 import subprocess
 import sys
 
@@ -449,3 +451,49 @@ def test_identity_docstrings_state_the_bounded_guarantees() -> None:
     assert "family" in (inventory.capture_row.__doc__ or "").lower()
     assert "pseudonym" in (inventory.capture_id_of.__doc__ or "").lower()
     assert "de-identified" not in module_lower
+
+
+def test_committed_determinism_evidence_binds_to_its_current_sources() -> None:
+    """M2 review T5 R09: a head SHA names the parent commit, so bytes are the dependency.
+
+    The regenerating run always precedes the commit that carries its output, so a
+    recorded `git rev-parse HEAD` can never be checked against the state it measured.
+    """
+    root = pathlib.Path(__file__).resolve().parents[1]
+    result = json.loads(
+        (root / "tests/inventory_determinism_results.json").read_text(encoding="utf-8")
+    )
+    checker = runpy.run_path(str(root / "scripts/check_inventory_determinism.py"))
+
+    assert "tested_head" not in result
+    assert set(checker["SOURCE_FILES"]) >= {
+        "scripts/check_inventory_determinism.py",
+        "src/pose_estimation/inventory.py",
+        "src/pose_estimation/video_io.py",
+    }
+    recomputed = checker["source_digests"]()
+    assert recomputed
+    assert result["source_sha256"] == recomputed
+
+
+def test_determinism_evidence_refuses_to_regenerate_over_a_stale_source(
+    tmp_path: pathlib.Path,
+) -> None:
+    """The stale-green barrier is the refusal, so it is checked on both arms."""
+    root = pathlib.Path(__file__).resolve().parents[1]
+    checker = runpy.run_path(str(root / "scripts/check_inventory_determinism.py"))
+    current = checker["source_digests"]()
+    result = tmp_path / "result.json"
+
+    result.write_text(json.dumps({"source_sha256": current}), encoding="utf-8")
+    assert checker["stale_source_mismatches"](result, current) == []
+
+    stale = dict(current)
+    stale["src/pose_estimation/inventory.py"] = "0" * 64
+    result.write_text(json.dumps({"source_sha256": stale}), encoding="utf-8")
+    assert checker["stale_source_mismatches"](result, current) == [
+        "src/pose_estimation/inventory.py"
+    ]
+
+    result.write_text(json.dumps({"tested_head": "0" * 40}), encoding="utf-8")
+    assert checker["stale_source_mismatches"](result, current) == sorted(current)

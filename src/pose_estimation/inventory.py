@@ -38,6 +38,7 @@ import math
 import os
 import pathlib
 import re
+import stat
 import sys
 
 import cv2
@@ -1043,6 +1044,41 @@ def write_text(path, text):
         temporary.unlink(missing_ok=True)
 
 
+def reject_duplicate_keys(pairs, document):
+    """Refuse *document* when it states one key twice.
+
+    ``json.loads`` keeps the last of a repeated key silently, so one trust-root
+    document can present one claim to a reader and another to the parser.
+    """
+    names = [name for name, _ in pairs]
+    if len(set(names)) != len(names):
+        raise ValueError(f"{document} carries a duplicate key.")
+    return dict(pairs)
+
+
+def read_marker(path):
+    """Read a publisher marker as the kind of file this package would have written.
+
+    The marker is a published set's trust root and the one entry its own tree
+    digest cannot cover, so its identity is all that stands behind it.  A
+    symlink puts that root outside the set it certifies, and through an
+    ownership check lets a foreign directory license its own replacement; a
+    duplicate key puts two claims in one document.  Shared by every publisher
+    so the six trust roots cannot drift apart again.
+
+    Raises ``OSError`` for a missing or non-regular path and ``ValueError`` for
+    text that is not a single unambiguous JSON document; each caller renders
+    both as one refusal in its own error domain.
+    """
+    path = pathlib.Path(path)
+    if not stat.S_ISREG(path.lstat().st_mode):
+        raise OSError(f"{path.name} is not a regular file.")
+    return json.loads(
+        path.read_text(encoding="utf-8"),
+        object_pairs_hook=lambda pairs: reject_duplicate_keys(pairs, path.name),
+    )
+
+
 def census_digest(census):
     """Digest a census over every field except the one holding this digest.
 
@@ -1075,10 +1111,11 @@ def validate_generation(out_dir):
     # JSONDecodeError to learn a set is unusable has no boundary at all, and a
     # truncated census is exactly the half-published case this call exists for.
     try:
-        census = json.loads((out_dir / CENSUS_FILENAME).read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        census = read_marker(out_dir / CENSUS_FILENAME)
+    except (OSError, UnicodeDecodeError, ValueError) as error:
         raise InventoryError(
-            "The published set is unusable: census.json is missing or is not valid JSON."
+            "The published set is unusable: census.json is missing, is not a regular file, "
+            "or is not a single unambiguous JSON document."
         ) from error
     if not isinstance(census, dict):
         raise InventoryError("The published set is unusable: census.json is not an object.")

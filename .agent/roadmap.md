@@ -12,6 +12,40 @@ Live long-horizon state only; completed trajectory belongs in git. Closed-unit d
 
 **MILESTONE-REVIEW wave 1 — done; M2 stays IMPLEMENTED because adjudicated ≠ fixed.** Five reviewers in one block off `384c15f` (`rev-m2u82` M2.8.1+M2.8.2 · `rev-m2u84` M2.8.4 · `rev-m2u85` M2.8.3+M2.8.5 · `rev-m2-cross` cross-unit + M2.7.3/M2.7.4 docs + CLAUDE.md conformance · `audit-m2` claim replay M2.7.3-M2.8.5) enumerated **193 check-set rows, 55 fail**, every one adjudicated in `.agent/review-m2.md`: **43 ACCEPT-FIX · 9 ACCEPT-LIMIT · 2 POLISH · 3 REJECT**, 0 open. Reports at `.agent/archive/review-m2-<name>.md`; reviewer tips tagged `archive/m2-review-<name>` (three carry committed red batteries — 490 / 34 / 226 insertions under `tests/`, red against shipped code). **MILESTONE-REVIEW re-enters until every ACCEPT-FIX row closes on its own acceptance check under MAIN's rerun**; REVIEWED waits on that. One closed in-wave (X01: `uv sync --frozen` restored the missing `pose-estimation-cohort` console script, `.venv/bin` now 11/11). Decisive gate at wave close, **run alone from committed state: 1702 passed, 24:27, rc=0** — the 1701/1 seen during the wave was five worktree gates plus MAIN's timing out `test_c8_08`'s 900 s subprocess on 8 cores. Highest-value finding, confirmed by five independent lenses: **the corrected isotropic corpus still published `deg_image_plane_uncalibrated` on 19 angle descriptors while `docs/technical/cohort.md` claimed anisotropic normalisation with 9.9° error** — a shipped clinical artifact carrying false metadata. Wave sizing datum: 5 reviewers × ~40 rows fits one MAIN window when harvest reads the verdict table and opens `fail` rows alone.
 
+**MILESTONE-REVIEW wave 2, session 3 — the publisher trust roots close; M2 stays IMPLEMENTED.**
+**40 of the 43 ACCEPT-FIX rows are closed, 3 remain** (T1 **10/10** · T2 6/7 · T3 **14/14** · T4 3/4 ·
+T5 6/7 · T6 **1/1**). Scoped at dispatch to the seven rows with no republish cascade, and all seven
+closed. Shipped: **one shared marker loader `inventory.read_marker`** — `lstat` + `S_ISREG` then a
+duplicate-rejecting `object_pairs_hook` — placed in `inventory.py` because that is the import-graph
+root, so the six trust roots converge at **zero new import edges** and the DECLINED `publication.py`
+extraction stays declined (T5 R15/R16, `tests/test_publisher_trust_roots.py` 16 cases); two witness
+repairs where a green predicate was watching a constant rather than a payload (T2 R08 report-payload
+identity, T2 R09 a `coord_scale` sentinel-divisor spy, each verified by the mutant it now kills); the
+three unqualified `[0,1]` claims scoped to in-frame landmarks with a case exporting `(110, -5)` as
+`(1.1, -0.05)` (T2 R20); inventory determinism evidence bound to a spelled-out `SOURCE_FILES` with a
+rc=2 stale-source refusal and `tested_head` deleted (T5 R09); and **P05 rebuilt as a witness**, each
+absence bound to the sections exercising it, the label total derived rather than declared (T4 R14).
+**Three data.** The pre-fix marker read was worse than the review measured — `read_text()` on a FIFO
+marker **blocks forever**, so the battery cannot be verified red by stashing without a timeout, and
+what looked like an accepted bad marker is an unbounded hang. A **13/13 deletion sweep** is what
+closed R14: the audit's own 8/9 replay showed a count where a witness was claimed, and the rebuilt
+nine-control harness (`.scratch/nc_m2u74.py`, **9/9 firing**, document restored byte-identical) found
+the same defect class in its own seeds — P03 needs S20's single `MUST`, because lowercasing one of
+S14's three grades nothing. And `git checkout -- <file>` to revert a mutant **silently reverted an
+unrelated edit in the same file**; re-apply and re-verify after every mutant test.
+**Four determinism campaigns regenerated last, after every source and test edit** — editing
+`inventory.py`, `sessions.py` and `qualify.py` fires the source tripwire in all three publisher
+campaigns, and the new inventory one has to be measured against its own final bytes. All green:
+inventory **20 sweeps / 0 failures** (3 min 53 s over the real corpus), qualify **40 sweeps / 40
+passed / 19 tamper classes / 0 failures**, calibration_qc **21 sweeps / 18 tampers / 39 PASS / 0
+FAIL**, cohort **6 sweeps / 15 tamper classes**. **Decisive gate alone from the final state: 1750
+passed in 854.72 s (14:14), rc=0** — measured 1729 collected at the session's base commit plus
+exactly the 21 new cases (16 trust-root · 3 isotropic · 2 inventory-evidence). The `1720` recorded at
+session 1 is superseded: session 2 restored a battery and recorded no gate count, which is how a
+stale baseline reached this session's plan. Remaining 3 are one shape — an evidence document unbound
+to what produced it (T2 R23, T4 R37, T5 R17); R17's design and measured blast radius are recorded in
+`.agent/review-m2.md`, unimplemented.
+
 **MILESTONE-REVIEW wave 2, session 2 — the T1 batch closes; M2 stays IMPLEMENTED.**
 **33 of the 43 ACCEPT-FIX rows are closed, 10 remain** (T1 **10/10** · T2 3/7 · T3 14/14 · T4 2/4 ·
 T5 3/7 · T6 1/1). The parked battery is unparked: `tests/test_review_m2u82.py` is restored into

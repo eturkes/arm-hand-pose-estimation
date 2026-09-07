@@ -16,8 +16,8 @@ closed on its own acceptance check under MAIN's rerun** — adjudicated is not f
 **43 ACCEPT-FIX · 9 ACCEPT-LIMIT · 2 POLISH · 3 REJECT.** The 2 POLISH rows are filed in
 `.agent/polish.md`; the ACCEPT-LIMIT and REJECT rows are closed here.
 
-**Wave 2 — fix application, session 2 of N. 33 of the 43 ACCEPT-FIX rows are CLOSED; 10 stay open.**
-Per track: T1 **10/10** · T2 3/7 · T3 14/14 · T4 2/4 · T5 3/7 · T6 1/1.
+**Wave 2 — fix application, session 3 of N. 40 of the 43 ACCEPT-FIX rows are CLOSED; 3 stay open.**
+Per track: T1 **10/10** · T2 6/7 · T3 **14/14** · T4 3/4 · T5 6/7 · T6 **1/1**.
 The three reviewer tips carry committed red batteries, and those are the acceptance checks in
 executable form — restore them with `git show archive/m2-review-<name>:tests/<file> > tests/<file>`
 and drive them green. Measured at restore: **27 red** over
@@ -35,12 +35,23 @@ from the campaign's `_source_digest()` through `runpy`; `test_r32_concurrent_ups
 detected` parametrized two of the three inputs its acceptance check names, so `sessions` was added.
 Read each red against the shipped contract *and* against its own ledger row before crediting it.
 
-**Remaining 10, in dependency order.** T2's 4 (R08/R09 P08+P09 witnesses, R20 the `[0,1]` claims,
-R23 fidelity-JSON binding) · T4's 2 (R14 P05 label witness, R37 external descriptor digest) ·
-T5's 4 (R09 inventory evidence binding, and **R15/R16/R17 the publisher trust-root triple** — one
-shared `lstat`+`S_ISREG`+`object_pairs_hook` marker loader across all six publishers, blast radius
-unmeasured; note `sessions.tree_digest(out_dir)` takes no marker argument, so covering the
-provenance block needs a signature or call-site change).
+**Remaining 3 — one shape: an evidence document that does not bind to the digests of what produced
+it.** All three force a republish or a regeneration, which is why they were deferred as a cohort.
+- **T2 R23** — `tests/isotropy_angle_fidelity_results.json` pins 8 sample ids and nothing else; it
+  needs script, validated-registry generation, run-tree and effective-config digests.
+- **T4 R37** — the cohort census must record the external descriptor digest.
+- **T5 R17** — a census digest must cover its provenance block minus its own self-referential key.
+  **Design settled, session 3, unimplemented.** Sessions half = a NEW self-digest key in the marker,
+  joining `GENERATION_KEYS`, following `cohort.tree_digest(out_dir, marker)`'s A24 idiom; never a
+  changed `tree_digest` signature, because `scripts/corpus_run_2d.py:513,549` and
+  `scripts/pilot_corpus_run.py:650,668` call it with one argument and `corpus_run_2d` computes it
+  *before* `validate_generation`, so a signature change moves the error path. Measure half =
+  `measure.manifest_digest` includes `generation` minus `generation.manifest`. Blast radius measured:
+  sessions republish **0.5 s**; `sessions.tree_digest` excludes the marker, so `cohort`'s recorded
+  value is unaffected; `output/corpus-2d/run_report.json` records only booleans, so the 7.828 h
+  corpus-run record is not falsified. The measure half needs a manifest-only rewrite (read each axis
+  CSV, `write_axis` the same rows and provenance → byte-identical CSVs, fresh digest, **no decode**),
+  then republish qualification (~30 s), calibration_qc and cohort (~14 s).
 
 **Session 2 datum — one reviewer's own two reds contradicted each other, and the fixture lost.**
 R20's byte-idempotence red wrote a synthetic diagnostics row with no `video` column while R25's red
@@ -122,9 +133,9 @@ from `archive/m2-review-rev-m2u82` into `tests/` and now **10/10 green** in the 
 
 | row | severity + finding | ruling | acceptance check |
 | --- | ------------------ | ------ | ---------------- |
-| R08 | HIGH — deleting the report key leaves P08 green, so N7 and the artifact-identity conjunct are not witnessed | **ACCEPT-FIX** | deleting `configuration.coord_normalization` fails P08 |
-| R09 | MEDIUM — replacing both helper calls with duplicated `max` formulas leaves P09 green; A07's spy was not built | **ACCEPT-FIX** | bypassing `coord_scale` with a duplicated formula fails P09 |
-| R20 | MEDIUM — three unqualified `[0,1]` claims are false: a finite off-frame point exports as `(1.1,-0.05)` | **ACCEPT-FIX** | every `[0,1]` claim is scoped to in-frame points |
+| R08 | HIGH — deleting the report key leaves P08 green, so N7 and the artifact-identity conjunct are not witnessed | **ACCEPT-FIX — CLOSED** | new `_load_driver()` imports `scripts/corpus_run_2d.py` as a module and `test_p08_report_payload_carries_the_normalisation_identity` runs `driver.main()` in analyse-only mode over a synthetic tree, asserting the EMITTED payload carries the token — the prior case compared module constants. Mutant verified: deleting `"coord_normalization": COORD_NORMALIZATION,` (`scripts/corpus_run_2d.py:605`) FAILS it |
+| R09 | MEDIUM — replacing both helper calls with duplicated `max` formulas leaves P09 green; A07's spy was not built | **ACCEPT-FIX — CLOSED** | `_four_coordinate_paths(point, frame_h, frame_w)` extracted from the P09 body (body / matched-hand / fallback-hand / hands-only), then `test_p09_every_coordinate_path_routes_through_the_coord_scale_helper` monkeypatches `export.coord_scale` to a sentinel divisor of 7.0 and requires every emitted coordinate to reflect it. Mutant verified: both `scale = coord_scale(...)` sites replaced by `float(max(frame_w, frame_h))` FAILS it |
+| R20 | MEDIUM — three unqualified `[0,1]` claims are false: a finite off-frame point exports as `(1.1,-0.05)` | **ACCEPT-FIX — CLOSED** | all three claims in `export.py` scoped to in-frame landmarks — the `coord_scale` docstring, the `frame_to_rows` docstring, the `read_csv_keypoints` `kps` description — each stating that a finite off-frame prediction is preserved rather than clipped. `test_p03_finite_off_frame_landmarks_are_preserved_outside_the_unit_range` exports `(110, -5)` in a 100x50 frame as `(1.1, -0.05)` |
 | R21 | HIGH — `VideoCapture.set(...,1)` return/read-back is ignored; a rejected request returns an unreleased usable capture | **ACCEPT-FIX — CLOSED** | `video_io.open_capture` now reads the `set` return, warns, releases, returns `None`; `test_m2u84_review.py::test_open_capture_refuses_failed_orientation_request` green. The row said "raises" and the reviewer's own red asserts `None` — **the red is right**: `open_capture`'s contract is "the open capture or `None`", so raising breaks every caller. `probe_container` left alone: it releases in `finally` and publishes `orientation_auto` as a cell, so a refusal is already visible there. **Measured before shipping, because a wrong answer refuses every video**: `set` returns `True` on **382/382** real corpus assets, 0 unopenable, and `open_capture` still returns a capture that reads a frame. Recorded as `contract-m2u84.md` **A16** |
 | R23 | HIGH — unreplayable JSON pins sample IDs only; it carries no script, registry-generation, run-tree, manifest, or config digest | **ACCEPT-FIX** | the fidelity JSON binds to script, registry generation, run tree and config digests |
 | R24 | HIGH — code, tests, 19 descriptors, and docs still publish the pre-fix anisotropic token/claim | **ACCEPT-FIX — CLOSED** (isotropy cluster: T2 R24 = T3 R05 = T3 R39 = T4 R41, one fix) | `cohort.UNIT_DEG` → `"deg_image_plane"` (`cohort.py:44`); `tests/test_cohort.py` `_UNIT_CONSTANTS` + P18 phrase list follow (`"9.9"` → `"one scalar"`: the retired pipeline's error is provenance); `docs/technical/cohort.md` angle boundary rewritten to one scalar / similarity map / no lens correction. **Republished `cohort/` on the real corpus under the accelerator recipe: 12 cells, 1068 feature rows, 89 published / 3 excluded — reconciles exactly with the recorded census**, and `descriptors.yaml` carries 19 `deg_image_plane`, 0 `deg_image_plane_uncalibrated`. `test_cohort_review.py::test_r05_…` green |
@@ -162,7 +173,7 @@ from `archive/m2-review-rev-m2u82` into `tests/` and now **10/10 green** in the 
 
 | row | severity + finding | ruling | acceptance check |
 | --- | ------------------ | ------ | ---------------- |
-| R14 | 8/9 fire: deleting one of 13 local-decision labels leaves P05 green. | **ACCEPT-FIX** | deleting any one local-decision label fails P05 |
+| R14 | 8/9 fire: deleting one of 13 local-decision labels leaves P05 green. | **ACCEPT-FIX — CLOSED** | P05 now checks both directions like P03: new frozen `ABSENCE_SECTIONS` binds each absence to the sections exercising it, and each of the preamble, the 5 rows and the 7 governed spans is checked separately, with the label total DERIVED as their sum so a stray label fails too. **13/13 sweep**: deleting each label in turn fails P05 with its own message. Nine-control harness rebuilt at `.scratch/nc_m2u74.py` (the original did not survive its worktree) — **9/9 fire**, document restored byte-identical (`55eb769a1768`) |
 | R15 | UNREPRODUCIBLE: the cited review ledger is absent from committed state. | **ACCEPT-LIMIT** | the roadmap cites no `.scratch/` report as evidence for a durable claim; cited reports are archived or the citation drops |
 | R23 | Six components reproduce, but the only retained run gives 540 windows, not 572. | **ACCEPT-LIMIT** | MAIN re-derived it: 572 is the M2.8.1 PRE-fix pilot population and 540 the post-fix one, both recorded (`roadmap.md:801,944`); the pre-fix tree is deleted, so the figure is historical |
 | R24 | UNREPRODUCIBLE: pre-fix logs/report/tree are absent; current retained output is post-fix. | **ACCEPT-LIMIT** | the record labels the pre-fix measurement historical and unreproducible, never re-derivable |
@@ -184,10 +195,10 @@ from `archive/m2-review-rev-m2u82` into `tests/` and now **10/10 green** in the 
 | row | severity + finding | ruling | acceptance check |
 | --- | ------------------ | ------ | ---------------- |
 | R08 | LOW: P16 independently enumerates all 5 group-QC goldens, falsifying the six-place budget | **ACCEPT-LIMIT** | `.claude/rules/fixtures.md` names seven enumerators, measured |
-| R09 | HIGH: inventory evidence has no source tuple/digests and records an intrinsically stale head SHA | **ACCEPT-FIX** | inventory evidence binds to a source tuple and drops the head SHA |
+| R09 | HIGH: inventory evidence has no source tuple/digests and records an intrinsically stale head SHA | **ACCEPT-FIX — CLOSED** | `check_inventory_determinism.py` gains a spelled-out 4-entry `SOURCE_FILES` (checker, `__init__.py`, `inventory.py`, `video_io.py`), `source_digests()`, `stale_source_mismatches()` and a refusal before any write, **verified end to end: rc=2, the mismatched file named, the stale result unmodified**; `tested_head` is gone and `schema_version` is 2. Two committed cases in `tests/test_inventory_review.py` — one recomputes every digest from the worktree and asserts `tested_head` absent, one grades the refusal on both arms plus the no-`source_sha256` arm. `run_inventory_mutations.py`'s own head SHA rides the pri-1 `.agent/polish.md` regeneration row |
 | R14 | HIGH: digest covers only `cohort.py` + its test while output reads/rendering depend on four omitted modules | **ACCEPT-FIX — CLOSED** | duplicate of T3 R36 |
-| R15 | HIGH: inventory and sessions follow marker symlinks; the other four reject non-regular markers | **ACCEPT-FIX** | every publisher rejects a non-regular marker |
-| R16 | HIGH: inventory and sessions accept duplicate marker keys; the other four use rejecting hooks | **ACCEPT-FIX** | every publisher rejects duplicate marker keys |
+| R15 | HIGH: inventory and sessions follow marker symlinks; the other four reject non-regular markers | **ACCEPT-FIX — CLOSED** | one shared loader `inventory.read_marker` (`lstat` + `stat.S_ISREG` -> `OSError`, then `json.loads` with a duplicate-rejecting hook), placed in `inventory.py` because it is the import-graph root, so the fix adds ZERO import edges and is not the DECLINED `publication.py` extraction (T5 R35). `sessions.py` routes BOTH readers through it — `_assert_owned` (the one with teeth: publication deletes what the marker says it owns) and `validate_generation`; `qualify._read_marker` collapses to a delegation. New `tests/test_publisher_trust_roots.py`, 16 cases: 5 non-regular kinds x 2 modules, each paired with the untouched tree validating |
+| R16 | HIGH: inventory and sessions accept duplicate marker keys; the other four use rejecting hooks | **ACCEPT-FIX — CLOSED** | `inventory.reject_duplicate_keys` is the shared `object_pairs_hook`, reached through `read_marker`; top-level and nested duplicate-key cases for both modules. Two deliberate non-migrations: `qualify._reject_duplicate_keys` keeps its NAME as a one-line delegation because `scripts/run_calibration_qc_mutations.py:99,320-321` string-match `object_pairs_hook=qualify._reject_duplicate_keys` under `assert s.count(old)==1`; and `measure._object_pairs` stays, because it raises `MeasureError(reason="manifest_duplicate_key")` and routing it through the shared `ValueError` would break its reason-coded refusal (`_read_manifest` does not catch `ValueError` and already performs the R15 kind-check). That is the ruling on R16's "all six publishers" wording |
 | R17 | HIGH: sessions excludes the whole marker; measure excludes the whole generation/upstream block | **ACCEPT-FIX** | every census digest covers its provenance block minus its own self-referential key |
 | R23 | MEDIUM: roadmap still says 17 restored columns → 92 published beside the measured 89/1068 result | **ACCEPT-FIX — CLOSED** | duplicate of T2 R28 |
 | R25 | MEDIUM: the memory store cited old `export.py:250` anisotropy; code now uses one max-dimension scale and cohort docs/tests pin 9.9° | **ACCEPT-FIX — CLOSED** | the view-dispersion bullet (now `.claude/rules/cohort.md`) cites `export.coord_scale` and `max(frame_w, frame_h)` instead of the retired per-axis `export.py:250`, and the anisotropy bullet is restated past-tense with the standing obligation on live consumers. `cohort.md` and `test_cohort.py` lost the 9.9° with T2 R24 |

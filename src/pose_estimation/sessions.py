@@ -733,8 +733,8 @@ def _assert_owned(out_dir: pathlib.Path) -> None:
         "Publishing would delete a directory this tool does not own."
     )
     try:
-        marker = json.loads((out_dir / GENERATION_FILENAME).read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        marker = inventory.read_marker(out_dir / GENERATION_FILENAME)
+    except (OSError, UnicodeDecodeError, ValueError) as error:
         raise refusal from error
     if not isinstance(marker, dict) or "generator_version" not in marker:
         raise refusal
@@ -809,10 +809,11 @@ def validate_generation(out_dir, inventory_dir=None):
     """
     out = pathlib.Path(out_dir)
     try:
-        generation = json.loads((out / GENERATION_FILENAME).read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        generation = inventory.read_marker(out / GENERATION_FILENAME)
+    except (OSError, UnicodeDecodeError, ValueError) as error:
         raise SessionsError(
-            "The published tree is unusable: generation.json is missing or is not valid JSON."
+            "The published tree is unusable: generation.json is missing, is not a regular file, "
+            "or is not a single unambiguous JSON document."
         ) from error
     if not isinstance(generation, dict):
         raise SessionsError("The published tree is unusable: generation.json is not an object.")

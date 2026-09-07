@@ -74,8 +74,19 @@ NON_NEGOTIABLES: dict[str, tuple[str, ...]] = {
     "N5": ("S04", "S20"),
 }
 
-ABSENCES = ("L1", "L2", "L3", "L4", "L5")
+# The five measured absences, each bound to the sections that exercise it — the same
+# both-directions shape as NON_NEGOTIABLES.  A label count is not a witness: 13 labels
+# over 5 absences stayed green when one was deleted (M2 review T4 R14).
+ABSENCE_SECTIONS: dict[str, tuple[str, ...]] = {
+    "L1": ("S01",),
+    "L2": ("S11", "S12"),
+    "L3": ("S11",),
+    "L4": ("S04", "S20"),
+    "L5": ("S14",),
+}
+ABSENCES = tuple(ABSENCE_SECTIONS)
 LOCAL_DECISION = "**local decision**"
+LOCAL_DECISIONS_HEADING = "## Local decisions"
 
 UNRUN_STATUS = "This specification defines a capture that nobody has performed."
 
@@ -106,6 +117,7 @@ CORPUS_PATH = re.compile(r"videos/3-cam/\S")
 MEDIA_FILE = re.compile(r"\.(?:mov|mp4|m4v)\b", re.IGNORECASE)
 
 SECTION_HEADING = re.compile(r"^## (S\d{2}) — (.+)$", re.MULTILINE)
+SECTION_REF = re.compile(r"\bS\d{2}\b")
 SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z`*\[])")
 
 
@@ -135,6 +147,23 @@ def _sections() -> dict[str, str]:
         stop = re.search(r"^#{1,2} ", body, re.MULTILINE)
         bodies[match.group(1)] = body[: stop.start()] if stop else body
     return bodies
+
+
+def _local_decisions_block() -> tuple[str, dict[str, str]]:
+    """Split the local-decisions section into its prose preamble and its `L<n>` rows."""
+    text = _spec_text()
+    if LOCAL_DECISIONS_HEADING not in text:
+        return "", {}
+    block = text.split(LOCAL_DECISIONS_HEADING, 1)[1].split("\n## ", 1)[0]
+    rows: dict[str, str] = {}
+    preamble: list[str] = []
+    for line in block.splitlines():
+        cells = [cell.strip() for cell in line.split("|")[1:-1]]
+        if len(cells) == 3 and re.fullmatch(r"L\d+", cells[0]):
+            rows[cells[0]] = cells[2]
+        elif not line.lstrip().startswith("|"):
+            preamble.append(line)
+    return "\n".join(preamble), rows
 
 
 def _prose_sentences() -> list[str]:
@@ -222,14 +251,44 @@ def _p04_no_prohibited_paraphrase() -> tuple[bool, str]:
 
 
 def _p05_absences_labelled_local() -> tuple[bool, str]:
+    """Every absence, and every section exercising one, states its own label.
+
+    Checked in both directions like P03, and every label in the document must land in
+    one of three slots — preamble, absence row, governed section — so the total is
+    derived here rather than declared and no single label is redundant.
+    """
     text = _spec_text()
-    missing = [lid for lid in ABSENCES if lid not in text]
-    labels = text.count(LOCAL_DECISION)
+    preamble, rows = _local_decisions_block()
+    missing = [lid for lid in ABSENCES if lid not in rows]
     if missing:
         return False, f"absence ids not stated: {missing}"
-    if labels < len(ABSENCES):
-        return False, f"{labels} local-decision labels for {len(ABSENCES)} absences"
-    return True, f"{len(ABSENCES)} absences stated, {labels} local-decision labels"
+    unchecked = sorted(set(rows) - set(ABSENCES))
+    if unchecked:
+        return False, f"absence rows outside the checked set: {unchecked}"
+    if LOCAL_DECISION not in preamble:
+        return False, "the local-decisions preamble states no local-decision label"
+    bodies = _sections()
+    labelled = 0
+    for lid, governed in ABSENCE_SECTIONS.items():
+        if LOCAL_DECISION not in rows[lid]:
+            return False, f"{lid} states no local-decision label"
+        named = tuple(sorted(set(SECTION_REF.findall(rows[lid]))))
+        if named != tuple(sorted(governed)):
+            return False, f"{lid} names {list(named)}, bound to {list(governed)}"
+        for sid in governed:
+            if sid not in bodies:
+                return False, f"{lid} names {sid}, which is not a section"
+            spans = re.findall(rf"{re.escape(LOCAL_DECISION)} under {lid}\b", _flatten(bodies[sid]))
+            if not spans:
+                return False, f"{sid} exercises {lid} without labelling it a local decision"
+            labelled += len(spans)
+    accounted = len(ABSENCES) + labelled + preamble.count(LOCAL_DECISION)
+    if text.count(LOCAL_DECISION) != accounted:
+        return False, f"{text.count(LOCAL_DECISION)} labels, {accounted} bound to an absence"
+    return True, (
+        f"{len(ABSENCES)} absences, each labelled in its own row and cited by "
+        f"{labelled} labelled spans across the sections it governs"
+    )
 
 
 def _p06_citations_resolvable() -> tuple[bool, str]:

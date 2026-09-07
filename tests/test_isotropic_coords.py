@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import importlib
+import importlib.util
 import json
 import math
 import pathlib
@@ -24,6 +25,17 @@ run_module = importlib.import_module("pose_estimation.run")
 video_io = importlib.import_module("pose_estimation.video_io")
 
 _ASPECTS = ((1080, 1920), (1920, 1080))
+
+
+def _load_driver():
+    """Import the driver as a module, so a case can monkeypatch its call sites."""
+    path = _PROJECT_ROOT / "scripts" / "corpus_run_2d.py"
+    spec = importlib.util.spec_from_file_location(f"_isotropic_{path.stem}", path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _body_row(frame_h: int, frame_w: int, points: np.ndarray) -> dict[str, object]:
@@ -103,6 +115,20 @@ def test_p03_frame_corners_remain_inside_unit_range() -> None:
         exported = np.vstack([_body_coords(row, index)[:2] for index in range(4)])
         assert exported.shape == (4, 2)
         assert np.all((exported >= 0.0) & (exported <= 1.0))
+
+
+def test_p03_finite_off_frame_landmarks_are_preserved_outside_the_unit_range() -> None:
+    """P03 is scoped to in-frame landmarks, and this is the boundary it does not claim.
+
+    A detector places finite predictions outside the frame; the exporter records them
+    unchanged, because clipping to [0, 1] would move geometry rather than describe it.
+    Stated as a case so a later author repairs the prose rather than the exporter.
+    """
+    frame_h, frame_w = 50, 100
+    point = np.array([[110.0, -5.0, 0.0]])
+    exported = _body_coords(_body_row(frame_h, frame_w, point), 0)[:2]
+    np.testing.assert_allclose(exported, [1.1, -0.05])
+    assert not np.all((exported >= 0.0) & (exported <= 1.0))
 
 
 def test_p04_coordinate_scale_survives_dimension_transpose() -> None:
@@ -330,56 +356,133 @@ def _hand_coords(row: dict[str, object], side: str, index: int = 0) -> np.ndarra
     return np.array([row[f"{side}_hand_{index}_{axis}"] for axis in "xyz"], dtype=float)
 
 
-def test_p09_body_matched_hand_and_hand_only_paths_are_isotropic() -> None:
-    """RED pre-fix: all exported coordinate paths must share max-dimension semantics."""
-    point = np.array([960.0, 540.0, 270.0])
+def _four_coordinate_paths(
+    point: np.ndarray, frame_h: int, frame_w: int
+) -> tuple[list[np.ndarray], str]:
+    """Every exported coordinate of the body, matched-hand, fallback and hands-only paths."""
     hand = np.zeros((export.HAND_KEYPOINT_COUNT, 3), dtype=np.float64)
     hand[0] = point
     body = np.zeros((len(export.BODY_KEYPOINT_NAMES), 3), dtype=np.float64)
     body[0] = point
     wrist_index, side = next(iter(export.wrist_to_side(export.TRACKING_BODY).items()))
+    common = {
+        "video_name": "synthetic",
+        "frame_idx": 0,
+        "timestamp_sec": 0.0,
+        "frame_h": frame_h,
+        "frame_w": frame_w,
+    }
+    matched = export.frame_to_rows(
+        **common,
+        body_landmarks=[body],
+        body_visibilities=[np.ones(len(body), dtype=np.float64)],
+        hand_landmarks=[hand],
+        matches=[(0, wrist_index, 0)],
+        tracking=export.TRACKING_BODY,
+    )[0]
+    fallback = export.frame_to_rows(
+        **common,
+        body_landmarks=[],
+        body_visibilities=[],
+        hand_landmarks=[hand],
+        matches=[],
+        tracking=export.TRACKING_BODY,
+        hand_only=True,
+        hand_handedness=[(side, 1.0)],
+    )[0]
+    hands_mode = export.frame_to_rows(
+        **common,
+        body_landmarks=[],
+        body_visibilities=[],
+        hand_landmarks=[hand],
+        matches=[],
+        tracking=export.TRACKING_HANDS,
+        hand_handedness=[(side, 1.0)],
+    )[0]
+    return [
+        _body_coords(matched, 0),
+        _hand_coords(matched, side),
+        _hand_coords(fallback, side),
+        _hand_coords(hands_mode, side),
+    ], side
 
+
+def test_p09_body_matched_hand_and_hand_only_paths_are_isotropic() -> None:
+    """RED pre-fix: all exported coordinate paths must share max-dimension semantics."""
+    point = np.array([960.0, 540.0, 270.0])
     for frame_h, frame_w in _ASPECTS:
         expected = point / max(frame_h, frame_w)
-        common = {
-            "video_name": "synthetic",
-            "frame_idx": 0,
-            "timestamp_sec": 0.0,
-            "frame_h": frame_h,
-            "frame_w": frame_w,
-        }
-        matched = export.frame_to_rows(
-            **common,
-            body_landmarks=[body],
-            body_visibilities=[np.ones(len(body), dtype=np.float64)],
-            hand_landmarks=[hand],
-            matches=[(0, wrist_index, 0)],
-            tracking=export.TRACKING_BODY,
-        )[0]
-        fallback = export.frame_to_rows(
-            **common,
-            body_landmarks=[],
-            body_visibilities=[],
-            hand_landmarks=[hand],
-            matches=[],
-            tracking=export.TRACKING_BODY,
-            hand_only=True,
-            hand_handedness=[(side, 1.0)],
-        )[0]
-        hands_mode = export.frame_to_rows(
-            **common,
-            body_landmarks=[],
-            body_visibilities=[],
-            hand_landmarks=[hand],
-            matches=[],
-            tracking=export.TRACKING_HANDS,
-            hand_handedness=[(side, 1.0)],
-        )[0]
+        observed, _side = _four_coordinate_paths(point, frame_h, frame_w)
+        for coordinates in observed:
+            np.testing.assert_array_equal(coordinates, expected)
 
-        np.testing.assert_array_equal(_body_coords(matched, 0), expected)
-        np.testing.assert_array_equal(_hand_coords(matched, side), expected)
-        np.testing.assert_array_equal(_hand_coords(fallback, side), expected)
-        np.testing.assert_array_equal(_hand_coords(hands_mode, side), expected)
+
+def test_p09_every_coordinate_path_routes_through_the_coord_scale_helper(monkeypatch) -> None:
+    """A07's call-path witness: equal values prove a formula, never a shared helper.
+
+    A branch that recomputes ``max(frame_w, frame_h)`` inline agrees with the helper
+    on every value and detaches from the next semantic change to it, so the spy
+    divisor — deliberately unequal to any frame dimension — is what pins routing.
+    """
+    point = np.array([960.0, 540.0, 270.0])
+    sentinel = 7.0
+    calls: list[tuple[int, int]] = []
+
+    def spy(frame_h: int, frame_w: int) -> float:
+        calls.append((frame_h, frame_w))
+        return sentinel
+
+    monkeypatch.setattr(export, "coord_scale", spy)
+    for frame_h, frame_w in _ASPECTS:
+        calls.clear()
+        observed, _side = _four_coordinate_paths(point, frame_h, frame_w)
+        assert calls, "no exported path consulted coord_scale"
+        assert set(calls) == {(frame_h, frame_w)}
+        for coordinates in observed:
+            np.testing.assert_allclose(coordinates, np.round(point / sentinel, 6))
+
+
+def test_p08_report_payload_carries_the_normalisation_identity(tmp_path, monkeypatch) -> None:
+    """N7: deleting the report key must fail P08.
+
+    The constant-equality conjunct proves the driver imports the token; only the
+    emitted payload proves it reaches the field that separates a pre-fix generation
+    from a post-fix one (D05), the landmark CSV bytes being shape-identical.
+    """
+    driver = _load_driver()
+    sessions = tmp_path / "sessions"
+    for name in ("inventory", "qualification", "sessions"):
+        (tmp_path / name).mkdir()
+    (sessions / "generation.json").write_text("{}\n", encoding="utf-8")
+    report = tmp_path / "run_report.json"
+    args = SimpleNamespace(
+        inventory=tmp_path / "inventory",
+        qualification=tmp_path / "qualification",
+        sessions=sessions,
+        out=tmp_path / "out",
+        report=report,
+        limit=0,
+        model="rtmw-l",
+        tracking="body",
+        det_device="CPU",
+        pose_device="NPU",
+        det_frequency=7,
+        single_subject=True,
+        retry_failed=True,
+        analyse_only=True,
+    )
+    monkeypatch.setattr(driver, "_parse_args", lambda: args)
+    monkeypatch.setattr(driver.pilot, "_load_assets", lambda *_args: [])
+    monkeypatch.setattr(driver, "_canonical_asset_ids", lambda _path: [])
+    monkeypatch.setattr(driver, "tree_digest", lambda _path: "tree-digest")
+    monkeypatch.setattr(driver, "generation_digest", lambda _path: "marker-digest")
+    monkeypatch.setattr(driver, "validate_generation", lambda *_args, **_kwargs: {})
+
+    driver.main()
+
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    assert payload["configuration"]["coord_normalization"] == export.COORD_NORMALIZATION
+    assert export.COORD_NORMALIZATION == "image-isotropic-maxdim"
 
 
 def test_p10_all_source_enumerated_2d_goldens_are_byte_identical(

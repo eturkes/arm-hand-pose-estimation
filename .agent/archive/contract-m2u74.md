@@ -161,6 +161,19 @@ modality. Repaired at implementation: the target rigidity and the pose count now
 is the predicate earning its place — the defect is invisible to a reading pass, because imperative
 prose reads as obligation to a human and states none to a checker.
 
+**A04 — P05 counted labels where the verdict table claims a witness; corrected at M2 review T4 R14.**
+The §7 row *"5 absences stated, 13 local-decision labels"* and the §5 claim *"Negative controls: 9 of
+9 fire"* are both superseded: the audit's exact replay measured **8 of 9**, because P05 required only
+`labels >= len(ABSENCES)` and deleting one of the 13 left 12. P05 now binds each absence to the
+sections that exercise it through a frozen `ABSENCE_SECTIONS`, checks the preamble, the five rows and
+the seven governed spans separately, and derives the label total as their sum — so every one of the
+13 is load-bearing and an unbound label fails too. Measured after the fix: **13/13** single-label
+deletions fail P05, each with its own message, and the rebuilt nine-control harness fires **9 of 9**
+with `docs/prospective_capture.md` restored byte-identical. NC3 needed reseeding in the same pass and
+for the same reason: P03 asks whether a bound section states an obligation, so lowercasing one of
+S14's three `MUST`s grades nothing and only S20's single `MUST` seeds the control.
+
+
 ## 7. Verdict table
 
 | id | verdict | evidence |

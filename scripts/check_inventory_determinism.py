@@ -11,6 +11,7 @@ The last sweep is the consumer boundary: ``validate_generation`` must accept a
 freshly published set and must raise ``InventoryError`` for each tamper class.
 
 Results stream to ``tests/inventory_determinism_results.json`` after every sweep.
+An existing result must match every recorded source digest before any write.
 """
 
 from __future__ import annotations
@@ -28,10 +29,38 @@ import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ARTIFACTS = ("assets.csv", "captures.csv", "census.json")
+# Spelled out rather than walked from an import graph: a set derived from the
+# module under test cannot notice a module added to the chain.  The CLI
+# subprocess executes the package `__init__`, the publisher and the container
+# probe; the checker itself is the oracle, so its own bytes belong here too.
+SOURCE_FILES = (
+    "scripts/check_inventory_determinism.py",
+    "src/pose_estimation/__init__.py",
+    "src/pose_estimation/inventory.py",
+    "src/pose_estimation/video_io.py",
+)
 
 
 def digests(out: pathlib.Path) -> dict[str, str]:
     return {name: hashlib.sha256((out / name).read_bytes()).hexdigest() for name in ARTIFACTS}
+
+
+def source_digests() -> dict[str, str]:
+    return {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in SOURCE_FILES}
+
+
+def stale_source_mismatches(output: pathlib.Path, current: dict[str, str]) -> list[str]:
+    """Name every source whose recorded digest differs from the worktree's."""
+    try:
+        previous = json.loads(output.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return sorted(current)
+    recorded = previous.get("source_sha256") if isinstance(previous, dict) else None
+    if not isinstance(recorded, dict):
+        return sorted(current)
+    recorded_sources = {str(name): digest for name, digest in recorded.items()}
+    names = set(current) | set(recorded_sources)
+    return sorted(name for name in names if recorded_sources.get(name) != current.get(name))
 
 
 def base_env() -> dict[str, str]:
@@ -246,17 +275,29 @@ def main(argv=None) -> int:
 
     rows: list[dict[str, object]] = []
     output = args.output if args.output.is_absolute() else ROOT / args.output
+    current_sources = source_digests()
+    if output.exists():
+        mismatches = stale_source_mismatches(output, current_sources)
+        if mismatches:
+            print(
+                "REFUSED: result file records different source digests; "
+                f"remove it explicitly before regeneration. mismatched={','.join(mismatches)}",
+                file=sys.stderr,
+            )
+            return 2
     output.parent.mkdir(parents=True, exist_ok=True)
 
     with tempfile.TemporaryDirectory() as raw:
         work = pathlib.Path(raw)
         base_out = work / "baseline"
         baseline = run_cli(base_out)
+        # No head SHA is recorded: the run that regenerates this file always
+        # precedes the commit that carries it, so any SHA written here names the
+        # parent state and can never be checked.  `source_sha256` binds the
+        # result to the bytes that produced it, which is the real dependency.
         payload = {
-            "schema_version": 1,
-            "tested_head": subprocess.run(
-                ("git", "rev-parse", "HEAD"), cwd=ROOT, capture_output=True, text=True, check=True
-            ).stdout.strip(),
+            "schema_version": 2,
+            "source_sha256": current_sources,
             "baseline_sha256": baseline,
             "sweeps": rows,
         }

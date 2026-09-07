@@ -4,7 +4,13 @@
     "captures.csv": "d00cd8c35debf3e5f22e88b6d9d50adb09d8e8ca70d4252599c7debc6f148775",
     "census.json": "af548478ad380119857c93f2c0cdaedcb4ea5a6fbcadeecb14a8cbb0d886c1d2"
   },
-  "schema_version": 1,
+  "schema_version": 2,
+  "source_sha256": {
+    "scripts/check_inventory_determinism.py": "72eb5bcc79a272ef6ca4cc840b41d771645902b49341fd0e1aa321eca20e798c",
+    "src/pose_estimation/__init__.py": "de77d850cc0d7695903de638c51dda72a5e03612ebc850e80fb707bc7e6477a2",
+    "src/pose_estimation/inventory.py": "43031c774ba60fccf7803389de195167d879272aee9d8b764c4c7eb79ec42579",
+    "src/pose_estimation/video_io.py": "3a7f2e95a80eaa1a6b1d096437fa35e894d77b8ffd8eccc3f536710b449717ea"
+  },
   "sweeps": [
     {
       "id": "B01",
@@ -253,6 +259,5 @@
       "id": "B11",
       "variation": "validate_generation tamper classes"
     }
-  ],
-  "tested_head": "57ee9e297366102f5101d749bbf61520806310a8"
+  ]
 }
