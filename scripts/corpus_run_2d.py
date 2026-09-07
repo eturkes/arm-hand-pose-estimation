@@ -54,6 +54,7 @@ from pose_estimation.corpus_run import (
     write_marker,
 )
 from pose_estimation.export import COORD_NORMALIZATION
+from pose_estimation.multicam import published_overlap
 from pose_estimation.sessions import generation_digest, tree_digest, validate_generation
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -69,6 +70,81 @@ THROUGHPUT_PROVENANCE = "measured"
 THROUGHPUT_FULL = "corpus"
 THROUGHPUT_PARTIAL = "partial"
 THROUGHPUT_LABELS = frozenset({THROUGHPUT_PROVENANCE, THROUGHPUT_FULL, THROUGHPUT_PARTIAL})
+
+#: Every key this report may carry (P13/A09), frozen here rather than harvested
+#: from the payload — a set derived from what was emitted admits whatever leaks
+#: into it.  Keys outside it pass only as published labels: the disposition
+#: codes keying the manifest census, the R reason codes keying `drop_reasons`.
+REPORT_FIELDS = frozenset(
+    (
+        "generator",
+        "generator_version",
+        "configuration",
+        "population",
+        "run",
+        "manifest",
+        "artifacts",
+        "cfr",
+        "partition",
+        "throughput",
+        "verdicts",
+        "model",
+        "tracking",
+        "det_device",
+        "pose_device",
+        "det_frequency",
+        "single_subject",
+        "coord_normalization",
+        "events",
+        "canonical_assets",
+        "placed_assets",
+        "reported_frames",
+        "events_complete",
+        "events_failed",
+        "events_unattempted",
+        "rows",
+        "valid",
+        "census",
+        "missing_csv",
+        "wrong_diag",
+        "trespass",
+        "assets_rate_mismatch",
+        "assets",
+        "frames_decoded",
+        "index_fallback",
+        "monotonic_forced",
+        "pooled_fallback_rate",
+        "assets_with_fallback",
+        "assets_unclassified",
+        "groups_input",
+        "groups_windowed",
+        "groups_dropped",
+        "groups_in_both",
+        "groups_in_neither",
+        "window_rows",
+        "events_without_disposition",
+        "drop_reasons",
+        "provenance",
+        "sample",
+        "events_measured",
+        "events_total",
+        "run_wall_s",
+        "clinical_wall_s",
+        "frames_per_s_incl_startup",
+        "hours_total",
+        "manifest_total",
+        "every_event_complete",
+        "artifacts_owned",
+        "group_disposition_published",
+        "partition_total",
+        "partition_disjoint",
+        "group_qc_header_frozen",
+        "counters_classify_every_frame",
+        "stored_rate_equals_its_derivation",
+        "generation_digest_unmoved",
+        "generation_marker_unmoved",
+    )
+)
 
 
 def _load_pilot() -> Any:
@@ -234,19 +310,26 @@ def _manifest_rows(canonical: list[str], placed: dict[str, Any], out: Path) -> l
 
 
 def _corpus_wall(event_ids: list[str], out: Path) -> dict[str, float]:
-    """The corpus wall clock, summed from the per-event markers.
+    """The corpus wall clock, summed from the per-event markers of COMPLETE events.
 
     Resume splits the corpus across invocations, so this process's accumulator
     measures its own share alone — pairing it with all-corpus frames publishes a
     throughput the pipeline never reached.  Each marker carries the event's own
     `run_s` / `clinical_s`, so the sum is the real total however many passes it
-    took.  A marker written from the run-stage failure path carries neither, and
-    `events_measured` is what says so.
+    took.
+
+    Completion is the second half of the same rule.  A failed event's frames
+    never reach `_artifacts` — every asset of it lands on a failure code — while
+    its seconds are as real as any other's, so counting its wall puts the
+    numerator and the denominator on different event populations.  Restricting
+    the sum to complete events is what lets `events_measured == events_total`
+    mean one population rather than two.
     """
     total = {"run_s": 0.0, "clinical_s": 0.0, "events_measured": 0.0}
     for event_id in event_ids:
-        marker = read_marker(out / event_id) or {}
-        if "run_s" not in marker:
+        event_out = out / event_id
+        marker = read_marker(event_out) or {}
+        if "run_s" not in marker or not is_complete(event_out):
             continue
         total["run_s"] += float(marker["run_s"])
         total["clinical_s"] += float(marker.get("clinical_s", 0.0))
@@ -276,7 +359,14 @@ def _artifacts(rows: list[dict[str, str]], placed: dict[str, Any], out: Path) ->
             trespass += int(csv_path.is_file() or bool(diagnostics))
             continue
         missing_csv += int(not csv_path.is_file())
-        if len(diagnostics) != 1:
+        # Ownership is the row's own source key, not the file's name.  A
+        # diagnostics file left by another event — a rename, a copied tree, a
+        # resumed run over a moved output — carries one well-formed row, so a
+        # count-only check credits its frames and its fallback counters to this
+        # asset and the corpus CFR population silently gains a foreign member.
+        if len(diagnostics) != 1 or diagnostics[0].get("video") != (
+            f"{asset.event_id}/{asset.camera_name}"
+        ):
             wrong_diag += 1
             continue
         try:
@@ -318,10 +408,14 @@ def _cfr(counters: list[dict[str, float]]) -> dict[str, Any]:
         if entry["pts_accepted"] + entry["index_fallback"] + entry["monotonic_forced"]
         != entry["n_frames_decoded"]
     )
+    # `not (|d| <= tol)` rather than `|d| > tol`: every comparison against NaN is
+    # false, so the positive form reads a nonfinite stored rate as agreeing with
+    # its derivation and publishes `stored_rate_equals_its_derivation` true over
+    # a value that equals nothing.
     mismatch = sum(
         1
         for entry in counters
-        if abs(
+        if not abs(
             entry["stored_rate"]
             - (
                 (entry["index_fallback"] + entry["monotonic_forced"]) / entry["n_frames_decoded"]
@@ -329,7 +423,7 @@ def _cfr(counters: list[dict[str, float]]) -> dict[str, Any]:
                 else 0.0
             )
         )
-        > 1e-9
+        <= 1e-9
     )
     return {
         "assets_rate_mismatch": mismatch,
@@ -389,8 +483,25 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _assert_sinks_outside(sessions: Path, *sinks: Path) -> None:
+    """No writable sink may overlap the published session tree, in either direction.
+
+    Checked before the first mkdir and re-checked before the report write.  The
+    log directory is created before validation and the report is written after
+    both digest snapshots, so a containment rule applied once in the middle
+    leaves a window at each end: the run either corrupts the input it is still
+    reading, or leaves a green `generation_digest_unmoved` witness describing
+    bytes its own report has since moved.
+    """
+    for sink in sinks:
+        if published_overlap(sink, sessions) is not None:
+            raise RunError("an output sink overlaps the published session tree")
+
+
 def main() -> int:
     args = _parse_args()
+    report = args.report or args.out / "run_report.json"
+    _assert_sinks_outside(args.sessions, args.out, report)
     placed_assets = pilot._load_assets(args.inventory, args.qualification, args.sessions)
     placed = {asset.asset_id: asset for asset in placed_assets}
     canonical = _canonical_asset_ids(args.inventory)
@@ -451,6 +562,11 @@ def main() -> int:
     cfr = _cfr(artifacts["counters"])
     partition, partition_failures = _partitions(event_ids, args.out, header, codes)
     complete = sum(1 for event_id in event_ids if is_complete(args.out / event_id))
+    failed = sum(
+        1
+        for event_id in event_ids
+        if (read_marker(args.out / event_id) or {}).get("status") == MARKER_FAILED
+    )
     frames = cfr["frames_decoded"]
     corpus_frames = sum(asset.reported_frames for asset in placed_assets)
     wall = _corpus_wall(event_ids, args.out)
@@ -494,11 +610,16 @@ def main() -> int:
             "placed_assets": len(placed_assets),
             "reported_frames": corpus_frames,
         },
+        # State, never this invocation.  Attempt counts and the seconds this
+        # process spent are properties of how the corpus was split across
+        # passes, so publishing them makes a resumed run's report differ from a
+        # single-pass run's over the identical output tree — P05 byte
+        # idempotence fails on a report describing the same corpus.  The
+        # invocation's own counters print to stdout, where they belong.
         "run": {
-            "events_attempted": sum(attempts.values()),
             "events_complete": complete,
-            "attempts_complete": attempts[MARKER_COMPLETE],
-            "attempts_failed": attempts[MARKER_FAILED],
+            "events_failed": failed,
+            "events_unattempted": len(event_ids) - complete - failed,
         },
         "manifest": {"rows": len(rows), "valid": manifest_valid, "census": census},
         "artifacts": {
@@ -531,7 +652,6 @@ def main() -> int:
             "events_total": len(event_ids),
             "run_wall_s": round(wall["run_s"], 2),
             "clinical_wall_s": round(wall["clinical_s"], 2),
-            "invocation_wall_s": round(run_seconds + clinical_seconds, 2),
             "frames_decoded": frames,
             "frames_per_s_incl_startup": (
                 round(frames / wall["run_s"], 3) if wall["run_s"] else None
@@ -540,11 +660,17 @@ def main() -> int:
         },
         "verdicts": verdicts,
     }
-    pilot._assert_redacted(payload, redaction_allowlist(args, placed_assets, codes))
+    pilot._assert_redacted(payload, redaction_allowlist(args, placed_assets, codes), REPORT_FIELDS)
 
-    report = args.report or args.out / "run_report.json"
+    _assert_sinks_outside(args.sessions, report)
     report.write_text(json.dumps(payload, indent=2, sort_keys=False) + "\n", encoding="utf-8")
     print(json.dumps(payload, indent=2))
+    print(
+        f"this invocation: {sum(attempts.values())} attempted, "
+        f"{attempts[MARKER_COMPLETE]} complete, {attempts[MARKER_FAILED]} failed, "
+        f"{round(run_seconds + clinical_seconds, 2)} s",
+        flush=True,
+    )
     return 0 if all(verdicts.values()) else 1
 
 

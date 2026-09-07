@@ -609,18 +609,23 @@ def test_p11_interrupted_source_still_publishes_its_decoded_prefix(
     def interrupt(_frame):
         raise KeyboardInterrupt
 
-    latencies = cast(Any, run_module.process_source)(
-        _source_args(),
-        interrupt,
-        "synthetic.avi",
-        lambda *_args, **_kwargs: None,
-        output_diag=output_diag,
-        video_name="interrupted-source",
-    )
+    # The interrupt propagates rather than returning a short latency list: a
+    # caller reading the return value cannot separate a fully decoded source
+    # from one abandoned at frame 1, so a batch driver would run R over the
+    # partial CSV and mark the event complete.  The `finally` arm publishing the
+    # decoded prefix is what P11 asserts, and it runs either way.
+    with pytest.raises(KeyboardInterrupt):
+        cast(Any, run_module.process_source)(
+            _source_args(),
+            interrupt,
+            "synthetic.avi",
+            lambda *_args, **_kwargs: None,
+            output_diag=output_diag,
+            video_name="interrupted-source",
+        )
 
     with output_diag.open(newline="") as handle:
         rows = list(csv.DictReader(handle))
-    assert latencies == []
     assert len(rows) == 1
     assert tuple(rows[0][field] for field in _SOURCE_DIAGNOSTIC_FIELDS[:6]) == (
         "interrupted-source",

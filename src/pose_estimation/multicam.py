@@ -471,6 +471,27 @@ def _published_root(directory: pathlib.Path) -> pathlib.Path | None:
     return None
 
 
+def published_overlap(target: pathlib.Path, tree: pathlib.Path) -> pathlib.Path | None:
+    """The published root *target* overlaps, or ``None``.
+
+    Overlap is symmetric: a sink inside the tree moves bytes the generation
+    digests, and a sink containing it makes the tree a subtree of a path the
+    run rewrites.  Public because every writer aimed at a published tree needs
+    the same test — a run's results, its logs and its report alike — and a
+    second copy of the containment rule is a rule that drifts.
+    """
+    root = _published_root(tree)
+    if root is None:
+        return None
+    # resolve() on a not-yet-created path still normalises the symlinks in its
+    # existing ancestors, which is what a link-through-to-the-tree sink needs.
+    resolved = target.resolve()
+    published = root.resolve()
+    if resolved == published or published in resolved.parents or resolved in published.parents:
+        return root
+    return None
+
+
 def _resolve_session_output(
     session: Session, output_dir: str | pathlib.Path | None
 ) -> pathlib.Path:
@@ -494,19 +515,13 @@ def _resolve_session_output(
         base = session.directory.parent / _DEFAULT_OUTPUT_DIR
     resolved = base / session.session_id
 
-    root = _published_root(session.directory)
+    root = published_overlap(resolved, session.directory)
     if root is not None:
-        # resolve() on a not-yet-created path still normalises the symlinks in
-        # its existing ancestors, which is what a link-through-to-the-tree
-        # destination needs.
-        target = resolved.resolve()
-        published = root.resolve()
-        if target == published or published in target.parents or target in published.parents:
-            raise SessionError(
-                "The output directory overlaps the published session tree "
-                f"{root}. Results written there invalidate its generation. "
-                "Pass --output-dir with a path outside that tree."
-            )
+        raise SessionError(
+            "The output directory overlaps the published session tree "
+            f"{root}. Results written there invalidate its generation. "
+            "Pass --output-dir with a path outside that tree."
+        )
     return resolved
 
 

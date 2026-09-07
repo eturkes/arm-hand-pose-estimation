@@ -1545,21 +1545,13 @@ def test_p12_a_live_source_counts_wall_clock_values_as_accepted_timestamps() -> 
 
 # ── P13 report redaction (D07) ──────────────────────────────────────
 _PILOT = _PROJECT_ROOT / "scripts" / "pilot_corpus_run.py"
-# The key rule P13 freezes.  The analog's own constant must equal it.
-_KEY_PATTERN = r"[a-z][a-z0-9_]*"
-# A capture id spelled without a separator or a capital: the shape the analog's
-# reasoning assumes cannot occur.  Synthetic; no corpus token appears here.
+# A capture id spelled without a separator or a capital: the shape a rule
+# testing shape cannot refuse.  Synthetic; no corpus token appears here.
 _IDENTIFIER = "subject90"
 
 
 def _pilot_source() -> str:
     return _PILOT.read_text(encoding="utf-8")
-
-
-def _pilot_key_pattern() -> str:
-    match = re.search(r"FIELD_NAME = re\.compile\(r\"([^\"]+)\"\)", _pilot_source())
-    assert match is not None, "the analog must declare its key pattern"
-    return match.group(1)
 
 
 def _pilot_int_stratum_axes() -> list[str]:
@@ -1589,8 +1581,8 @@ def _pilot_allowlist_extras() -> list[str]:
 
 def _violations(
     payload: Any, *, published: frozenset[str], field_names: frozenset[str] = frozenset()
-) -> SimpleNamespace:
-    """Walk a report under P13's composite rule (A09): membership decides both placements.
+) -> Any:
+    """Grade a report under P13's composite rule (A09) — through the SHIPPED guard.
 
     A value is admissible from `published` — stratum labels, R reason codes,
     disposition codes, and the code-authored constants the emitting program
@@ -1599,41 +1591,18 @@ def _violations(
     the same reason that value passes elsewhere, while an identifier of the same
     shape does not.  No clause tests shape: a shape test is a denylist wearing
     an allowlist's name, and P13's word is allowlist.
+
+    This calls `pilot_corpus_run.redaction_violations`, the function
+    `_assert_redacted` raises from, rather than re-implementing the walk here.
+    A local copy grades itself: the shipped guard once admitted every key
+    matching a pattern while an oracle beside it tested membership, and both
+    read green (M2.8.2 A10).
     """
-    result = SimpleNamespace(keys=[], values=[], strings=0)
-    admissible_keys = field_names | published
-
-    def walk(node: Any) -> None:
-        if isinstance(node, dict):
-            for key, value in node.items():
-                result.strings += 1
-                if key not in admissible_keys:
-                    result.keys.append(key)
-                walk(value)
-        elif isinstance(node, list):
-            for item in node:
-                walk(item)
-        elif isinstance(node, str):
-            result.strings += 1
-            if node not in published:
-                result.values.append(node)
-
-    walk(payload)
-    result.clean = not (result.keys or result.values)
-    # A report that emits no string satisfies every clause of P13.
-    result.nonvacuous = result.strings > 0
-    return result
+    return _pilot_module()["redaction_violations"](payload, published, field_names)
 
 
-def test_p13_the_analog_declares_the_shape_backstop_its_runtime_guard_applies() -> None:
-    """The pattern is the analog's runtime guard, not P13's predicate (A09).
-
-    `_assert_redacted` admits a key that is allowlisted OR matches this pattern,
-    which is strictly weaker than the composite rule the cases below grade.  The
-    constant is still pinned here, because the guard is what runs in production
-    and its second disjunct is the one that can admit an unpublished key.
-    """
-    assert _pilot_key_pattern() == _KEY_PATTERN, "P13: the analog's backstop shape is pinned"
+def _pilot_module() -> dict[str, Any]:
+    return runpy.run_path(str(_PILOT), run_name="_redaction")
 
 
 def test_p13_the_allowlist_refuses_every_string_it_did_not_publish() -> None:
@@ -1687,7 +1656,8 @@ def test_p13_n7_fires_on_a_capture_identifier_in_either_placement() -> None:
     assert as_value.values == [_IDENTIFIER], "non-vacuity: the value placement is refused"
     assert as_key.keys == [_IDENTIFIER], (
         f"P13: {_IDENTIFIER!r} must be refused as a key too; a rule matching "
-        f"{_KEY_PATTERN!r} admits every identifier of that shape, which is a denylist"
+        "a lowercase-identifier pattern admits every identifier of that shape, "
+        "which is a denylist"
     )
 
 
@@ -1742,11 +1712,9 @@ def test_p13_a_code_authored_constant_is_the_fourth_admissible_value_class() -> 
 
 
 def test_p13_a_key_outside_both_admissible_sets_is_refused() -> None:
-    """A path-shaped key carries a separator, and membership never inspects one."""
+    """A path-shaped key is refused for the reason every key is: nothing published it."""
     smuggled = f"{_IDENTIFIER}/cam"
 
-    assert re.match(_KEY_PATTERN, smuggled) is not None, "the backstop admits it on its head"
-    assert re.fullmatch(_KEY_PATTERN, smuggled) is None, "anchoring is what refuses it there"
     assert _violations({smuggled: 1}, published=frozenset()).keys == [smuggled]
 
 
@@ -1919,4 +1887,6 @@ def test_report_allowlist_covers_every_throughput_label() -> None:
     assert labels, "the predicate must range over a non-empty set to mean anything"
     assert labels <= allowed
     for label in labels:
-        driver["pilot"]._assert_redacted({"throughput": {"sample": label}}, allowed)
+        driver["pilot"]._assert_redacted(
+            {"throughput": {"sample": label}}, allowed, driver["REPORT_FIELDS"]
+        )

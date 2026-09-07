@@ -582,7 +582,13 @@ def process_source(
                     pygame.display.flip()
 
     except KeyboardInterrupt:
+        # Re-raised, never swallowed: a caller that reads the return value cannot
+        # tell a decoded-to-the-end source from one abandoned at frame 3, so
+        # returning here lets a batch driver run R over a partial CSV and mark
+        # the event complete.  The `finally` arm still releases the capture and
+        # writes the diagnostics that record how far the decode reached.
         print("\nThe run stopped after an interruption.")
+        raise
     finally:
         cap.release()
         if csv_fh is not None:

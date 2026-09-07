@@ -25,6 +25,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import statistics
 import subprocess
 import sys
@@ -34,7 +35,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from pose_estimation.multicam import SessionError, discover_session, process_session
+from pose_estimation import inventory as inventory_module
+from pose_estimation import qualify as qualify_module
+from pose_estimation.multicam import (
+    SessionError,
+    discover_session,
+    process_session,
+    published_overlap,
+)
 from pose_estimation.sessions import tree_digest, validate_generation
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,7 +62,81 @@ R_EXCLUDED = re.compile(
     r"|clinical[_a-z0-9]*|movement_phases[_a-z0-9]*)\.csv$"
 )
 GROUP_KEY = ("video", "person_idx")
-FIELD_NAME = re.compile(r"[a-z][a-z0-9_]*")
+
+#: Every key this report may carry (P13/A09).  Frozen and spelled here rather
+#: than harvested from the payload: a set derived from what was emitted admits
+#: whatever leaks into it, which is the self-authorising arm M2.8.3 A10 deleted.
+#: A key outside this set is admissible only as a published label — a stratum
+#: value keying a coverage block, an R reason code keying a drop census.
+REPORT_FIELDS = frozenset(
+    (
+        "generator",
+        "generator_version",
+        "configuration",
+        "population",
+        "selection",
+        "cfr",
+        "partition",
+        "throughput",
+        "guard",
+        "assets",
+        "verdicts",
+        "model",
+        "tracking",
+        "det_device",
+        "pose_device",
+        "det_frequency",
+        "single_subject",
+        "max_frames",
+        "seed",
+        "min_assets",
+        "events",
+        "reported_frames",
+        "coverage",
+        "corpus",
+        "pilot",
+        "codec",
+        "device_config",
+        "rotation_deg",
+        "pts_monotonic",
+        "frames_decoded",
+        "index_fallback",
+        "monotonic_forced",
+        "pooled_fallback_rate",
+        "per_asset_rate",
+        "assets_with_fallback",
+        "mean",
+        "median",
+        "min",
+        "max",
+        "groups_input",
+        "groups_windowed",
+        "groups_dropped",
+        "groups_in_both",
+        "groups_in_neither",
+        "window_rows",
+        "drop_reasons",
+        "run_wall_s",
+        "clinical_wall_s",
+        "frames_per_s_incl_startup",
+        "latency_ms_mean",
+        "steady_frames_per_s",
+        "corpus_hours_incl_startup",
+        "corpus_hours_steady",
+        "events_probed",
+        "default_output_refused",
+        "i",
+        "pts_accepted",
+        "cfr_fallback_rate",
+        "latency_ms_p95",
+        "strata_covered",
+        "generation_digest_unmoved",
+        "partition_total",
+        "partition_disjoint",
+        "group_qc_header_frozen",
+        "diagnostics_complete",
+    )
+)
 
 
 class PilotError(RuntimeError):
@@ -208,7 +290,16 @@ def _select_events(assets: list[Asset], min_assets: int, seed: int) -> list[str]
 
 
 def _run_event(event_dir: Path, out: Path, log: Path, args: argparse.Namespace) -> float:
-    """Run one session through the shipped CLI. Returns wall seconds."""
+    """Run one session through the shipped CLI. Returns wall seconds.
+
+    The event's output tree is destroyed first, so a fresh attempt can never
+    credit a diagnostics row or a clinical artifact an older run left behind:
+    the pilot reads whatever is on disk after the launch, and a source that
+    produces nothing this time reads as one that produced last time's output.
+    """
+    event_out = out / event_dir.name
+    if event_out.exists():
+        shutil.rmtree(event_out)
     command = [
         sys.executable,
         "-m",
@@ -409,31 +500,83 @@ def _coverage(population: list[Asset], selected: list[Asset]) -> dict[str, Any]:
     return coverage
 
 
-def _assert_redacted(payload: Any, allowed: frozenset[str], path: str = "$") -> None:
-    """Refuse any report string this file did not author or publish as a label.
+@dataclass
+class Redaction:
+    """Every string a report emits that neither admissibility clause carries."""
 
-    Keys are code-authored field names, so they must read as one; values must
-    come from the published stratum labels or the R reason codes.  Every corpus
-    identifier shape — capture id, camera name, path, media suffix — carries a
-    separator or a capital and so fails both tests.
+    keys: list[str] = field(default_factory=list)
+    values: list[str] = field(default_factory=list)
+    paths: list[str] = field(default_factory=list)
+    strings: int = 0
 
-    Failures name the JSON *location*, never the offending string: the guard
-    exists because that string may be a subject token, so quoting it in an error
-    would be the leak it prevents.  The location alone is what a caller needs,
-    and a guard that cannot say where it tripped costs a whole run to diagnose.
+    @property
+    def clean(self) -> bool:
+        return not (self.keys or self.values)
+
+    @property
+    def nonvacuous(self) -> bool:
+        """A report emitting no string satisfies every clause and proves nothing."""
+        return self.strings > 0
+
+
+def redaction_violations(
+    payload: Any, allowed: frozenset[str], fields: frozenset[str] = frozenset()
+) -> Redaction:
+    """Walk a report under P13's composite rule (A09).  Both clauses are membership.
+
+    A value is admissible from *allowed* — the published stratum labels, the R
+    reason codes, the disposition codes and the code-authored constants the
+    emitting program spells at its own call site.  A key is admissible from
+    ``fields | allowed``, so a block keyed by a stratum value passes for the
+    same reason that value passes elsewhere.
+
+    No clause tests shape.  A key pattern like ``[a-z][a-z0-9_]*`` is a denylist
+    wearing an allowlist's name: it admits every identifier of that shape, so
+    one capture id is refused as a value and admitted as a key — same string,
+    two verdicts.  This is the function the suite grades, so the oracle and the
+    guard cannot disagree.
     """
-    if isinstance(payload, dict):
-        for key, value in payload.items():
-            if key not in allowed and not FIELD_NAME.fullmatch(key):
-                raise PilotError(
-                    f"the report carries a key outside the redaction allowlist at {path}"
-                )
-            _assert_redacted(value, allowed, f"{path}.{key}")
-    elif isinstance(payload, list):
-        for index, item in enumerate(payload):
-            _assert_redacted(item, allowed, f"{path}[{index}]")
-    elif isinstance(payload, str) and payload not in allowed:
-        raise PilotError(f"the report carries a value outside the redaction allowlist at {path}")
+    verdict = Redaction()
+    admissible_keys = fields | allowed
+
+    def walk(node: Any, path: str) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                verdict.strings += 1
+                if key not in admissible_keys:
+                    verdict.keys.append(key)
+                    verdict.paths.append(path)
+                walk(value, f"{path}.{key}")
+        elif isinstance(node, list):
+            for index, item in enumerate(node):
+                walk(item, f"{path}[{index}]")
+        elif isinstance(node, str):
+            verdict.strings += 1
+            if node not in allowed:
+                verdict.values.append(node)
+                verdict.paths.append(path)
+
+    walk(payload, "$")
+    return verdict
+
+
+def _assert_redacted(
+    payload: Any, allowed: frozenset[str], fields: frozenset[str] = frozenset()
+) -> None:
+    """Refuse any report string this program did not author or publish as a label.
+
+    Failures name the JSON *location* and the count, never the offending string:
+    the guard exists because that string may be a subject token, so quoting it
+    in an error would be the leak it prevents.  The location alone is what a
+    caller needs, and a guard that cannot say where it tripped costs a whole run
+    to diagnose.
+    """
+    verdict = redaction_violations(payload, allowed, fields)
+    if not verdict.clean:
+        raise PilotError(
+            f"the report carries {len(verdict.keys)} key(s) and {len(verdict.values)} "
+            f"value(s) outside the redaction allowlist; the first is at {verdict.paths[0]}"
+        )
 
 
 def _parse_args() -> argparse.Namespace:
@@ -460,8 +603,42 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _assert_sinks_outside(sessions: Path, *sinks: Path) -> None:
+    """No writable sink may overlap the published session tree, in either direction.
+
+    Checked before the first mkdir and re-checked before the report write: the
+    log directory is created before validation and the report is written after
+    both digest snapshots, so a containment rule applied once in the middle
+    leaves a window at each end where the run corrupts the input it is reading
+    or leaves a green witness describing bytes that have since moved.
+    """
+    for sink in sinks:
+        if published_overlap(sink, sessions) is not None:
+            raise PilotError("an output sink overlaps the published session tree")
+
+
+def _assert_sources_validated(inventory: Path, qualification: Path, sessions: Path) -> None:
+    """Every source table proves its own generation before a cell of it is read.
+
+    The report's stratum labels and its redaction allowlist are both built from
+    qualification cells, so an edited table publishes its own labels and then
+    authorises them: the guard would be checking the report against the same
+    bytes that corrupted it.  Validating the two upstream generations is what
+    makes the allowlist a statement about published data.
+    """
+    try:
+        inventory_module.validate_generation(inventory)
+        qualify_module.validate_generation(qualification, inventory_dir=inventory)
+    except (inventory_module.InventoryError, qualify_module.QualifyError, OSError) as exc:
+        raise PilotError("a source table fails its own generation check") from exc
+    validate_generation(sessions, inventory_dir=inventory)
+
+
 def main() -> int:
     args = _parse_args()
+    report = args.report or args.out / "pilot_report.json"
+    _assert_sinks_outside(args.sessions, args.out, report)
+    _assert_sources_validated(args.inventory, args.qualification, args.sessions)
     assets = _load_assets(args.inventory, args.qualification, args.sessions)
     event_ids = _select_events(assets, args.min_assets, args.seed)
     by_key = {(asset.event_id, asset.camera_name): asset for asset in assets}
@@ -471,7 +648,6 @@ def main() -> int:
     logs = args.out / "logs"
     logs.mkdir(parents=True, exist_ok=True)
     digest_before = tree_digest(args.sessions)
-    validate_generation(args.sessions, inventory_dir=args.inventory)
     guard = _guard_verdicts(args.sessions, event_ids)
 
     run_seconds = 0.0
@@ -585,9 +761,10 @@ def main() -> int:
             | {asset.device_config for asset in assets}
             | {str(value) for value in labels}
         ),
+        REPORT_FIELDS,
     )
 
-    report = args.report or args.out / "pilot_report.json"
+    _assert_sinks_outside(args.sessions, report)
     report.write_text(json.dumps(payload, indent=2, sort_keys=False) + "\n", encoding="utf-8")
     # Per-asset rows print compact: the report is a reader's artifact, and an
     # indented row block costs more than it says.

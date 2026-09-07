@@ -16,16 +16,15 @@ closed on its own acceptance check under MAIN's rerun** — adjudicated is not f
 **43 ACCEPT-FIX · 9 ACCEPT-LIMIT · 2 POLISH · 3 REJECT.** The 2 POLISH rows are filed in
 `.agent/polish.md`; the ACCEPT-LIMIT and REJECT rows are closed here.
 
-**Wave 2 — fix application, session 1 of N. 23 of the 43 ACCEPT-FIX rows are CLOSED; 20 stay open.**
-Per track: T1 0/10 · T2 3/7 · T3 14/14 · T4 2/4 · T5 3/7 · T6 1/1.
+**Wave 2 — fix application, session 2 of N. 33 of the 43 ACCEPT-FIX rows are CLOSED; 10 stay open.**
+Per track: T1 **10/10** · T2 3/7 · T3 14/14 · T4 2/4 · T5 3/7 · T6 1/1.
 The three reviewer tips carry committed red batteries, and those are the acceptance checks in
 executable form — restore them with `git show archive/m2-review-<name>:tests/<file> > tests/<file>`
 and drive them green. Measured at restore: **27 red** over
 `test_review_m2u82.py` (10) · `test_m2u84_review.py` (2) · `test_cohort_review.py` (15).
-**17 of the 27 are green now**; `tests/test_review_m2u82.py` stays parked at
-`.scratch/review-reds/` with its 10 reds, because `test_c8_08` runs the whole suite in a subprocess
-and one red file anywhere under `tests/` takes the decisive gate down. Restore it into `tests/` at
-the start of the T1 batch and commit it green with that batch.
+**All 27 are green now** — session 2 restored the parked `tests/test_review_m2u82.py` from
+`.scratch/review-reds/`, drove its 10 reds green and committed it in `tests/`, so nothing stays
+parked and the decisive gate carries the whole battery.
 
 **A restored red is evidence, not law — three of the 17 needed correcting before they could grade
 anything**, all the M2.8.2 A10 class "a case that grades a stand-in grades nothing".
@@ -36,13 +35,29 @@ from the campaign's `_source_digest()` through `runpy`; `test_r32_concurrent_ups
 detected` parametrized two of the three inputs its acceptance check names, so `sessions` was added.
 Read each red against the shipped contract *and* against its own ledger row before crediting it.
 
-**Remaining 20, in dependency order.** T1's 10 (the corpus-run driver and the pilot, one cohesive
-batch behind the parked battery) · T2's 4 (R08/R09 P08+P09 witnesses, R20 the `[0,1]` claims,
+**Remaining 10, in dependency order.** T2's 4 (R08/R09 P08+P09 witnesses, R20 the `[0,1]` claims,
 R23 fidelity-JSON binding) · T4's 2 (R14 P05 label witness, R37 external descriptor digest) ·
 T5's 4 (R09 inventory evidence binding, and **R15/R16/R17 the publisher trust-root triple** — one
 shared `lstat`+`S_ISREG`+`object_pairs_hook` marker loader across all six publishers, blast radius
 unmeasured; note `sessions.tree_digest(out_dir)` takes no marker argument, so covering the
 provenance block needs a signature or call-site change).
+
+**Session 2 datum — one reviewer's own two reds contradicted each other, and the fixture lost.**
+R20's byte-idempotence red wrote a synthetic diagnostics row with no `video` column while R25's red
+demands exactly that column be checked for ownership; applying both left R20 red on
+`artifacts_owned`, not on idempotence. The R20 fixture gained the column, because
+`write_source_diagnostics` always emits it and a fixture omitting it grades `wrong_diag` rather than
+the predicate its case exists for. **Reds from one reviewer are no more mutually consistent than
+reds from two** — restore the whole battery and run it as a set before crediting any single row.
+
+**Session 2 datum — a source-digest tripwire is the real cost of touching a shared module.** Editing
+`multicam.py` for the T1 containment guard fired
+`test_calibration_qc.py::test_committed_determinism_evidence_matches_its_exact_source_tripwire`, and
+both `check_calibration_qc_determinism.py` and `check_qualify_determinism.py` then REFUSED to
+regenerate over a stale result — by design. `rm` the two JSON files, rerun both campaigns, and do it
+**last**, after every source and test edit: regeneration is a fixpoint. Regenerated green at
+**21 sweeps / 18 tampers / 39 PASS / 0 FAIL** and **40 sweeps / 40 passed / 19 tamper classes /
+0 tamper failures**.
 
 ## Tracks
 
@@ -83,18 +98,21 @@ harvest; `open` fail rows await MAIN's ruling.
 
 **`pass` rows, ruled ACCEPTED as checked** (24): R01 R02 R03 R04 R05 R06 R07 R08 R09 R10 R11 R12 R13 R16 R17 R18 R19 R22 R23 R24 R26 R31 R33 R34
 
+All ten CLOSED in wave-2 session 2; the acceptance checks are `tests/test_review_m2u82.py`, restored
+from `archive/m2-review-rev-m2u82` into `tests/` and now **10/10 green** in the decisive gate.
+
 | row | severity + finding | ruling | acceptance check |
 | --- | ------------------ | ------ | ---------------- |
-| R14 | HIGH — raw, unvalidated qualification cells become both report strata and allowed strings, so an edited identifier-shaped label is emitted under all-green verdicts. | **ACCEPT-FIX** | pilot validates every source table before its cells become allowlist strings |
-| R15 | MEDIUM — a fresh pilot rerun never clears its event output, so stale diagnostics/clinical files can be credited when the current source produces none. | **ACCEPT-FIX** | a pilot rerun clears the selected event tree before launch |
-| R20 | MEDIUM — inference is skipped, but the shipped driver rewrites `run_report.json` with invocation-local attempt/time fields, breaking P05 byte idempotence. | **ACCEPT-FIX** | a resumed pass leaves every published byte unmoved, or P05 is amended to name the invocation-local fields |
-| R21 | HIGH — `process_source` swallows `KeyboardInterrupt`; a child-only interruption exits 0, so the driver can run R and mark a partial source complete. | **ACCEPT-FIX** | KeyboardInterrupt propagates out of `process_source`; no partial source is marked complete |
-| R25 | MEDIUM — `_artifacts` accepts a one-row diagnostics file whose `video` belongs to another event/camera, then attributes its counters to this `ok` asset. | **ACCEPT-FIX** | `_artifacts` refuses a diagnostics row whose `video` names another source |
-| R27 | CRITICAL — `--out` can create logs inside the session tree before validation, and `--report` can write there after both digest snapshots, leaving the input mutated or a green witness stale. | **ACCEPT-FIX** | CRITICAL — log and report sinks refuse any path inside a published session tree, before validation and after both digest snapshots |
-| R28 | MEDIUM — `abs(NaN - derived) > 1e-9` is false, so a nonfinite stored rate passes `stored_rate_equals_its_derivation`. | **ACCEPT-FIX** | a nonfinite stored rate fails `stored_rate_equals_its_derivation` |
-| R29 | HIGH — shipped key validation remains `allowed OR regex`, while the alleged membership oracle walks only local fixtures; an unknown identifier-shaped key passes production. | **ACCEPT-FIX** | the shipped key guard is membership in the schema/label union, and the oracle walks the shipped guard |
-| R30 | HIGH — clinical-failed event wall enters `_corpus_wall`, its frames are excluded from `_artifacts`, yet the report labels the mixed 100/300 population `sample: corpus`. | **ACCEPT-FIX** | `sample: corpus` requires one event population behind numerator and denominator |
-| R32 | HIGH — P05/P06, P09, P11, P13, and P14 chiefly grade `_Driver`, local verdict walkers, or source/prose regexes; 105 green cases miss nine shipped-code reds. | **ACCEPT-FIX** | every contract predicate grades a shipped symbol; the nine reds go green against `src/` and `scripts/` |
+| R14 | HIGH — raw, unvalidated qualification cells become both report strata and allowed strings, so an edited identifier-shaped label is emitted under all-green verdicts. | **ACCEPT-FIX — CLOSED** | new `pilot._assert_sources_validated` calls `inventory.validate_generation` + `qualify.validate_generation(…, inventory_dir=…)` before `_load_assets`, so no cell reaches a stratum label or the allowlist until its own generation proves out. `test_pilot_refuses_unvalidated_source_tables_before_publication` green |
+| R15 | MEDIUM — a fresh pilot rerun never clears its event output, so stale diagnostics/clinical files can be credited when the current source produces none. | **ACCEPT-FIX — CLOSED** | `_run_event` `rmtree`s `out/<event>` before launch, matching the driver's `_attempt_event`. `test_pilot_rerun_clears_the_selected_event_before_launch` green |
+| R20 | MEDIUM — inference is skipped, but the shipped driver rewrites `run_report.json` with invocation-local attempt/time fields, breaking P05 byte idempotence. | **ACCEPT-FIX — CLOSED** | took the first arm — the report is now a function of STATE, never of the pass. `run` publishes `events_complete` / `events_failed` / `events_unattempted` read from the markers instead of `events_attempted` / `attempts_*`, and `throughput.invocation_wall_s` is deleted; the invocation's own counters print to stdout. `test_complete_resume_keeps_every_published_output_byte_identical` green. **Its fixture needed one correction** — see the session datum above |
+| R21 | HIGH — `process_source` swallows `KeyboardInterrupt`; a child-only interruption exits 0, so the driver can run R and mark a partial source complete. | **ACCEPT-FIX — CLOSED** | `run.py`'s handler prints then `raise`s; the `finally` arm still releases the capture and writes the decoded-prefix diagnostics. `test_interrupted_source_propagates_after_writing_diagnostics` green. Blast radius = one shipped case, `test_corpus_run_preconditions.py::test_p11_interrupted_source_still_publishes_its_decoded_prefix`, which asserted the swallow and **halted the whole pytest session** once the interrupt propagated; rewritten around `pytest.raises`, keeping every P11 diagnostics assertion |
+| R25 | MEDIUM — `_artifacts` accepts a one-row diagnostics file whose `video` belongs to another event/camera, then attributes its counters to this `ok` asset. | **ACCEPT-FIX — CLOSED** | `_artifacts` now requires `diagnostics[0]["video"] == f"{event_id}/{camera_name}"`. **Measured on the shipped corpus before shipping, because a wrong key refuses every asset: 379/379 diagnostics files match, 0 mismatch, 0 malformed.** `test_artifact_validator_rejects_a_diagnostic_owned_by_another_source` green |
+| R27 | CRITICAL — `--out` can create logs inside the session tree before validation, and `--report` can write there after both digest snapshots, leaving the input mutated or a green witness stale. | **ACCEPT-FIX — CLOSED** | `multicam._published_root`'s containment test is extracted as public `multicam.published_overlap(target, tree)` and `_resolve_session_output` now calls it, so there is one rule rather than a fifth copy. Both scripts gain `_assert_sinks_outside(sessions, out, report)` — run before the first mkdir and re-run immediately before the report write. `test_driver_refuses_every_sink_overlapping_the_published_sessions[out,report]` green, both write-free |
+| R28 | MEDIUM — `abs(NaN - derived) > 1e-9` is false, so a nonfinite stored rate passes `stored_rate_equals_its_derivation`. | **ACCEPT-FIX — CLOSED** | the comparison is inverted to `not abs(...) <= 1e-9`, so NaN falls on the mismatch side. `test_cfr_derivation_rejects_a_nonfinite_stored_rate` green |
+| R29 | HIGH — shipped key validation remains `allowed OR regex`, while the alleged membership oracle walks only local fixtures; an unknown identifier-shaped key passes production. | **ACCEPT-FIX — CLOSED** | `FIELD_NAME` deleted. `_assert_redacted(payload, allowed, fields)` now raises from a new `redaction_violations`, whose key clause is membership in `fields | allowed`; each script declares a frozen `REPORT_FIELDS` (pilot 65 names, driver 66), spelled rather than harvested from the payload so it cannot self-authorise. **The suite's `_violations` oracle is deleted and now delegates to `redaction_violations`**, so guard and oracle are one implementation. `test_shipped_redaction_guard_rejects_an_unknown_identifier_shaped_key` green |
+| R30 | HIGH — clinical-failed event wall enters `_corpus_wall`, its frames are excluded from `_artifacts`, yet the report labels the mixed 100/300 population `sample: corpus`. | **ACCEPT-FIX — CLOSED** | `_corpus_wall` sums markers of COMPLETE events alone, so `events_measured == events_total` now means one population behind numerator and denominator. `test_throughput_never_labels_mixed_frame_and_wall_populations_as_corpus` green |
+| R32 | HIGH — P05/P06, P09, P11, P13, and P14 chiefly grade `_Driver`, local verdict walkers, or source/prose regexes; 105 green cases miss nine shipped-code reds. | **ACCEPT-FIX — CLOSED** | the nine reds all execute shipped symbols (`pilot.main`, `pilot._run_event`, `driver.main`, `driver._artifacts`, `driver._cfr`, `run.process_source`, `pilot._assert_redacted`) and are green against `src/` + `scripts/`. The P13 stand-in is gone with R29; `test_p13_the_analog_declares_the_shape_backstop_its_runtime_guard_applies` is **deleted**, since the backstop it pinned no longer exists |
 
 ### T2 `rev-m2u84` — M2.8.4
 
