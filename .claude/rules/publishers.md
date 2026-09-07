@@ -1,0 +1,46 @@
+---
+paths:
+  - "src/pose_estimation/inventory.py"
+  - "src/pose_estimation/sessions.py"
+  - "src/pose_estimation/qualify.py"
+  - "src/pose_estimation/calibration_qc.py"
+  - "src/pose_estimation/cohort.py"
+  - "src/pose_estimation/measure/*.py"
+  - "src/pose_estimation/multicam.py"
+  - "docs/technical/sessions.md"
+  - "tests/test_sessions.py"
+  - "tests/test_multicam.py"
+---
+
+# The publisher family — one contract, six copies
+
+Publishers: `inventory`, `sessions`, `qualify`, `measure`, `calibration_qc`, `cohort`. Each carries its own copy of the staging/swap/digest/ownership machinery. **Idiom drift is the mechanism behind every defect below — a property lands where it was first ruled and does not travel to siblings, so check each publisher rather than the family.** The extraction into `src/pose_estimation/publication.py` stays DECLINED (M2 review T5 R35); the measured five-way drift is recorded on that `.agent/polish.md` row as its evidence.
+
+## Trust roots — the surface no digest covers
+
+Every self-describing publisher has exactly one unverified file: **its own marker**. `tree_digest` must exclude the marker because the marker carries that digest, so nothing inside the set covers it. Three properties therefore have to be checked directly:
+
+1. The marker is a regular non-symlink file (`lstat` + `S_ISREG`). A symlink puts the trust root outside the set, and where ownership gates a recursive delete it lets a foreign directory license its own deletion.
+2. The parse rejects duplicate keys (`object_pairs_hook`); `json.loads` keeps the last silently, so one document carries two claims.
+3. The census digest covers the provenance block **minus its own self-referential key** — excluding the whole block leaves the upstream claims consumers trust most as the only uncovered content in the set.
+
+Measured, still open as M2 review T5 R15/R16/R17 (ACCEPT-FIX; fix = one shared `lstat` + `S_ISREG` + `object_pairs_hook` loader across all six): `inventory.py:1075` and `sessions.py:812` `read_text` + `json.loads` their markers, so both follow a marker symlink and both accept a duplicate-key document — the other four reject each. Property (3) fails at `sessions.py:588` and `measure/__init__.py:281`, which drop the whole provenance block from the self-digest, so a synthetic edit to either marker's upstream claim validates without recomputing any digest. Note `sessions.tree_digest(out_dir)` takes no marker argument → covering the provenance block needs a signature or call-site change.
+
+## Set membership, ownership, staging
+
+- **A set digest over file contents does not cover set membership.** `cohort.tree_digest` hashed each published file and accepted an arbitrary extra one. It now folds the sorted entry-name set — marker excluded, so the staging and published digests agree — into the digest, and a fifth file fails `validate_generation` (T3 R25/A26). Content coverage and membership coverage are separate properties; check every publisher for the gap.
+- **A prefix-matching name is not an ownership test, and a sweep built on one deletes what it was written to protect.** `cohort` staged into `f"{out.name}.staging.{os.getpid()}"`, removed that path before publishing and recursively deleted every prefix-matching sibling after the swap. A pid is neither unique (reuse) nor private (any process can create the name), so the pre-run remove destroys the only complete staged generation under pid reuse and the post-swap sweep destroys a foreign directory that merely shares the prefix. **The fix is to make the name unguessable, not the sweep smarter** — `tempfile.mkdtemp(prefix=…, dir=out.parent)` owns its name by construction, so `_sweep_orphans` was **deleted** from `cohort.py` and cleanup touches only this invocation's own paths (T3 R29/R30/R31, A30). **`sessions.py`, `calibration_qc.py` and `qualify.py` still carry the prefix-name sweep.**
+- **Sweep crash debris only after the swap lands.** A kill between the two renames leaves the sole complete generation as a *retired sibling under a dead pid*, so a sweep before the swap deletes it and a failed swap then has nothing to restore. The empty-root rollback needs its own `retiring.exists()` guard too, or it raises `FileNotFoundError` over the real error. `os.kill(int(pid), 0)` raises `OverflowError`, not `ValueError`, on a suffix wider than a C long.
+- **Ownership includes the generator version, so a version bump orphans the previous tree.** `_is_own_generation` requires *this* generator's version — which is what keeps a foreign tool's directory from licensing its own recursive deletion — so a bumped generator does not own its predecessor's output and `run` refuses to replace it. The operator must `rm -rf` the `--out` tree by hand before the first run of a new `GENERATOR_VERSION`. Not a defect: the alternative is a version-blind ownership test, the hole the check exists to close.
+- **Publication replaces a whole tree, so the output is a destructive path.** `--out` must overlap neither `--corpus` nor `--inventory` in either direction; a symlinked `--out` publishes to the path it resolves to, which keeps the link and replaces the tree it named. Publication is per-file atomic, not set-atomic — detection is the guarantee, not prevention.
+- **A published tree is unpatchable by ANY writer, and the pipeline's own default was the violator.** `tree_digest` covers every entry but `generation.json`, so a stray results file is as fatal as an edited manifest. `_resolve_session_output(session, None)` resolved to `sessions/output/<event_id>/` and `_dispatch_sessions` never forwarded `--output-dir`, so a corpus run **destroyed the generation it was still reading** after its first camera. Fixed by refusing any destination overlapping a published tree in either direction, where published = a `generation.json` at or above the session directory. **Forwarding a flag is not the fix when the DEFAULT is the hazard**; the guard is. `session.json` is likewise unpatchable after publication — a later unit republishes the tree or publishes beside it.
+
+## Reading upstream, and validating cells
+
+- **Upstream digests prove bytes, never shape.** `inventory.validate_generation` proves the registry on disk is the one that was published; it says nothing about duplicate ids, an unknown disposition, an absent column, or a `view_conflict` cell contradicting its own rows. Every consumer re-derives what it reads: `sessions.plan` derives the conflict from the canonical rows by the registry's own rule and requires the published cell to agree. A future consumer inherits that obligation.
+- **Four validation predicates read as stricter than they are.** `Pattern.match` with `^…$` accepts one trailing newline → every alphabet uses `fullmatch` (an exported pattern needs `\Z`, because consumers call `.match` themselves). `str.isdigit()` is true for superscripts, which then raise `ValueError` out of `int()`, and for other scripts' digits, which `int()` silently normalizes into a value the cell never spelled → require ASCII `[0-9]+`. A CSV with zero rows carries its schema in the header alone, so per-row column checks never run and a short header publishes an empty artifact instead of failing.
+- **A cell alphabet must be the token set, never a shape that resembles it.** `STATUS_CELL = re.compile(r"[a-z_]+")` guarded both `offset_status` and `sync_status` and accepted every lowercase token the two partitions exclude, so an invented status would have published cleanly through a check whose whole job was refusing one. `_token_alphabet(frozenset)` builds the pattern from the constant set, which also makes a token added to a partition reach its alphabet automatically. The tell: an alphabet expressed as a character class where the contract names an enumeration.
+- **Three standard-library calls normalize away the property under test.** `Path.readlink()` drops a leading `./`, so link text compared through it is not the link's text — `os.readlink` is. `Path.is_dir()` follows a symlink, so a directory test alone lets a link to an outside tree pass as a child; take the kind from `is_symlink()` first. `shutil.rmtree(p, ignore_errors=True)` refuses a symlink and swallows the refusal, so link debris survives a cleanup that reports success.
+- **A path-prefix containment test breaks at `/`.** `parent + os.sep` yields `//`, which no real path carries, so a filesystem-root corpus classifies every file below it as an escape. Strip the separator from the parent before appending one.
+- **Judgment-bearing decisions live in `src/`, never in a driver script** (M2.8.2 A12): the suite cannot import `scripts/`, and a gate backing a durable claim must exercise the shipped decision. `sessions.generation_digest` and `corpus_run.asset_disposition` both moved out of the driver for that reason; the driver keeps orchestration alone.
+- **`--corpus` is `videos/3-cam`, never `videos`.** `assets.csv` `source_path` is relative to `3-cam`, so pointing one level up fails every row with `SessionsError … reason="source_missing"` before a single measurement runs.

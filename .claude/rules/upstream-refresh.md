@@ -1,0 +1,18 @@
+---
+paths:
+  - "CLAUDE.md"
+  - ".claude/commands/*.md"
+  - ".claude/rules/*.md"
+---
+
+# Upstream instruction refreshes
+
+`CLAUDE.md` + `.claude/commands/*.md` arrive as upstream drop-ins landing over this repo's local adaptations. **The clauses below are the only surviving copy.**
+
+**Procedure, every refresh:** diff each refreshed file against its prior commit, re-apply every clause below, keep every upstream change no clause contradicts, commit `state: …`. Verify with `rg -n 'DESCOPED|agent/contracts' .claude/commands/ CLAUDE.md` → the DESCOPED clause present, zero `agent/contracts` hits. `git log --grep upstream` lists priors. A refresh that retires a constant also falsifies claims elsewhere → sweep `.agent/` for the retired term and correct what depended on it, since a stale sizing datum reaches PLANNING as a budget.
+
+- **Clause 1 — DESCOPED is a terminal milestone status** (`session-roadmap.md:3`); every refresh to date drops it. Active milestone = first lacking a terminal status (DONE / REVIEWED / DESCOPED). A DESCOPED milestone is closed by decision rather than by completion: its retained detail lives in the `.agent/archive/` record the roadmap stub names, and reviving any part of it is a PLANNING ruling, never a dispatch outcome. Damage is deferred rather than immediate — while M2 is IN-PROGRESS the reverted text picks M2 either way, and the risk lands once M2 reaches REVIEWED. M3's own roadmap heading declares its terminality as the second guard.
+- **Clause 2 — acceptance contracts live at `.agent/archive/contract-m<m>u<u>.md`**, never upstream's `.agent/contracts/m<m>u<u>*.md`, and `.agent/contracts/` stays out of the MAIN-retained list. Upstream's requirements (committed, outside the attached set, read on demand, dispatchable by MILESTONE-REVIEW) are all met at the archive path, and 15 files bind it across `.agent/`, `tests/`, `scripts/` plus a generated data field: `scripts/make_calibration_qc_fixtures.py` writes the path into `tests/fixtures/calibration_qc_set/manifest.json`, and `check_calibration_qc_fixtures.py` validates digests without resolving that field, so a rename missing the generator leaves a dangling pointer no gate reports. Sweep `rg -l --hidden 'archive/contract-'` = 15; `.agent/` is hidden, so an unflagged sweep reports the non-dot files alone.
+- **Clause 3 — REVIEWED requires every accepted fix closed, not merely adjudicated.** An adjudicated row whose ruling accepts a fix stays open until that fix closes on its own acceptance check under MAIN's rerun, so a wave that rules every row and applies none still holds the milestone IMPLEMENTED and re-enters MILESTONE-REVIEW to apply them. Three sites in `session-roadmap.md`: the `IMPLEMENTED` MODE row, the Assurance-split line, the MILESTONE-REVIEW close bullet.
+- **Superseded by upstream — never restore.** `N% NK/<window>` replaces the local `N% NK/1M` gauge convention: MAIN's window is whatever `CLAUDE_CODE_AUTO_COMPACT_WINDOW` clamps it to and recorded figures already straddle 240K, 273K and 1M, so no literal belongs in it. "The harness manages the window" replaces "collapse-managed window sheds content" throughout — same mechanic, fixed terminology. The `Read()` path-exclusion control is retired with `.claude/settings.json` (→ `data-boundary.md`).
+- **A `scripts/check_drop_ins.py` gate was weighed and declined**: the user announces every refresh, and the clauses self-evidence against the tree — 15 files name the archive path, so a reverted command file contradicts them on sight, and M3's roadmap heading is the second guard on DESCOPED. Rigor concentrates where no re-check exists; here two do.

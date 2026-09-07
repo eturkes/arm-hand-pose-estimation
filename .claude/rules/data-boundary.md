@@ -1,0 +1,12 @@
+# Data boundary
+
+Patient recordings + every derivative = sensitive. Binds MAIN + every teammate.
+
+- **`videos/3-cam/` carries standing decode clearance** — decode it, run the pipeline over it, write derived outputs. Chat + reports carry redacted aggregates only: never imagery, filenames, subject identifiers.
+- **Every published tree is patient-adjacent and stays unread**: `inventory/`, `sessions/`, `qualification/`, `measurements/`, `output/`, `calibration/` — rows carry `capture_id` / event ids / source paths. Redaction-safe exceptions, quotable: `inventory/census.json`, `qualification/qualification.json`, the whole `calibration_qc/` tree (safe by contract). Reach a number through a bounded query (`rg -c`, `jq`, a counting script), never a full read.
+- **No tool gate enforces this.** `permissions.deny` is Bash-only, so nothing refuses a path-keyed read; `.gitignore` only keeps bytes uncommitted. **Never restore a `Read()` path-exclusion list** — a path-keyed `Read()` rule also gates `Bash` by static command text, so a batched command dies for naming the path it excludes, and one command whose cwd the matcher cannot resolve halts the session under `bypassPermissions`. `.agent/archive/m2u71.md` + `contract-m2u2.md` §6 still name that dead deny list; both are frozen unit records, never a live surface.
+- **Repo scope = `videos/3-cam/`.** `videos/initial/` = preliminary, retired — on disk, never reprocessed. Siblings under the same data root are out of scope: `harness/` = schematics for a capture harness never built; `database/` = the hospital's SCI clinical records, the eventual integration target (→ roadmap Backlog).
+- `videos` is a symlink out of the repo, so git never traverses it. Path-taking tools default to the old flat root and both are non-recursive: `scripts/run_report.py --videos-dir` and `pose-estimation-run --list-sessions` each need an explicit subdirectory.
+- Probe `videos/` with Python `pathlib` and report counts alone — a directory listing puts subject directory names + clip filenames straight into context.
+- Commit source + synthetic or de-identified fixtures only. `.gitignore` keeps raw media, derived outputs, rig geometry, credentials + path-bearing logs out.
+- A collaborator fork carrying unrelated history reconciles **by content** onto `main` with source-only attribution → importing its git object history would retain patient data even after a file deletion.
