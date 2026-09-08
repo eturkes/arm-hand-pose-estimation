@@ -25,3 +25,19 @@ package = false
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+
+# Ruff resolves settings from the closest pyproject.toml, so the root gate's
+# rule set does not reach this tree unless it is restated here.
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "N", "SIM", "C4", "PIE", "RET", "PTH", "RUF", "PERF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tools/**" = ["T201"]  # asset builders report to stdout
+# The font subset charset names the full-width and typographic code points the
+# UI actually draws; every one of them is deliberate, not a homoglyph slip.
+"tools/build_assets.py" = ["RUF001", "T201"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

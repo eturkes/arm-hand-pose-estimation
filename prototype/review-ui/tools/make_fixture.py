@@ -17,6 +17,7 @@ from __future__ import annotations
 import csv
 import json
 import math
+from itertools import pairwise
 from pathlib import Path
 
 import av
@@ -124,7 +125,9 @@ def _hand(wrist: np.ndarray, elbow: np.ndarray, direction: float) -> np.ndarray:
         base = wrist + forward * 13 + lateral * spread * 13
         for joint in range(4):
             reach = 8.0 + joint * 7.5
-            points[1 + finger * 4 + joint] = base + forward * reach + lateral * spread * reach * 0.45
+            points[1 + finger * 4 + joint] = (
+                base + forward * reach + lateral * spread * reach * 0.45
+            )
     return points
 
 
@@ -171,7 +174,7 @@ def _render(points: np.ndarray) -> np.ndarray:
         ("left_hip", "left_knee", "left_ankle"),
         ("right_hip", "right_knee", "right_ankle"),
     ):
-        for a, b in zip(chain, chain[1:], strict=False):
+        for a, b in pairwise(chain):
             _bar(frame, points[INDEX[a]], points[INDEX[b]], 9, SKIN)
     _disc(frame, points[INDEX["nose"]], 26, SKIN)
     for name in ("left_wrist", "right_wrist"):

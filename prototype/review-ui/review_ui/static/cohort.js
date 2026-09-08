@@ -5,7 +5,7 @@
    dot.  Drawing a whisker here would invent a number the export refuses to
    publish, for the reason the boundary panel states. */
 
-import { chart, el, json, num, panel, t, table } from "/static/app.js";
+import { chart, el, json, num, panel, t, table, wrappable } from "/static/app.js";
 
 const ACCENT = "#6aa9ff";
 const AMBER = "#f2a65a";
@@ -68,9 +68,18 @@ function distributionChart(rows, feature) {
       hovertemplate: "%{x}<br>%{y:.4f}<extra></extra>",
     },
   ];
+  // Plotly pads a bar axis at the zero side only, so a `base`+height bar ends
+  // flush with the plot frame and reads as clipped.  The range is set from the
+  // drawn statistics instead.
+  const drawn = rows
+    .flatMap((row) => [row.q25, row.q75, row.median, row.mean])
+    .filter((value) => typeof value === "number");
+  const low = Math.min(...drawn);
+  const high = Math.max(...drawn);
+  const pad = (high - low || Math.abs(high) || 1) * 0.08;
   requestAnimationFrame(() =>
     chart(node, traces, {
-      yaxis: { title: { text: feature.unit || "" } },
+      yaxis: { title: { text: feature.unit || "" }, range: [low - pad, high + pad] },
       margin: { l: 64, r: 12, t: 8, b: 34 },
     }),
   );
@@ -139,7 +148,7 @@ function cellsPanel() {
     t("cohort.cells"),
     el(
       "div",
-      { class: "scroll" },
+      { class: "scroll", style: { maxHeight: "none" } },
       table(
         [
           t("col.task"),
@@ -180,17 +189,21 @@ function boundaryPanel() {
       "dl",
       { class: "kv" },
       el("dt", {}, t("cohort.estimand")),
-      el("dd", {}, view.data.estimand || "—"),
+      el("dd", {}, wrappable(view.data.estimand || "—")),
       el("dt", {}, t("cohort.excluded")),
       el(
         "dd",
         {},
-        (view.data.columns_excluded || [])
-          .map((column) => `${column.column} (${column.reason})`)
-          .join(", ") || t("common.none"),
+        wrappable(
+          (view.data.columns_excluded || [])
+            .map((column) => `${column.column} (${column.reason})`)
+            .join(", ") || t("common.none"),
+        ),
       ),
+      // The census names its own population keys; a key with no gloss shows
+      // verbatim rather than under an invented translation.
       ...Object.entries(population).flatMap(([key, value]) => [
-        el("dt", {}, key),
+        el("dt", {}, t(`cohort.pop.${key}`) === `cohort.pop.${key}` ? key : t(`cohort.pop.${key}`)),
         el("dd", {}, num(value)),
       ]),
     ),
@@ -238,7 +251,12 @@ function draw(lang) {
       ),
       distributionChart(rows, feature),
       el("p", { class: "note" }, t("cohort.chart_note")),
-      el("div", { class: "scroll", style: { marginTop: "10px" } }, statisticsTable(rows)),
+      // 12 cells is the whole cohort — a vertical cap would hide the last two.
+      el(
+        "div",
+        { class: "scroll", style: { marginTop: "10px", maxHeight: "none" } },
+        statisticsTable(rows),
+      ),
     ),
     el(
       "div",

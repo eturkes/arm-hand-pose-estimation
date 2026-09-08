@@ -51,8 +51,7 @@ FACES = {
 #: Everything the UI can compose beyond its own strings: ASCII, the numeric and
 #: unit punctuation the tables print, and Japanese punctuation.
 BASE_CHARSET = (
-    "".join(chr(code) for code in range(0x20, 0x7F))
-    + "×・…−–—°％±≥≤→←↔　、。「」（）【】〜"
+    "".join(chr(code) for code in range(0x20, 0x7F)) + "×・…−–—°％±≥≤→←↔　、。「」（）【】〜"
 )
 
 

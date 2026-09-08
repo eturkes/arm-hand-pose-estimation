@@ -124,8 +124,36 @@ def index(paths: Paths) -> list[dict[str, Any]]:
                 "has_landmarks": (paths.run / event_id / f"{camera}.csv").is_file(),
             }
         )
-    clips.sort(key=lambda clip: (not clip["synthetic"], str(clip["task"]), str(clip["side"]), clip["event_id"], clip["camera_name"]))
+    clips.sort(
+        key=lambda clip: (
+            not clip["synthetic"],
+            str(clip["task"]),
+            str(clip["side"]),
+            clip["event_id"],
+            clip["camera_name"],
+        )
+    )
+    _number_families(clips)
     return clips
+
+
+def _number_families(clips: list[dict[str, Any]]) -> None:
+    """Give every recording event a display ordinal shared by its views.
+
+    Task and side alone repeat across the whole corpus, so a list keyed on them
+    shows hundreds of identical labels and hides the one structure that matters
+    here — which rows are the two or three views of the *same* event.  The
+    ordinal is positional, so the list stays free of `event_id`, which is
+    patient-adjacent and would otherwise reach a committed screenshot.
+    """
+    numbers: dict[str, int] = {}
+    for clip in clips:
+        if clip["synthetic"]:
+            clip["family_no"] = None
+            continue
+        if clip["event_id"] not in numbers:
+            numbers[clip["event_id"]] = len(numbers) + 1
+        clip["family_no"] = numbers[clip["event_id"]]
 
 
 def find(paths: Paths, event_id: str, camera_name: str) -> dict[str, Any] | None:
@@ -156,10 +184,11 @@ def _column_plan(header: list[str]) -> dict[str, Any]:
     instead of silently shifting a transcribed index.
     """
     prefix = "body" if any(name.startswith("body_") for name in header) else "arm"
-    body_names: list[str] = []
-    for name in header:
-        if name.startswith(f"{prefix}_") and name.endswith("_x"):
-            body_names.append(name[len(prefix) + 1 : -2])
+    body_names = [
+        name[len(prefix) + 1 : -2]
+        for name in header
+        if name.startswith(f"{prefix}_") and name.endswith("_x")
+    ]
     hands: dict[str, list[int]] = {}
     for side in ("left", "right"):
         indices = sorted(
@@ -206,9 +235,7 @@ def landmarks(paths: Paths, clip: dict[str, Any]) -> dict[str, Any]:
         ]
         hand_keys = {
             side: [
-                f"{side}_hand_{i}{suffix}"
-                for i in plan["hands"][side]
-                for suffix in HAND_SUFFIXES
+                f"{side}_hand_{i}{suffix}" for i in plan["hands"][side] for suffix in HAND_SUFFIXES
             ]
             for side in ("left", "right")
         }

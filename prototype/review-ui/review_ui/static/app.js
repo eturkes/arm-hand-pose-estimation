@@ -21,6 +21,20 @@ export function token(value) {
   return state.strings[key] ? t(key) : String(value);
 }
 
+/** A published token longer than its column has no space to break on, so CSS
+    splits it mid-word.  Offering `<wbr>` after each separator wraps it where the
+    schema already puts a boundary. */
+export function wrappable(value) {
+  const node = el("span", {});
+  String(value)
+    .split(/(?<=[_\-/])/)
+    .forEach((part, index) => {
+      if (index) node.append(document.createElement("wbr"));
+      node.append(document.createTextNode(part));
+    });
+  return node;
+}
+
 export function num(value, digits = 0) {
   if (value === null || value === undefined || value === "") return "—";
   if (typeof value !== "number") return String(value);
@@ -143,7 +157,12 @@ function applyStaticText() {
 }
 
 async function boot() {
-  state.lang = localStorage.getItem("review-ui-lang") || "ja";
+  // `?lang=en#cohort` makes a view deep-linkable in either language, which is
+  // what a shared review link needs; the toggle then persists the choice.
+  const requested = new URLSearchParams(location.search).get("lang");
+  state.lang = ["ja", "en"].includes(requested)
+    ? requested
+    : localStorage.getItem("review-ui-lang") || "ja";
   state.strings = await json("/static/strings.json");
   applyStaticText();
 

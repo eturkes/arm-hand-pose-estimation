@@ -45,14 +45,26 @@ def _headline(
     population = (cohort or {}).get("population", {})
     throughput = (run or {}).get("throughput", {})
     tiles: list[dict[str, Any]] = [
-        {"key": "subjects", "value": (census or {}).get("subject_directories"), "source": "inventory"},
+        {
+            "key": "subjects",
+            "value": (census or {}).get("subject_directories"),
+            "source": "inventory",
+        },
         {"key": "clips_discovered", "value": assets.get("discovered"), "source": "inventory"},
         {"key": "clips_canonical", "value": assets.get("canonical"), "source": "inventory"},
         {"key": "clips_quarantined", "value": assets.get("quarantined"), "source": "inventory"},
         {"key": "captures", "value": captures.get("total"), "source": "inventory"},
         {"key": "events", "value": population.get("events"), "source": "cohort"},
-        {"key": "media_minutes", "value": assets.get("nominal_minutes_total"), "source": "inventory"},
-        {"key": "frames_reported", "value": assets.get("reported_frames_total"), "source": "inventory"},
+        {
+            "key": "media_minutes",
+            "value": assets.get("nominal_minutes_total"),
+            "source": "inventory",
+        },
+        {
+            "key": "frames_reported",
+            "value": assets.get("reported_frames_total"),
+            "source": "inventory",
+        },
         {"key": "frames_decoded", "value": throughput.get("frames_decoded"), "source": "run"},
         {"key": "run_hours", "value": throughput.get("hours_total"), "source": "run"},
         {"key": "frame_rows", "value": population.get("frame_rows"), "source": "cohort"},

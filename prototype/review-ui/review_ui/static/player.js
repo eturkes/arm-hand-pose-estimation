@@ -17,6 +17,7 @@ let topology = null;
 const view = {
   clips: [],
   filtered: [],
+  search: "",
   clip: null,
   series: null,
   frame: 0,
@@ -32,11 +33,16 @@ const view = {
   raf: null,
 };
 
+/** Positional event ordinal — see clips._number_families for why it is not an id. */
+function familyTag(clip) {
+  return clip.family_no ? `#${String(clip.family_no).padStart(3, "0")}` : "#F";
+}
+
 function label(clip) {
   const task = clip.task ? t(`task.${clip.task}`) : "—";
   const side = clip.side ? t(`side.${clip.side}`) : "";
   const viewName = clip.view ? t(`view.${clip.view}`) : "";
-  return `${task} ${side} · ${viewName}`.trim();
+  return `${familyTag(clip)} ${task} ${side} · ${viewName}`.trim();
 }
 
 /* ------------------------------------------------------------------ drawing */
@@ -275,7 +281,11 @@ function clipList() {
         label(clip),
         clip.synthetic ? el("span", { class: "chip amber" }, t("player.synthetic")) : null,
       ),
-      el("span", { class: "meta" }, clip.frames ? `${num(clip.frames)}f` : "—"),
+      el(
+        "span",
+        { class: "meta" },
+        `${clip.n_cameras ? `${clip.n_cameras}v · ` : ""}${clip.frames ? `${num(clip.frames)}f` : "—"}`,
+      ),
     ),
   );
   list.append(...(rows.length ? rows : [el("p", { class: "empty" }, t("common.none"))]));
@@ -288,12 +298,14 @@ function applyFilters() {
   const side = value("filter-side");
   const viewName = value("filter-view");
   const landmarksOnly = document.getElementById("filter-landmarks")?.checked;
+  const term = view.search.trim().toLowerCase();
   view.filtered = view.clips.filter(
     (clip) =>
       (!task || clip.task === task) &&
       (!side || clip.side === side) &&
       (!viewName || clip.view === viewName) &&
-      (!landmarksOnly || clip.has_landmarks),
+      (!landmarksOnly || clip.has_landmarks) &&
+      (!term || label(clip).toLowerCase().includes(term)),
   );
   const host = document.getElementById("clip-list-host");
   host.replaceChildren(
@@ -349,6 +361,19 @@ function stagePane() {
   video.addEventListener("loadedmetadata", () => paint());
   video.addEventListener("seeked", () => setFrame(video.currentTime * fps()));
   video.addEventListener("ended", () => pause());
+  // A third of the corpus is HEVC, which a Chromium build without a platform
+  // decoder refuses silently: the stage goes black and a reviewer cannot tell a
+  // decode failure from a bad overlay.  Say which one it is, then hide the layer
+  // so the rAF clock keeps the overlay running.
+  video.addEventListener("error", () => {
+    const banner = document.getElementById("decode-note");
+    if (banner) {
+      banner.className = "banner";
+      banner.textContent = `${t("player.decode_failed")} — ${clip.codec || "—"}`;
+    }
+    video.className = "hidden";
+    paint();
+  });
 
   const stage = el(
     "div",
@@ -473,8 +498,8 @@ function stagePane() {
   return panel(
     label(clip),
     clip.synthetic
-      ? el("div", { class: "banner" }, t("player.synthetic_note"))
-      : el("div", { class: "banner info" }, t("player.codec_note")),
+      ? el("div", { class: "banner", id: "decode-note" }, t("player.synthetic_note"))
+      : el("div", { class: "banner info", id: "decode-note" }, t("player.codec_note")),
     stage,
     transport,
     el("canvas", { class: "strip", id: "strip" }),
@@ -536,6 +561,19 @@ export async function renderPlayer(root) {
           filterSelect("filter-task", "player.task", distinct("task")),
           filterSelect("filter-side", "player.side", distinct("side")),
           filterSelect("filter-view", "player.view", distinct("view")),
+          el(
+            "label",
+            { class: "field", style: { flex: "1 1 120px" } },
+            t("player.search"),
+            el("input", {
+              type: "search",
+              placeholder: "#042",
+              oninput: (event) => {
+                view.search = event.target.value;
+                applyFilters();
+              },
+            }),
+          ),
         ),
         el(
           "label",
@@ -543,6 +581,7 @@ export async function renderPlayer(root) {
           el("input", { type: "checkbox", id: "filter-landmarks", checked: true, onchange: applyFilters }),
           t("player.with_landmarks"),
         ),
+        el("p", { class: "note" }, t("player.family_note")),
         el("div", { id: "clip-list-host" }),
       ),
       el("div", { id: "stage-host" }, el("p", { class: "empty" }, t("player.select"))),

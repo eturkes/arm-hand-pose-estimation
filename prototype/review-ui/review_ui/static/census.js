@@ -2,7 +2,7 @@
    pipeline measured.  Everything on this page comes from a publisher summary
    that is aggregates-only by its own contract. */
 
-import { chart, el, json, num, panel, t, table, token } from "/static/app.js";
+import { chart, el, json, num, panel, t, table, token, wrappable } from "/static/app.js";
 
 const ACCENT = "#6aa9ff";
 const AMBER = "#f2a65a";
@@ -50,14 +50,17 @@ function shapesPanel(data) {
     `${shape.rotation}°`,
     num(shape.count),
   ]);
+  // Pooled over frame rate: 25 distinct labels differ mostly by a 29.98x fps
+  // reading, which crowds the axis without separating anything a reviewer acts on.
+  const pooled = new Map();
+  for (const shape of data.shapes) {
+    const key = `${shape.resolution} ${shape.codec} rot${shape.rotation}`;
+    pooled.set(key, (pooled.get(key) || 0) + shape.count);
+  }
   return panel(
     t("census.shapes"),
-    barChart(
-      data.shapes.map((shape) => [shape.label, shape.count]),
-      ACCENT,
-      false,
-      210,
-    ),
+    barChart([...pooled.entries()].sort((a, b) => b[1] - a[1]), ACCENT, true, 40 + 26 * pooled.size),
+    el("p", { class: "note" }, t("census.shapes.chart")),
     el("p", { class: "note" }, t("census.shapes.note")),
     el(
       "div",
@@ -123,6 +126,7 @@ function durationPanel(data) {
   return panel(
     t("census.duration"),
     node,
+    el("p", { class: "note" }, t("census.duration_note")),
     el(
       "dl",
       { class: "kv" },
@@ -198,7 +202,11 @@ function rulingPanel(data) {
     .filter((key) => ruling[key] !== undefined)
     .flatMap((key) => [
       el("dt", {}, key),
-      el("dd", {}, `${ruling[key]}${token(ruling[key]) !== ruling[key] ? ` — ${token(ruling[key])}` : ""}`),
+      el(
+        "dd",
+        {},
+        wrappable(`${ruling[key]}${token(ruling[key]) !== ruling[key] ? ` — ${token(ruling[key])}` : ""}`),
+      ),
     ]);
   return panel(
     t("census.ruling"),
@@ -258,7 +266,7 @@ function reasonPanel(data) {
     el(
       "p",
       { class: "note" },
-      `${entries.length - nonzero.length} / ${entries.length} ${t("common.none").toLowerCase()}`,
+      `${t("census.zero_hidden")} — ${entries.length - nonzero.length} / ${entries.length}`,
     ),
   );
 }
@@ -285,7 +293,11 @@ export async function renderCensus(root) {
   root.replaceChildren(
     missing.length
       ? el("div", { class: "banner" }, `${t("common.absent")}: ${missing.join(", ")}`)
-      : el("div", { class: "banner info" }, t("app.subtitle")),
+      : el(
+          "div",
+          { class: "banner info" },
+          `${t("census.sources")}: ${Object.keys(data.available).join(" · ")}`,
+        ),
     tiles(data),
     el(
       "div",

@@ -38,7 +38,9 @@ def _ranged(path: Path, header: str | None) -> Response:
     size = path.stat().st_size
     match = RANGE_PATTERN.fullmatch(header.strip()) if header else None
     if match is None:
-        return FileResponse(path, media_type=_content_type(path), headers={"accept-ranges": "bytes"})
+        return FileResponse(
+            path, media_type=_content_type(path), headers={"accept-ranges": "bytes"}
+        )
 
     start_text, end_text = match.groups()
     if start_text:
