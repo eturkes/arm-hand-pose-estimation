@@ -19,9 +19,11 @@ hospital SCI database.
 
 `P` = the gate prefix; `P` and the mutually-exclusive accelerator recipe → `.claude/rules/gates.md`.
 
-- `prototype/review-ui/` — **PROTOTYPE target, unbuilt.** One local web UI, three views: corpus
-  census · clip player with pose overlay · cohort-stats explorer. Run command + `proof/` land
-  with the artifact.
+- `prototype/review-ui/` — **PROTOTYPE target.** One local web UI, bilingual ja/en, three views:
+  corpus census · clip player with pose overlay · cohort-stats explorer. FastAPI + vanilla JS
+  canvas + vendored Plotly/IBM Plex, its own uv project, read-only over the published trees.
+  `uv run --directory prototype/review-ui python -m review_ui` → `http://127.0.0.1:8791/`.
+  Proof → `prototype/review-ui/proof/`. Synthetic fixture clip = the only committed media.
 - `cohort/` — the `../rehab` export. 12 `(task, side)` cells · 89 features · 1068 feature rows;
   `descriptors.yaml` carries ja/en labels, units, ranges.
   `P pose-estimation-cohort --inventory inventory --sessions sessions --run output/corpus-2d --out cohort`

@@ -1,1 +1,36 @@
-<!doctype html><title>placeholder</title>
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pose Estimation Review</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <script src="/static/vendor/plotly-cartesian.min.js"></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="mark" aria-hidden="true"></span>
+        <div>
+          <h1 data-i18n="app.title">姿勢推定レビュー</h1>
+          <p class="subtitle" data-i18n="app.subtitle"></p>
+        </div>
+        <span class="badge" data-i18n="app.prototype"></span>
+      </div>
+      <nav class="tabs" id="tabs">
+        <button class="tab" data-view="census" data-i18n="nav.census"></button>
+        <button class="tab" data-view="player" data-i18n="nav.player"></button>
+        <button class="tab" data-view="cohort" data-i18n="nav.cohort"></button>
+      </nav>
+      <button class="lang" id="lang-toggle" type="button">EN</button>
+    </header>
+
+    <main>
+      <section id="view-census" class="view"></section>
+      <section id="view-player" class="view"></section>
+      <section id="view-cohort" class="view"></section>
+    </main>
+
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>
