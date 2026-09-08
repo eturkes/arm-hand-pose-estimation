@@ -1,6 +1,7 @@
 ---
 paths:
   - "analysis/*.R"
+  - "analysis/*.Rmd"
   - "tests/test_r_*.py"
   - "scripts/regenerate_r_clinical_goldens.py"
   - "docs/technical/analysis.md"
@@ -31,3 +32,4 @@ paths:
 - **Freezing a value set is not freezing the header.** `GROUP_QC_REASONS` froze six reason codes and left the column names unstated, so a diff-blind suite encoded `reason` against a shipped `drop_reason` + `qc_status` and three predicates failed on a correct artifact. Header is now `video, person_idx, n_frames, drop_reason, qc_status` — `drop_reason` because `qc_reason` already names the per-metric window verdict, `qc_status` because a disposition row is a verdict. **A predicate quantifying over cells needs the header frozen beside the values.**
 - `sum(win_mask) < 4` skips a window entirely, so no row exists for it. Any per-window artifact covers emitted windows only, and changing the skip moves the shipped window row set.
 - **The 3D path deliberately skips `adapt_2d_confidence()`** (`clinical_features.R:1452-1466`). This looks like a missing gate and is not: `world3d.csv` confidence is a fused mean over already-accepted points, and fusion applied `min_confidence` upstream (`triangulation.py:538,559-572`). Adding a 3D confidence predicate creates a new gate and moves every shipped 3D estimate. An M3.3 spike "repaired" this seam and was reverted.
+- **The R language server never answers `documentSymbol` for R Markdown**, while `.R` files index at ~4 files/s. An `.Rmd` in an LSP request path burns the full tool timeout instead of returning. Reach `analysis/analysis_summary.Rmd` with `Read`/`rg`; keep it out of every symbol query.

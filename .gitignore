@@ -130,7 +130,7 @@ Thumbs.db
 # MediaPipe downloaded models
 mediapipe/
 
-# Claude Code machine-local state (.claude/commands/ is the committed half);
+# Claude Code machine-local state (.claude/rules/ is the committed half);
 # .claude/.headroom_wrap_marker.json is ephemeral per-session (pid/port/env key).
 CLAUDE.local.md
 .claude/settings.local.json
@@ -138,11 +138,6 @@ CLAUDE.local.md
 .claude/worktrees/
 
 # Per-session teammate reports, rosters + per-teammate git worktrees
-# (.scratch/worktrees/<name>; see .claude/commands/session-roadmap.md)
+# (.scratch/worktrees/<name>; see global CLAUDE.md Subagents)
 .scratch/
 
-# Serena self-governs via .serena/.gitignore: cache + project.local.yml local,
-# project.yml + .gitignore committed. Memory tools are disabled globally, so
-# .serena/memories/ stays empty. Serena's own .gitignore omits logs/, which is
-# regenerable and unmatched by the *.log rule above.
-.serena/logs/

@@ -1103,7 +1103,7 @@ def test_m2u5_x02_x04_active_solver_census_names_the_p07_population() -> None:
     355" would state a derivation as a measurement.
     """
     root = pathlib.Path(__file__).resolve().parents[1]
-    roadmap = (root / ".agent/roadmap.md").read_text(encoding="utf-8")
+    roadmap = (root / ".agent/archive/roadmap.md").read_text(encoding="utf-8")
     assert "moving 60 of 329 solved cameras" not in roadmap
     assert "moving 60 of the 329 cameras the probe compares" in roadmap
     assert "unchanged over the full 355" in roadmap

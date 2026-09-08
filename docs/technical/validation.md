@@ -2,7 +2,7 @@
 
 End-to-end validation of the 3D clinical pipeline on one session, emitting a
 structured report. `src/pose_estimation/validation.py`; console script
-`pose-estimation-validate`; live real-data validation state in `.agent/roadmap.md`.
+`pose-estimation-validate`; live real-data validation state in `.agent/spec.md`.
 
 ## What it does
 

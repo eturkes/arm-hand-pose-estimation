@@ -1746,7 +1746,7 @@ def test_p13_a_denylist_admits_what_the_allowlist_refuses() -> None:
 
 
 # ── P14 the corpus-run cost record (D02) ────────────────────────────
-_ROADMAP = _PROJECT_ROOT / ".agent" / "roadmap.md"
+_ROADMAP = _PROJECT_ROOT / ".agent" / "archive" / "roadmap.md"
 _CONTRACT = _PROJECT_ROOT / ".agent" / "archive" / "contract-m2u82.md"
 _UNIT = "M2.8.2"
 _HOURS = re.compile(r"(\d+(?:\.\d+)?(?:-\d+(?:\.\d+)?)?)\s*h\b")

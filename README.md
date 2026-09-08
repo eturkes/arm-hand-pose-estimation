@@ -15,7 +15,7 @@ Both apply temporal smoothing, biomechanical constraints, and a skeleton overlay
 
 > **Working on this with an AI coding agent?** Start at [`CLAUDE.md`](CLAUDE.md).
 > Task-specific internals live under [`docs/technical/`](docs/technical/), and active
-> long-horizon state lives in [`.agent/roadmap.md`](.agent/roadmap.md).
+> long-horizon state lives in [`.agent/spec.md`](.agent/spec.md).
 
 ## Requirements
 
