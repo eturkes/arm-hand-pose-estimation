@@ -141,3 +141,9 @@ CLAUDE.local.md
 # (.scratch/worktrees/<name>; see global CLAUDE.md Subagents)
 .scratch/
 
+
+# Prototype review UI: its own uv venv, its npm download cache, and the one
+# committed exception to the media rule — the synthetic fixture clip, which
+# carries no patient bytes and is what the committed proof is captured against.
+prototype/review-ui/.cache/
+!prototype/review-ui/fixtures/fixture.mp4

@@ -1,0 +1,502 @@
+{
+  "source": "pose_estimation.drawing",
+  "coord_normalization": "image-isotropic-maxdim",
+  "body": {
+    "names": [
+      "nose",
+      "left_eye_inner",
+      "left_eye",
+      "left_eye_outer",
+      "right_eye_inner",
+      "right_eye",
+      "right_eye_outer",
+      "left_ear",
+      "right_ear",
+      "mouth_left",
+      "mouth_right",
+      "left_shoulder",
+      "right_shoulder",
+      "left_elbow",
+      "right_elbow",
+      "left_wrist",
+      "right_wrist",
+      "left_pinky",
+      "right_pinky",
+      "left_index",
+      "right_index",
+      "left_thumb",
+      "right_thumb",
+      "left_hip",
+      "right_hip",
+      "left_knee",
+      "right_knee",
+      "left_ankle",
+      "right_ankle",
+      "left_heel",
+      "right_heel",
+      "left_foot_index",
+      "right_foot_index"
+    ],
+    "chains": [
+      {
+        "points": [
+          11,
+          13,
+          15
+        ],
+        "group": "left_arm"
+      },
+      {
+        "points": [
+          12,
+          14,
+          16
+        ],
+        "group": "right_arm"
+      },
+      {
+        "points": [
+          23,
+          25,
+          27
+        ],
+        "group": "left_leg"
+      },
+      {
+        "points": [
+          24,
+          26,
+          28
+        ],
+        "group": "right_leg"
+      }
+    ],
+    "segments": [
+      {
+        "points": [
+          11,
+          12
+        ],
+        "group": "torso"
+      },
+      {
+        "points": [
+          11,
+          23
+        ],
+        "group": "torso"
+      },
+      {
+        "points": [
+          12,
+          24
+        ],
+        "group": "torso"
+      },
+      {
+        "points": [
+          23,
+          24
+        ],
+        "group": "torso"
+      },
+      {
+        "points": [
+          15,
+          17
+        ],
+        "group": "left_arm"
+      },
+      {
+        "points": [
+          15,
+          19
+        ],
+        "group": "left_arm"
+      },
+      {
+        "points": [
+          15,
+          21
+        ],
+        "group": "left_arm"
+      },
+      {
+        "points": [
+          17,
+          19
+        ],
+        "group": "left_arm"
+      },
+      {
+        "points": [
+          16,
+          18
+        ],
+        "group": "right_arm"
+      },
+      {
+        "points": [
+          16,
+          20
+        ],
+        "group": "right_arm"
+      },
+      {
+        "points": [
+          16,
+          22
+        ],
+        "group": "right_arm"
+      },
+      {
+        "points": [
+          18,
+          20
+        ],
+        "group": "right_arm"
+      },
+      {
+        "points": [
+          27,
+          29
+        ],
+        "group": "left_leg"
+      },
+      {
+        "points": [
+          29,
+          31
+        ],
+        "group": "left_leg"
+      },
+      {
+        "points": [
+          27,
+          31
+        ],
+        "group": "left_leg"
+      },
+      {
+        "points": [
+          28,
+          30
+        ],
+        "group": "right_leg"
+      },
+      {
+        "points": [
+          30,
+          32
+        ],
+        "group": "right_leg"
+      },
+      {
+        "points": [
+          28,
+          32
+        ],
+        "group": "right_leg"
+      },
+      {
+        "points": [
+          0,
+          1
+        ],
+        "group": "face"
+      },
+      {
+        "points": [
+          1,
+          2
+        ],
+        "group": "face"
+      },
+      {
+        "points": [
+          2,
+          3
+        ],
+        "group": "face"
+      },
+      {
+        "points": [
+          3,
+          7
+        ],
+        "group": "face"
+      },
+      {
+        "points": [
+          0,
+          4
+        ],
+        "group": "face"
+      },
+      {
+        "points": [
+          4,
+          5
+        ],
+        "group": "face"
+      },
+      {
+        "points": [
+          5,
+          6
+        ],
+        "group": "face"
+      },
+      {
+        "points": [
+          6,
+          8
+        ],
+        "group": "face"
+      },
+      {
+        "points": [
+          9,
+          10
+        ],
+        "group": "face"
+      }
+    ],
+    "colors": {
+      "torso": "#ffff00",
+      "left_arm": "#00c800",
+      "right_arm": "#ff8000",
+      "left_leg": "#00c800",
+      "right_leg": "#ff8000",
+      "face": "#b4b4b4"
+    }
+  },
+  "arm": {
+    "names": [
+      "left_shoulder",
+      "right_shoulder",
+      "left_elbow",
+      "right_elbow",
+      "left_wrist",
+      "right_wrist",
+      "left_index_base",
+      "right_index_base",
+      "left_middle_base",
+      "right_middle_base",
+      "left_pinky_base",
+      "right_pinky_base"
+    ],
+    "chains": [
+      {
+        "points": [
+          0,
+          2,
+          4
+        ],
+        "group": "left_arm"
+      },
+      {
+        "points": [
+          1,
+          3,
+          5
+        ],
+        "group": "right_arm"
+      }
+    ],
+    "segments": [
+      {
+        "points": [
+          0,
+          1
+        ],
+        "group": "shoulder"
+      },
+      {
+        "points": [
+          4,
+          6
+        ],
+        "group": "left_arm"
+      },
+      {
+        "points": [
+          4,
+          8
+        ],
+        "group": "left_arm"
+      },
+      {
+        "points": [
+          4,
+          10
+        ],
+        "group": "left_arm"
+      },
+      {
+        "points": [
+          6,
+          8
+        ],
+        "group": "left_arm"
+      },
+      {
+        "points": [
+          5,
+          7
+        ],
+        "group": "right_arm"
+      },
+      {
+        "points": [
+          5,
+          9
+        ],
+        "group": "right_arm"
+      },
+      {
+        "points": [
+          5,
+          11
+        ],
+        "group": "right_arm"
+      },
+      {
+        "points": [
+          7,
+          9
+        ],
+        "group": "right_arm"
+      }
+    ],
+    "colors": {
+      "shoulder": "#ffff00",
+      "left_arm": "#00c800",
+      "right_arm": "#ff8000"
+    }
+  },
+  "hand": {
+    "count": 21,
+    "chains": [
+      {
+        "points": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "group": "thumb"
+      },
+      {
+        "points": [
+          0,
+          5,
+          6,
+          7,
+          8
+        ],
+        "group": "index"
+      },
+      {
+        "points": [
+          0,
+          9,
+          10,
+          11,
+          12
+        ],
+        "group": "middle"
+      },
+      {
+        "points": [
+          0,
+          13,
+          14,
+          15,
+          16
+        ],
+        "group": "ring"
+      },
+      {
+        "points": [
+          0,
+          17,
+          18,
+          19,
+          20
+        ],
+        "group": "pinky"
+      }
+    ],
+    "segments": [
+      {
+        "points": [
+          5,
+          9
+        ],
+        "group": "palm"
+      },
+      {
+        "points": [
+          9,
+          13
+        ],
+        "group": "palm"
+      },
+      {
+        "points": [
+          13,
+          17
+        ],
+        "group": "palm"
+      },
+      {
+        "points": [
+          1,
+          5
+        ],
+        "group": "palm"
+      },
+      {
+        "points": [
+          2,
+          5
+        ],
+        "group": "palm"
+      }
+    ],
+    "colors": {
+      "thumb": "#ff0000",
+      "index": "#ff8000",
+      "middle": "#00ff00",
+      "ring": "#0080ff",
+      "pinky": "#8000ff",
+      "palm": "#b4b4b4"
+    },
+    "point_colors": [
+      "#b4b4b4",
+      "#ff0000",
+      "#ff0000",
+      "#ff0000",
+      "#ff0000",
+      "#ff8000",
+      "#ff8000",
+      "#ff8000",
+      "#ff8000",
+      "#00ff00",
+      "#00ff00",
+      "#00ff00",
+      "#00ff00",
+      "#0080ff",
+      "#0080ff",
+      "#0080ff",
+      "#0080ff",
+      "#8000ff",
+      "#8000ff",
+      "#8000ff",
+      "#8000ff"
+    ]
+  },
+  "bridge_color": "#ffff00"
+}
