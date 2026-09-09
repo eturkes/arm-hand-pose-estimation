@@ -112,6 +112,14 @@ found nothing. The second state is a check that has not run. The flag separates 
 
 `qualification.json` lists both `measured_axes` and `unmeasured_axes`. Read those two lists first.
 
+**The two lists cover six axes only.** They name the two axes that this tool measures itself and the
+four axes that it ingests from the sidecar: `orientation`, `timebase`, `detect`, `rigidity`, `scale`
+and `sync`.
+
+**The `geom` axis is not one of the six.** It cannot appear in either list. Every event reports the
+`geom` status in `qc_flags` and in the `events_qc.csv` reason column. Read `qc_flags` for any axis
+that the two lists do not name.
+
 The tool measures the timebase and orientation axes itself, on every run. It ingests the rigidity,
 detect, scale and sync axes from the sidecar. An axis that the sidecar manifest does not name stays
 unmeasured.

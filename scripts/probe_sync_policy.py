@@ -102,6 +102,46 @@ def all_assets_connected(members: dict[str, str], edges: set[frozenset[str]]) ->
     return _spans(tuple(sorted(members)), edges)
 
 
+def closure_gated(members: dict[str, str], edges: set[frozenset[str]]) -> bool:
+    """The visual spike's rule: three views must close, not merely connect.
+
+    Two views recover on one accepted cross-view pair, three views only when some
+    one-asset-per-view triple has all three of its pairs accepted.  Spanning three
+    views takes two edges and closing them takes three, and that one edge is the
+    entire gap against `view_recoverable` — measured, the whole 34 → 26 visual
+    difference sits in 3-view families and none of it in 2-view families.
+    """
+    by_view: dict[str, list[str]] = {}
+    for asset, view in sorted(members.items()):
+        by_view.setdefault(view, []).append(asset)
+    if len(by_view) < 2:
+        return False
+    if len(by_view) == 2:
+        return any(
+            edge <= members.keys() and len({members[asset] for asset in edge}) == 2
+            for edge in edges
+        )
+    return any(
+        all(frozenset(pair) in edges for pair in itertools.combinations(triple, 2))
+        for triple in itertools.product(*(by_view[view] for view in sorted(by_view)))
+    )
+
+
+def _rule_split(
+    multiview: dict[str, dict[str, str]], edges: set[frozenset[str]]
+) -> dict[str, dict[str, int]]:
+    """Report both rules per view count, which is where the two can disagree."""
+    split: dict[str, dict[str, int]] = {}
+    for members in multiview.values():
+        counts = split.setdefault(
+            str(len(set(members.values()))), {"families": 0, "view_recoverable": 0, "closure": 0}
+        )
+        counts["families"] += 1
+        counts["view_recoverable"] += int(view_recoverable(members, edges))
+        counts["closure"] += int(closure_gated(members, edges))
+    return dict(sorted(split.items()))
+
+
 def closure_residuals(
     families: dict[str, dict[str, str]], offsets: dict[frozenset[str], float], directed: dict
 ) -> list[float]:
@@ -144,6 +184,13 @@ def evaluate(
         # P38's statistic. The strict column beside it is a different question
         # and the two must never be quoted as one number.
         "families_view_recoverable": sum(view_recoverable(v, edges) for v in multiview.values()),
+        # Same denominator as the line above, stricter rule. Shipped so the
+        # spike's 26/137 reproduces from committed state instead of from a
+        # worktree, which is how it went unreconciled.
+        "families_closure_gated": sum(closure_gated(v, edges) for v in multiview.values()),
+        # The split is the mechanism, so it ships beside the total: closure can
+        # only differ from connectivity where a family has three views.
+        "families_by_view_count": _rule_split(multiview, edges),
         "families_multiview": len(multiview),
         "families_all_assets_connected": sum(
             all_assets_connected(value, edges) for value in multi.values()

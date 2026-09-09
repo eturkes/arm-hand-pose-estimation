@@ -1474,6 +1474,11 @@ def build_census(
         # Axis presence, not per-row coverage: an axis produced and empty is
         # measured, because its producer completed and found nothing to say.
         # Whether any single asset carries a value is the qc_flags question.
+        # Both lists quantify over LOCAL_AXES | SIDECAR_AXES and nothing else, so
+        # a non-sidecar axis cannot appear in either however it resolved: `geom`
+        # is unmeasured on all 193 events and reaches a reader through qc_flags
+        # alone. Widening the census would bump GENERATOR_VERSION and republish,
+        # so qualification.md states the scope instead.
         "measured_axes": sorted({*LOCAL_AXES, *measured_axes}),
         "unmeasured_axes": sorted(set(SIDECAR_AXES) - measured_axes),
     }
