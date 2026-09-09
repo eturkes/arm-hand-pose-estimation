@@ -14,8 +14,9 @@ Two inference paths share one pipeline:
 Both apply temporal smoothing, biomechanical constraints, and a skeleton overlay.
 
 > **Working on this with an AI coding agent?** Start at [`CLAUDE.md`](CLAUDE.md).
-> Task-specific internals live under [`docs/technical/`](docs/technical/), and active
-> long-horizon state lives in [`.agent/spec.md`](.agent/spec.md).
+> Task-specific internals live under [`docs/technical/`](docs/technical/). Active
+> long-horizon state lives in [`.agent/spec.md`](.agent/spec.md). The deferred-work queue
+> lives in [`.agent/deferred.md`](.agent/deferred.md).
 
 ## Requirements
 

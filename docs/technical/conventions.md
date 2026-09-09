@@ -39,7 +39,7 @@ mutated bytes.
 - **Calibration-QC determinism.** Run `$P python scripts/check_calibration_qc_determinism.py`. It passes 21 publication sweeps and 18 consumer-boundary tamper classes in 21 seconds. It refuses to run when source bytes move; run `rm -f tests/calibration_qc_determinism_results.json` first for an intentional regeneration.
 - **Cohort determinism.** Run `$P python scripts/check_cohort_determinism.py`. It passes 6 publication sweeps and 15 consumer-boundary tamper classes in about a second. The published cohort tree is gitignored, so this campaign is its byte oracle. It refuses to run when source bytes move; run `rm -f tests/cohort_determinism_results.json` first for an intentional regeneration.
 - **Calibration-QC mutation.** Run `$P python scripts/run_calibration_qc_mutations.py`. It kills all 51 publisher mutants through `tests/test_calibration_qc_mutants.py` in under three minutes.
-- **Measure mutation.** Run `$P python scripts/run_measure_mutations.py`. No kill count is recorded for it, and `tests/measure_mutation_results.json` holds `target_sha256` against source bytes that have since moved (2 of 3 targets), so the campaign refuses before it runs. The repair and its kill count ride the `.agent/spec.md` `Deferred` row.
+- **Measure mutation.** Run `$P python scripts/run_measure_mutations.py`. No kill count is recorded for it, and `tests/measure_mutation_results.json` holds `target_sha256` against source bytes that have since moved (2 of 3 targets), so the campaign refuses before it runs. The repair and its kill count ride the `.agent/deferred.md` row.
 
 ## Maintenance
 
