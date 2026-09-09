@@ -78,9 +78,9 @@ Diagnostic carriers: `metrics.SmoothingDiagnostics`, `metrics.ConstraintDiagnost
 Separate from the parameter sweep. Tracks hot-path regressions in core modules.
 
 ```bash
-uv run python scripts/benchmarks/run.py             # all groups
-uv run python scripts/benchmarks/run.py smoothing   # single group
-uv run python scripts/benchmarks/run.py --quick     # fewer iterations
+$P python scripts/benchmarks/run.py             # all groups; P → conventions.md § Quality gate
+$P python scripts/benchmarks/run.py smoothing   # single group
+$P python scripts/benchmarks/run.py --quick     # fewer iterations
 ```
 
 Groups (one `bench_<group>.py` per module): `smoothing`, `constraints`, `matching`, `detection`, `processing`, `drawing`, `metrics`.

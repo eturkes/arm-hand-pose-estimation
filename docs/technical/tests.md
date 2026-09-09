@@ -1,6 +1,6 @@
 # Test suite
 
-All tests live in `tests/`. Run with `uv run pytest`. Pytest is configured strict (warnings → errors).
+All tests live in `tests/`. Run with `$P pytest`, the gate prefix `conventions.md` § *Quality gate* defines — bare `uv run pytest` is rc=4 here. Pytest is configured strict (warnings → errors).
 
 ## Core pipeline tests
 
@@ -84,7 +84,7 @@ All tests live in `tests/`. Run with `uv run pytest`. Pytest is configured stric
 ## Coverage
 
 ```bash
-uv run pytest --cov=pose_estimation
+$P pytest --cov=pose_estimation
 ```
 
 ## When changing the public API

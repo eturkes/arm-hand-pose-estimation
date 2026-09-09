@@ -232,6 +232,10 @@ and types) alongside the runtime dependencies.
 | Format | `uv run ruff format` |
 | Type-check | `uv run ty check` |
 
+If a host OpenVINO build is on your `PYTHONPATH`, use the gate prefix in
+[`docs/technical/conventions.md`](docs/technical/conventions.md). Bare `uv run pytest` then
+fails at import.
+
 Learn these conventions before you open a pull request:
 
 - **Strict tests.** Warnings are errors (`filterwarnings = ["error", …]`). For new

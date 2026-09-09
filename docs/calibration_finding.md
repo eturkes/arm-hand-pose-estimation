@@ -245,15 +245,17 @@ Both caches are large and are excluded from version control. Rebuild the one you
 the analysis probe. Collection decodes video, so run it on a machine that holds the corpus.
 
 ```bash
+P="env -u LD_LIBRARY_PATH PYTHONPATH=$PWD/src uv run --no-sync"   # gate prefix; conventions.md
+
 # 22-event sample at 32 frames -> C01 to C04
-uv run python scripts/probe_calibration_observability.py \
+$P python scripts/probe_calibration_observability.py \
   --cache .scratch/calib-obs-f32 --frames-per-event 32 collect
-uv run python scripts/probe_calibration_bias.py --cache .scratch/calib-obs-f32 all
+$P python scripts/probe_calibration_bias.py --cache .scratch/calib-obs-f32 all
 
 # all 115 eligible events at 32 frames -> C05 and C06
-uv run python scripts/probe_calibration_observability.py \
+$P python scripts/probe_calibration_observability.py \
   --cache .scratch/calib-obs-wide --frames-per-event 32 --stratum-events 25 collect
-uv run python scripts/probe_bias_transfer.py --cache .scratch/calib-obs-wide
+$P python scripts/probe_bias_transfer.py --cache .scratch/calib-obs-wide
 ```
 
 Give each population its own `--cache` directory. `--stratum-events` joins the cache fingerprint, so

@@ -2,15 +2,22 @@
 
 ## Git
 
-- Commit messages: [Scoped Commits](https://scopedcommits.com/) — `<scope>: <description>`, scope first (the subsystem/area touched, e.g. `tracking`, `calibration`, `multicam`, or a cross-cutting label such as `Tooling`, `Maintenance`, `Refactor`, `Docs`). For multi-area commits, comma-list the scopes, generalize to one, or use `treewide`. Subject + body take the `CLAUDE.md` `Authoring` standard: subject = `<scope>: <cause> → <fix>`, imperative, one line — the cause→fix shape sets the length, and the log runs 45-95 chars, so no 50-char cap applies; body wrap ≤72 chars; measurements + SHAs kept as payload while the narration around them goes.
+- Commit messages: [Scoped Commits](https://scopedcommits.com/) — `<scope>: <description>`, scope first (the subsystem/area touched, e.g. `tracking`, `calibration`, `multicam`, or a cross-cutting label such as `Tooling`, `Maintenance`, `Refactor`, `Docs`). For multi-area commits, comma-list the scopes, generalize to one, or use `treewide`. Subject + body take the `CLAUDE.md` `Authoring` standard: subject = `<scope>: <cause> → <fix>`, imperative, one line — the cause→fix shape sets the length, and the log runs 45-95 chars, so no 50-char cap applies; body wrap ≤72 chars; measurements + SHAs + the unit's dispatch line kept as payload while the narration around them goes.
 - Before committing, always check whether `README.md`, `.gitignore`, `pyproject.toml`, or other housekeeping files need a matching update.
 
 ## Quality gate
 
-Ordered; every stage passes before a commit.
+Ordered; every stage passes before a commit. `P` = the gate prefix, and every command in this
+section takes it — one form, because a half-remembered prefix costs a window. Measured on this
+machine: every stage that imports `pose_estimation` dies bare at `ImportError … GLIBC_2.43 not
+found` before it collects one test — `pytest` (rc=4) and every campaign below — because the
+inherited `PYTHONPATH` names the host OpenVINO build; `ruff` and `ty` are static and pass either
+way. `P`, the worktree recipe and the mutually-exclusive accelerator recipe live in
+`.claude/rules/gates.md`.
 
 ```bash
-uv run ruff check && uv run ruff format --check && uv run ty check && uv run pytest
+P="env -u LD_LIBRARY_PATH PYTHONPATH=$PWD/src uv run --no-sync"   # from the project root
+$P ruff check && $P ruff format --check && $P ty check && $P pytest
 ```
 
 - `pytest` is strict — warnings are errors. `ruff format --check` is the gate form; `ruff format` is the autofix form.
@@ -26,12 +33,13 @@ committed determinism digest and every mutation patch anchor. Run every mutation
 rewrites `src/` in place and restores it at the end, so a concurrent job in the same tree reads
 mutated bytes.
 
-- **Registry.** Run `uv run python scripts/run_inventory_mutations.py` and `uv run python scripts/check_inventory_determinism.py`. The mutation campaign holds 72 mutants over `inventory.py` and `video_io.py`: 71 are killed, and `M028` is a ruled equivalent. The determinism campaign runs 20 sweeps and 13 tamper classes at the consumer boundary. Rerun both before you quote a corpus-registry claim. A new registry predicate earns a mutant in the same commit.
-- **Qualification.** Run `uv run python scripts/check_qualify_determinism.py`. It passes 40 sweeps across both publication modes and 19 consumer-boundary tamper classes. It refuses to run when source bytes move; run `rm -f tests/qualify_determinism_results.json` first for an intentional regeneration.
-- **M2.5 alignment.** Run `uv run python scripts/check_m2u5_determinism.py` and `uv run python scripts/run_m2u5_mutations.py`. The first command passes D06-D09. The second command kills all 25 mutants through `tests/test_m2u5_mutants.py`.
-- **Calibration-QC determinism.** Run `uv run python scripts/check_calibration_qc_determinism.py`. It passes 21 publication sweeps and 18 consumer-boundary tamper classes in 21 seconds. It refuses to run when source bytes move; run `rm -f tests/calibration_qc_determinism_results.json` first for an intentional regeneration.
-- **Cohort determinism.** Run `uv run python scripts/check_cohort_determinism.py`. It passes 6 publication sweeps and 15 consumer-boundary tamper classes in about a second. The published cohort tree is gitignored, so this campaign is its byte oracle. It refuses to run when source bytes move; run `rm -f tests/cohort_determinism_results.json` first for an intentional regeneration.
-- **Calibration-QC mutation.** Run `uv run python scripts/run_calibration_qc_mutations.py`. It kills all 51 publisher mutants through `tests/test_calibration_qc_mutants.py` in under three minutes.
+- **Registry.** Run `$P python scripts/run_inventory_mutations.py` and `$P python scripts/check_inventory_determinism.py`. The mutation campaign holds 72 mutants over `inventory.py` and `video_io.py`: 71 are killed, and `M028` is a ruled equivalent. The determinism campaign runs 20 sweeps and 13 tamper classes at the consumer boundary. Rerun both before you quote a corpus-registry claim. A new registry predicate earns a mutant in the same commit.
+- **Qualification.** Run `$P python scripts/check_qualify_determinism.py`. It passes 40 sweeps across both publication modes and 19 consumer-boundary tamper classes. It refuses to run when source bytes move; run `rm -f tests/qualify_determinism_results.json` first for an intentional regeneration.
+- **M2.5 alignment.** Run `$P python scripts/check_m2u5_determinism.py` and `$P python scripts/run_m2u5_mutations.py`. The first command passes D06-D09. The second command kills all 25 mutants through `tests/test_m2u5_mutants.py`.
+- **Calibration-QC determinism.** Run `$P python scripts/check_calibration_qc_determinism.py`. It passes 21 publication sweeps and 18 consumer-boundary tamper classes in 21 seconds. It refuses to run when source bytes move; run `rm -f tests/calibration_qc_determinism_results.json` first for an intentional regeneration.
+- **Cohort determinism.** Run `$P python scripts/check_cohort_determinism.py`. It passes 6 publication sweeps and 15 consumer-boundary tamper classes in about a second. The published cohort tree is gitignored, so this campaign is its byte oracle. It refuses to run when source bytes move; run `rm -f tests/cohort_determinism_results.json` first for an intentional regeneration.
+- **Calibration-QC mutation.** Run `$P python scripts/run_calibration_qc_mutations.py`. It kills all 51 publisher mutants through `tests/test_calibration_qc_mutants.py` in under three minutes.
+- **Measure mutation.** Run `$P python scripts/run_measure_mutations.py`. No kill count is recorded for it, and `tests/measure_mutation_results.json` holds `target_sha256` against source bytes that have since moved (2 of 3 targets), so the campaign refuses before it runs. The repair and its kill count ride the `.agent/spec.md` `Deferred` row.
 
 ## Maintenance
 
@@ -90,8 +98,8 @@ uv run ty check
 ## Testing — `pytest`
 
 ```bash
-uv run pytest
-uv run pytest --cov=pose_estimation        # coverage
+$P pytest                                  # P → Quality gate; bare `uv run pytest` is rc=4 here
+$P pytest --cov=pose_estimation            # coverage
 ```
 
 Strict config: `-ra --strict-config --strict-markers --import-mode=importlib`. Warnings are errors via `filterwarnings`. See `tests.md` for the test inventory.

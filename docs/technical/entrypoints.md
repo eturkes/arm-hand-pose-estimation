@@ -289,9 +289,9 @@ Outputs are patient-adjacent. Keep `--out` outside the repository or inside a pa
 ## `scripts/benchmarks/run.py` — micro-benchmarks (separate from sweep)
 
 ```bash
-uv run python scripts/benchmarks/run.py                # full suite
-uv run python scripts/benchmarks/run.py smoothing      # single group
-uv run python scripts/benchmarks/run.py --quick        # fewer iterations
+$P python scripts/benchmarks/run.py                # full suite; P → conventions.md § Quality gate
+$P python scripts/benchmarks/run.py smoothing      # single group
+$P python scripts/benchmarks/run.py --quick        # fewer iterations
 ```
 
 Groups: `smoothing`, `constraints`, `matching`, `detection`, `processing`, `drawing`, `metrics`. See `optimization.md`.
