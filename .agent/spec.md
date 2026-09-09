@@ -66,7 +66,7 @@ hospital SCI database.
 ## Deferred
 
 Queue → `.agent/deferred.md`; evidence → `.agent/archive/{polish,review-m2}.md`; regen →
-`.claude/rules/gates.md`. Blocking the current spine:
+`.claude/rules/gates.md`. The unfinished units = ITERATE's spine, each closing on its own check:
 
 - **Review UI JP subset builds from gitignored `cohort/descriptors.yaml`** → `build_assets.py`
   refuses with a named cause when absent; a committed check reports 0 missing code points.

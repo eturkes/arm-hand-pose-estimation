@@ -2,8 +2,8 @@
 
 Off-spine queue. One row = one improvement + the acceptance check that closes it, written at
 deferral time while the evidence is fresh; a row leaves only when that check passes on a commit.
-Read on demand — not attached state. Rows blocking the current spine ride `.agent/spec.md`
-`Deferred` instead, and return here when the spine moves past them.
+Read on demand — not attached state. A row promoted to an unfinished unit moves to `.agent/spec.md`
+`Deferred`, which carries the spine, and returns here when the spine moves past it.
 
 Evidence → `.agent/archive/{polish,review-m2}.md`; regen → `.claude/rules/gates.md`. Read the
 rows before sizing any unit that touches their surfaces.

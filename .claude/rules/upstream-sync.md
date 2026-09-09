@@ -14,10 +14,12 @@ paths:
 **Procedure, every refresh:** diff the refreshed file against its prior commit, re-apply every
 clause below, keep every upstream change no clause contradicts, commit `state: …`. Verify with
 `rg -l 'archive/contract-' scripts/ src/ tests/` = 7, re-derived rather than trusted — a
-whole-tree sweep counts every document that merely mentions the path and drifts on every edit
-(18 at this writing). `git log --grep upstream` lists priors. A refresh that retires a constant
-also falsifies claims elsewhere → sweep `.agent/` and `.claude/rules/` for the retired term and
-correct what depended on it, since a stale sizing datum reaches planning as a budget.
+whole-tree sweep counts every document that merely mentions the path and drifts on every edit, so
+it carries no figure here (Clause 3). `git log --grep upstream` lists priors. A refresh that
+retires a constant also falsifies claims elsewhere → sweep `.agent/` and `.claude/rules/` for the
+retired term and correct what depended on it, since a stale sizing datum reaches planning as a
+budget. Both dot-dirs must be named or `--hidden` passed, or the sweep reads clean over unread
+files (→ `evidence.md`).
 
 - **Clause 1 — acceptance contracts live at `.agent/archive/contract-m<m>u<u>.md`**, never at
   `.agent/contracts/`. Upstream's requirements — committed, outside the attached set, read on
@@ -26,11 +28,16 @@ correct what depended on it, since a stale sizing datum reaches planning as a bu
   the path into `tests/fixtures/calibration_qc_set/manifest.json`, and
   `check_calibration_qc_fixtures.py` validates digests without resolving that field, so a rename
   missing the generator leaves a dangling pointer no gate reports.
-- **Clause 2 — a review closes on fixes applied, never on rows adjudicated.** An adjudicated row
+- **Clause 2 — the grain splits: a review PASS terminates on rows adjudicated, a review WAVE
+  closes on fixes applied.** `CLAUDE.md`'s termination rule quantifies over the pass and is kept
+  whole — check set fixed before the diff is read, every row adjudicated, an all-`pass` table
+  complete, no open-ended re-review after it. Closure quantifies over the wave: an adjudicated row
   whose ruling accepts a fix stays open until that fix closes on its own acceptance check under
-  MAIN's rerun. A wave that rules every row and applies none has not closed; it re-enters to
+  MAIN's rerun, so a wave that rules every row and applies none has not closed and re-enters to
   apply them. Measured: M2's wave 1 adjudicated 193 rows / 55 fails in one pass and needed three
-  further sessions to close 40 of its 43 accepted fixes.
+  further sessions to close 40 of its 43 accepted fixes. Reading the clause as an override instead
+  of a grain split takes upstream's anti-flip-flop mechanism down as collateral (grain law →
+  `evidence.md`).
 - **Clause 3 — mutable state belongs in `.agent/spec.md` + `.agent/deferred.md`, never in
   `.claude/rules/`.** A rule file is read as standing law, so a mid-session ledger parked there
   reads as current long after it stops being true. Anything MAIN rewrites while it works — status,
@@ -51,8 +58,11 @@ and the phase flow replaces the MODE dispatch. The **`≤ 8 KB` cap on `.agent/s
 replaces it — every line binds current or future work, superseded text dies in the commit that
 supersedes it, size is emergent. A byte budget rewards compressing live prose over deleting dead
 rows, which is the opposite of the ranking. **The deferral queue as a `spec.md` section**: a queue
-is monotonic, so attached it is a permanent growth term; it lives at `.agent/deferred.md` and
-`spec.md` `Deferred` keeps the pointer plus whatever blocks the current spine.
+is monotonic, so attached it is a permanent growth term; it lives at `.agent/deferred.md`, which
+every queue write names by path, while bare `Deferred` = the `spec.md` section, carrying the queue
+pointer plus the unfinished units = the current spine. **The dispatch class map as project scope**:
+trigger, shape→role map and the six solo licences live in global `CLAUDE.md` `Subagents` b1, so
+`CLAUDE.md` and `.claude/rules/delegation.md` point at it and never restate it.
 `.serena/project.yml` `ignored_paths` and the `read-guard.sh` volume budget: both mechanisms are
 deregistered toolchain-wide.
 
