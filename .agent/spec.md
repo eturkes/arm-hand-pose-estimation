@@ -38,7 +38,9 @@ hospital SCI database.
 ## Decisions
 
 - **Repo scope = `videos/3-cam/`** — retired data + siblings → `.claude/rules/data-boundary.md`.
-- **`src/` + `tests/` + `analysis/` + six publishers = production spine**, gates binding.
+- **`src/` + `tests/` + `analysis/` + six publishers = production spine**, gates + verification
+  integrity binding; `prototype/` sits outside under PROTOTYPE law, `testpaths = ["tests"]`
+  keeping it out of collection.
 - **Claim boundary.** Retrospective 3D feasibility may be claimed from internal geometric + QC
   evidence alone; clinical validity, absolute metric accuracy and marker-based equivalence may not.
   Crossing it needs the prospective calibrated capture in `docs/prospective_capture.md`.

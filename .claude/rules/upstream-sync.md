@@ -19,7 +19,11 @@ it carries no figure here (Clause 3). `git log --grep upstream` lists priors. A 
 retires a constant also falsifies claims elsewhere → sweep `.agent/` and `.claude/rules/` for the
 retired term and correct what depended on it, since a stale sizing datum reaches planning as a
 budget. Both dot-dirs must be named or `--hidden` passed, or the sweep reads clean over unread
-files (→ `evidence.md`).
+files (→ `evidence.md`). **A purely additive clause is not a no-op either**: contradicting nothing, it
+still binds mechanisms this repo already runs its own way, so resolve every new clause against the
+local mechanism before recording a refresh clean — `CLAUDE.md`'s `Verification integrity` bullet
+binds a red-witness rule whose local form is a targeted run, because the decisive gate has to close
+green (→ `gates.md`).
 
 - **Clause 1 — acceptance contracts live at `.agent/archive/contract-m<m>u<u>.md`**, never at
   `.agent/contracts/`. Upstream's requirements — committed, outside the attached set, read on
